@@ -1,136 +1,91 @@
-import localforage from 'localforage';
-import type { Module, GameSave } from '../types/module';
+import { electronAPI } from '../api/electron';
 
 /**
- * Storage Manager
- * IndexedDB wrapper for modules, saves, and images.
- * Pure frontend — all data stored in browser.
+ * Storage Manager (Electron Desktop App version)
+ * Uses backend SQLite via IPC instead of IndexedDB.
  */
 
-const MODULES_KEY = 'aigm_modules';
-const SAVES_KEY = 'aigm_saves';
-const IMAGES_KEY = 'aigm_images';
-
-const imageStore = localforage.createInstance({
-  name: 'AI-GM',
-  storeName: 'images',
-});
-
-const saveStore = localforage.createInstance({
-  name: 'AI-GM',
-  storeName: 'saves',
-});
-
-const moduleStore = localforage.createInstance({
-  name: 'AI-GM',
-  storeName: 'modules',
-});
-
 export class StorageManager {
-  // ===== Modules =====
-  static async saveModule(module: Module): Promise<void> {
-    await moduleStore.setItem(module.id, module);
-    const list = await this.getModuleList();
-    if (!list.includes(module.id)) {
-      await moduleStore.setItem(MODULES_KEY, [...list, module.id]);
-    }
+  private _keys = {
+    modules: 'aigm_modules',
+    saves: 'aigm_saves',
+    images: 'aigm_images',
+  };
+
+  async getModules() {
+    return electronAPI.moduleList();
   }
 
-  static async getModule(moduleId: string): Promise<Module | null> {
-    return moduleStore.getItem<Module>(moduleId);
+  async saveModule(moduleData: any) {
+    return electronAPI.moduleSave(moduleData);
   }
 
-  static async getModuleList(): Promise<string[]> {
-    return (await moduleStore.getItem<string[]>(MODULES_KEY)) || [];
+  async getModule(id: string) {
+    return electronAPI.moduleGet(id);
   }
 
-  static async deleteModule(moduleId: string): Promise<void> {
-    await moduleStore.removeItem(moduleId);
-    const list = await this.getModuleList();
-    await moduleStore.setItem(MODULES_KEY, list.filter((id) => id !== moduleId));
+  async deleteModule(id: string) {
+    return electronAPI.moduleDelete(id);
   }
 
-  // ===== Saves =====
-  static async saveGame(save: GameSave): Promise<void> {
-    await saveStore.setItem(save.id, save);
-    const list = await this.getSaveList();
-    if (!list.includes(save.id)) {
-      await saveStore.setItem(SAVES_KEY, [...list, save.id]);
-    }
+  async importModule() {
+    return electronAPI.moduleImport();
   }
 
-  static async getSave(saveId: string): Promise<GameSave | null> {
-    return saveStore.getItem<GameSave>(saveId);
+  async exportModule(id: string) {
+    return electronAPI.moduleExport(id);
   }
 
-  static async getSaveList(): Promise<string[]> {
-    return (await saveStore.getItem<string[]>(SAVES_KEY)) || [];
+  // Saves
+  async getSaves(moduleId: string) {
+    return electronAPI.saveList(moduleId);
   }
 
-  static async deleteSave(saveId: string): Promise<void> {
-    await saveStore.removeItem(saveId);
-    const list = await this.getSaveList();
-    await saveStore.setItem(SAVES_KEY, list.filter((id) => id !== saveId));
+  async saveCampaign(data: { id?: string; module_id: string; slot_number?: number; name?: string; campaign: any }) {
+    return electronAPI.saveWrite(data);
   }
 
-  // ===== Images =====
-  static async saveImage(key: string, imageData: string): Promise<void> {
-    await imageStore.setItem(key, imageData);
+  async getSave(id: string) {
+    return electronAPI.saveRead(id);
   }
 
-  static async getImage(key: string): Promise<string | null> {
-    return imageStore.getItem<string>(key);
+  async deleteSave(id: string) {
+    return electronAPI.saveDelete(id);
   }
 
-  static async deleteImage(key: string): Promise<void> {
-    await imageStore.removeItem(key);
+  // Images
+  async searchImages(query: string) {
+    return electronAPI.imageSearch(query);
   }
 
-  static async listImages(): Promise<string[]> {
-    const keys: string[] = [];
-    await imageStore.iterate((_, key) => {
-      keys.push(key);
-    });
-    return keys;
+  async downloadImage(url: string, type: string = 'bg') {
+    return electronAPI.imageDownload({ url, type });
   }
 
-  // ===== Export/Import All Data =====
-  static async exportAll(): Promise<{
-    modules: Module[];
-    saves: GameSave[];
-  }> {
-    const moduleIds = await this.getModuleList();
-    const modules = await Promise.all(
-      moduleIds.map((id) => this.getModule(id))
-    );
-
-    const saveIds = await this.getSaveList();
-    const saves = await Promise.all(
-      saveIds.map((id) => this.getSave(id))
-    );
-
-    return {
-      modules: modules.filter(Boolean) as Module[],
-      saves: saves.filter(Boolean) as GameSave[],
-    };
+  async generateImage(prompt: string, provider: string = 'dalle') {
+    return electronAPI.imageGenerate({ prompt, provider });
   }
 
-  static async clearAll(): Promise<void> {
-    await moduleStore.clear();
-    await saveStore.clear();
-    await imageStore.clear();
+  async getImages(type: string) {
+    return electronAPI.imageList(type);
   }
 
-  static async getStorageUsage(): Promise<{
-    modules: number;
-    saves: number;
-    images: number;
-    total: number;
-  }> {
-    const modules = await moduleStore.length();
-    const saves = await saveStore.length();
-    const images = await imageStore.length();
-    return { modules, saves, images, total: modules + saves + images };
+  // Settings
+  async getSetting(key: string) {
+    const result = await electronAPI.settingsGet(key);
+    return result?.value ?? null;
+  }
+
+  async setSetting(key: string, value: any) {
+    return electronAPI.settingsSet(key, value);
+  }
+
+  async getAllSettings() {
+    return electronAPI.settingsGetAll();
+  }
+
+  async getUserDataPath() {
+    return electronAPI.userDataPath();
   }
 }
 

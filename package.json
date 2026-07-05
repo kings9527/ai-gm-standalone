@@ -1,0 +1,53 @@
+{
+  "name": "ai-gm-standalone",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:frontend": "cd frontend && vite",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:electron": "wait-on http://localhost:5173 http://localhost:9742 && electron .",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && vite build",
+    "build:backend": "cd backend && npm install",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir",
+    "postinstall": "cd backend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.aigm.standalone",
+    "productName": "AI-GM Standalone",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "frontend/dist/**/*",
+      "backend/src/**/*",
+      "backend/package.json",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"]
+    }
+  },
+  "main": "electron/main.js"
+}

@@ -1,270 +1,251 @@
-# AI-GM Standalone Architecture
+# AI-GM Standalone — Electron Desktop App
 
-## Project: AI-Powered Visual Novel RPG Engine
-
-A visual novel engine where players upload a story, an AI asks follow-up questions, and generates a complete TRPG module. The game plays like a visual novel with dynamic backgrounds, character sprites, and dialogue.
-
----
-
-## Tech Stack
-
-| Layer | Tech | Reason |
-|-------|------|--------|
-| Frontend | React 18 + Vite + TypeScript | Fast dev, component-based |
-| State | Zustand | Lightweight, no boilerplate |
-| Animation | framer-motion | Sprite transitions, dialogue effects |
-| Styling | Tailwind CSS | Dynamic theme application |
-| Storage | IndexedDB (localforage) | Pure frontend, offline capable |
-| LLM | Direct API (OpenAI/Claude/Ollama) | Player provides key |
-| Image | Unsplash/Pexels search (default) | Free, no API key needed |
-
----
-
-## Architecture (Pure Frontend)
+## 架构概览
 
 ```
 ai-gm-standalone/
-├── frontend/
+├── electron/               # Electron 主进程
+│   ├── main.js             # 主进程入口
+│   ├── preload.js          # 预加载脚本（安全 IPC 桥接）
+│   └── ipc-handlers.js     # IPC 处理器（LLM/文件/数据库）
+├── backend/                # Node.js 后端 API
 │   ├── src/
-│   │   ├── engine/                 ← Visual Novel Engine Core
-│   │   │   ├── dice.ts             ← Dice roller (from old project)
-│   │   │   ├── rule-engine.ts      ← TRPG rules (from old project)
-│   │   │   ├── state-machine.ts    ← Game state + scene transitions (from old project, ST decoupled)
-│   │   │   └── npc-decision.ts     ← NPC AI behavior (from old project)
-│   │   ├── components/engine/      ← Visual Novel UI Layers
-│   │   │   ├── VisualNovelEngine.tsx    ← Main orchestrator (BG → Sprite → Dialogue → Effect)
-│   │   │   ├── BackgroundLayer.tsx      ← Scene backgrounds + transitions
-│   │   │   ├── SpriteLayer.tsx          ← Character sprites (position, expression, fade)
-│   │   │   ├── DialogueLayer.tsx        ← Dialogue box + typewriter + choices
-│   │   │   └── EffectLayer.tsx          ← Screen effects (shake, grain, vignette)
-│   │   ├── components/generator/   ← Module Generator
-│   │   │   ├── Uploader.tsx        ← Story upload (text/markdown/image)
-│   │   │   ├── QuestionFlow.tsx    ← AI follow-up questions (visual novel style)
-│   │   │   └── Preview.tsx         ← Module preview (scene tree + character cards)
-│   │   ├── llm/                    ← LLM Client (from old project)
-│   │   │   ├── client.ts           ← Unified LLM client (OpenAI/Claude/Ollama)
-│   │   │   ├── prompts.ts          ← Prompt builder (from old project)
-│   │   │   └── style-analyzer.ts   ← Text → style.json (AI analysis)
-│   │   ├── utils/                  ← Utilities (from old project)
-│   │   │   ├── sanitize.ts         ← XSS prevention + input validation
-│   │   │   └── storage.ts          ← IndexedDB wrapper (modules/saves/images)
-│   │   ├── modshare/               ← Module Import/Export
-│   │   │   ├── exporter.ts         ← Export module → JSON file
-│   │   │   └── importer.ts         ← Import JSON → playable module
-│   │   ├── stores/                 ← Zustand Stores
-│   │   │   ├── gameStore.ts        ← Game state (current scene, player, campaign)
-│   │   │   ├── moduleStore.ts      ← Module data (scenes, NPCs, items)
-│   │   │   └── settingsStore.ts    ← AI config, image preferences, theme
-│   │   ├── types/                  ← TypeScript Types
-│   │   │   ├── module.ts           ← Module JSON schema types
-│   │   │   ├── engine.ts           ← Visual novel engine types
-│   │   │   └── llm.ts              ← LLM client types
-│   │   ├── App.tsx                 ← Main app (router: home/generator/play/settings)
-│   │   └── main.tsx                ← Entry point
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── tailwind.config.js
+│   │   ├── index.js        # Express 服务器
+│   │   ├── routes/
+│   │   │   ├── llm.js      # LLM 代理（OpenAI/Claude/Ollama）
+│   │   │   ├── modules.js  # 模组 CRUD + 导入/导出
+│   │   │   ├── saves.js    # 存档管理
+│   │   │   ├── images.js   # 图片存储/搜索/生成
+│   │   │   └── settings.js # 配置管理
+│   │   ├── db/
+│   │   │   └── sqlite.js   # SQLite 数据库封装
+│   │   ├── services/
+│   │   │   ├── llm-proxy.js     # LLM 请求代理 + 重试
+│   │   │   ├── image-service.js # 图片搜索(Unsplash) + 生成(DALL-E/SD)
+│   │   │   └── module-parser.js # 模组 JSON 校验/解析
+│   │   └── utils/
+│   │       └── sanitize.js # 输入消毒
+│   └── package.json
+├── frontend/               # React 渲染进程
+│   └── src/
+│       ├── api/            # 后端 API 客户端（fetch wrapper）
+│       ├── engine/         # 游戏引擎（复用旧项目）
+│       ├── llm/            # LLM 客户端（调用后端代理）
+│       ├── stores/         # Zustand 状态管理
+│       ├── components/     # UI 组件
+│       └── types/          # TypeScript 类型
 └── docs/
-    └── architecture.md               ← This file
+    └── architecture.md
 ```
 
----
+## 技术栈
 
-## Module JSON Format
+| 层级 | 技术 |
+|------|------|
+| 桌面壳 | Electron 33+ |
+| 前端 | React 18 + Vite + TypeScript + Tailwind CSS |
+| 状态 | Zustand |
+| 动画 | framer-motion |
+| 图标 | lucide-react |
+| 后端 | Node.js + Express |
+| 数据库 | SQLite (better-sqlite3) |
+| 图片 | Unsplash API / 本地存储 / 可选 DALL-E |
+| LLM | OpenAI / Claude / Ollama（后端代理，Key 不暴露给前端） |
 
-```typescript
-interface Module {
-  id: string;
-  name: string;
-  system: 'coc' | 'dnd5e' | 'custom';
-  version: string;
-  style: StyleConfig;           // ← AI-generated from text analysis
-  start_scene: string;
-  scenes: Record<string, Scene>;
-  npcs: Record<string, NPC>;
-  items: Record<string, Item>;
-  events: Record<string, Event>;
-}
-
-interface StyleConfig {
-  palette: {
-    bg: string;          // Background gradient/color
-    accent: string;      // UI accent
-    text: string;        // Text color
-    dialogue_bg: string; // Dialogue box background
-  };
-  atmosphere: string;     // 'horror', 'mystery', 'adventure', 'slice_of_life'
-  era: string;           // 'victorian', 'modern', 'fantasy', 'sci-fi'
-  art_style: string;     // 'dark_realistic', 'anime', 'pixel', 'watercolor'
-  lighting: string;      // 'oil_lamp', 'neon', 'daylight', 'moonlight'
-  mood_keywords: string[];
-  font_family: string;
-  effects: string[];     // 'grain', 'vignette', 'chromatic_aberration'
-  image_strategy: {
-    background: 'search' | 'generate' | 'upload';
-    sprites: 'search' | 'generate' | 'upload';
-    search_provider: 'unsplash' | 'pexels';
-  };
-}
-
-interface Scene {
-  id: string;
-  title: string;
-  description: string;
-  bg: string;            // Background image URL or CSS gradient
-  bg_music?: string;     // Optional music URL
-  sprites: SpritePlacement[];
-  dialogue: DialogueEntry;
-  choices: Choice[];
-  exits: Exit[];
-  interactables: string[];
-  npcs: string[];
-  combat?: CombatConfig;
-  ending?: EndingConfig;
-  events?: string[];     // Event IDs to trigger
-}
-
-interface SpritePlacement {
-  char_id: string;
-  position: 'left' | 'center' | 'right';
-  expression: string;    // 'normal', 'smile', 'serious', 'angry', 'scared'
-  enter_animation: 'fade' | 'slide_left' | 'slide_right' | 'none';
-}
-
-interface DialogueEntry {
-  speaker: string | null;  // null = narrator
-  text: string;
-  typewriter: boolean;     // true = character-by-character
-  voice?: string;          // Optional TTS voice
-}
-
-interface Choice {
-  id: string;
-  text: string;
-  condition?: Condition;   // Show only if condition met
-  action: 'next' | 'scene' | 'dice_check' | 'combat' | 'custom';
-  target?: string;         // scene_id or custom action data
-  dice_check?: { skill: string; target: number };
-}
-
-interface Exit {
-  target: string;          // scene_id
-  label: string;
-  description?: string;
-  condition?: Condition;
-}
-
-interface Condition {
-  [key: string]: number | boolean | string | [number, number];
-}
-```
-
----
-
-## Game Flow
+## Electron 通信模型
 
 ```
-Player opens website
-    │
-    ├─→ [Home] Upload story / Import module / Continue saved game
-    │
-    ├─→ [Generator] Upload → AI text analysis → AI questions (5-10 rounds)
-    │                    → Generate module.json → Preview → Play
-    │
-    └─→ [Play] Visual Novel Engine renders:
-         - BackgroundLayer: scene.bg (search/generate/upload)
-         - SpriteLayer: character sprites (position + expression + enter animation)
-         - DialogueLayer: speaker name + typewriter text + choice buttons
-         - EffectLayer: transitions + screen effects
+┌─────────────────┐     IPC      ┌─────────────────┐     HTTP     ┌─────────────────┐
+│  Renderer       │◄────────────►│  Main Process   │◄────────────►│  Express API    │
+│  (React SPA)    │  (preload)   │  (electron/main)│  (localhost)  │  (backend/src)  │
+└─────────────────┘              └─────────────────┘               └─────────────────┘
+       │                                │                                │
+       │                                ▼                                │
+       │                         ┌──────────────┐                       │
+       │                         │  SQLite DB   │                       │
+       │                         │  ~/AI-GM/    │                       │
+       │                         └──────────────┘                       │
+       │                                                                │
+       └────────────────────────────────────────────────────────────────┘
+                                LLM API (OpenAI/Claude/Ollama)
 ```
 
----
+### IPC Channels
 
-## Image Strategy (Per Player Preference)
+| Channel | 方向 | 用途 |
+|---------|------|------|
+| `aigm:llm:chat` | R→M→R | LLM 对话（后端代理） |
+| `aigm:llm:stream` | R→M→R | LLM 流式响应 |
+| `aigm:module:list` | R→M→R | 获取模组列表 |
+| `aigm:module:save` | R→M→R | 保存模组 |
+| `aigm:module:load` | R→M→R | 读取模组 |
+| `aigm:module:import` | R→M→R | 导入模组文件 |
+| `aigm:module:export` | R→M→R | 导出模组文件 |
+| `aigm:save:list` | R→M→R | 存档列表 |
+| `aigm:save:write` | R→M→R | 写入存档 |
+| `aigm:save:read` | R→M→R | 读取存档 |
+| `aigm:image:search` | R→M→R | 图片搜索 |
+| `aigm:image:download` | R→M→R | 下载图片到本地 |
+| `aigm:image:generate` | R→M→R | AI 生成图片 |
+| `aigm:settings:get` | R→M→R | 读取配置 |
+| `aigm:settings:set` | R→M→R | 写入配置 |
+| `aigm:path:userData` | R→M→R | 获取用户数据目录 |
 
-| Strategy | Backend | Cost | Quality |
-|----------|---------|------|---------|
-| **AI Search (default)** | Unsplash/Pexels API | Free | Generic but good |
-| **AI Generate** | OpenAI DALL-E / SD | $0.02-0.04/image | Custom, perfect fit |
-| **Player Upload** | None (IndexedDB) | Free | Best for custom characters |
+## 数据存储
 
-AI analyzes text → generates keywords → searches/downloads → displays.
-Player can override any image by uploading their own.
+### SQLite Schema
 
----
+```sql
+-- 模组表
+CREATE TABLE modules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  author TEXT,
+  version TEXT,
+  system TEXT DEFAULT 'coc',
+  description TEXT,
+  content_json TEXT NOT NULL,  -- 完整模组 JSON
+  style_json TEXT,             -- 风格配置
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-## LLM Integration
+-- 存档表
+CREATE TABLE saves (
+  id TEXT PRIMARY KEY,
+  module_id TEXT NOT NULL,
+  slot_number INTEGER,
+  name TEXT,
+  campaign_json TEXT NOT NULL, -- Campaign 状态 JSON
+  screenshot BLOB,             -- 存档截图（可选）
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 配置表
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
+-- 图片缓存表
+CREATE TABLE images (
+  id TEXT PRIMARY KEY,
+  type TEXT, -- 'bg', 'sprite', 'portrait'
+  source TEXT, -- 'unsplash', 'generated', 'uploaded'
+  url TEXT,
+  local_path TEXT,
+  prompt TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 文件系统布局
 
 ```
-Player input (text upload)
-    │
-    ▼
-[AI: Text Analysis] → style.json (atmosphere, era, palette, art_style)
-    │
-    ▼
-[AI: Question Flow] → 5-10 rounds of follow-up questions
-    │                    (visual novel style: BG + sprite + dialogue box)
-    ▼
-[AI: Module Generation] → module.json (scenes, NPCs, choices, exits)
-    │
-    ▼
-[AI: Image Keywords] → background search prompts + sprite search prompts
-    │
-    ▼
-[Visual Novel Engine] → renders module.json
+~/AI-GM/                          # 用户数据目录
+├── modules/                      # 模组文件
+│   ├── module-id-1/
+│   │   ├── module.json
+│   │   └── style.json
+│   └── ...
+├── saves/                        # 存档
+│   ├── save-id-1.json
+│   └── ...
+├── images/                       # 图片缓存
+│   ├── bg/
+│   ├── sprites/
+│   └── portraits/
+└── ai-gm.db                      # SQLite 数据库
 ```
 
-LLM Providers: OpenAI (GPT-4o-mini default), Claude, Ollama (local, free).
-Player configures API key in Settings. No backend required.
+## LLM 代理安全模型
 
----
+```
+前端 ──IPC──► 主进程 ──HTTP──► Express ──fetch──► OpenAI/Claude/Ollama
+     │            │              │
+     │            │              └── API Key 存储在 SQLite settings 表
+     │            │                  （加密或系统 keychain）
+     │            └── 前端无法直接访问 Key
+     └── 仅通过预定义 IPC 通道通信
+```
 
-## 10-Day Development Timeline (7/6 → 7/16)
+## 开发流程
 
-| Day | Date | Focus | Deliverable |
-|-----|------|-------|-------------|
-| 1 | 7/6 | Architecture + Engine Migration | Skeleton + 4 engine files ported |
-| 2 | 7/7 | Visual Novel Layers | BG + Sprite + Dialogue + Effect layers working |
-| 3 | 7/8 | State Machine Integration | Scene transitions, choices, exits working |
-| 4 | 7/9 | Module Generator (Upload + AI Analysis) | Upload text → AI analyzes → style.json |
-| 5 | 7/10 | AI Question Flow | Visual novel style Q&A → module.json preview |
-| 6 | 7/11 | Image System | Search + generate + upload all working |
-| 7 | 7/12 | Module Import/Export + Storage | JSON export/import, IndexedDB saves |
-| 8 | 7/13 | Combat Plugin (optional) | Battle UI overlay |
-| 9 | 7/14 | Polish + Animations | Smooth transitions, effects, typewriter polish |
-| 10 | 7/15 | Testing + Bug Fixes | Full playthrough test |
-| 11 | 7/16 | Buffer/Release | Final fixes, GitHub release |
+### Day 1 (7/6) — 架构重写 + Electron 骨架
+- [x] 确认 Electron 架构
+- [ ] Electron 主进程 + 预加载脚本
+- [ ] Express 后端骨架（路由注册）
+- [ ] SQLite 数据库初始化
+- [ ] IPC 通道定义
 
----
+### Day 2 (7/7) — 后端核心 + 前端接入
+- [ ] LLM 代理路由（/llm/chat, /llm/stream）
+- [ ] 模组 CRUD 路由
+- [ ] 存档管理路由
+- [ ] 前端 API 客户端（通过 IPC）
+- [ ] 引擎复用测试
 
-## Reused from Old Project (sillytavern-ai-gm/plugin)
+### Day 3 (7/8) — 视觉小说引擎
+- [ ] BackgroundLayer（本地图片加载）
+- [ ] SpriteLayer（本地立绘）
+- [ ] DialogueLayer（打字机 + 选项）
+- [ ] EffectLayer
+- [ ] VisualNovelEngine 编排器
 
-| File | Lines | Migration Effort | New Location |
-|------|-------|------------------|--------------|
-| `engine/dice.js` | ~150 | Direct copy (change import/export) | `engine/dice.ts` |
-| `engine/rule-engine.js` | ~200 | Direct copy | `engine/rule-engine.ts` |
-| `engine/state-machine.js` | ~600 | Remove ST bridge, keep core logic | `engine/state-machine.ts` |
-| `engine/npc-decision.js` | ~500 | Direct copy (already decoupled) | `engine/npc-decision.ts` |
-| `utils/llm-client.js` | ~450 | Remove ST proxy, keep OpenAI/Claude/Ollama | `llm/client.ts` |
-| `utils/prompt-builder.js` | ~150 | Direct copy | `llm/prompts.ts` |
-| `utils/sanitize.js` | ~100 | Direct copy | `utils/sanitize.ts` |
-| **Total** | **~2,150** | **~1 day** | **7 files** |
+### Day 4 (7/9) — 模组生成器
+- [ ] 上传组件（文件/粘贴）
+- [ ] AI 文本分析 → 模组 JSON
+- [ ] 问题流追问
 
-New code to write: ~3,000 lines (Visual Novel UI + Generator + Storage + Types + App).
+### Day 5 (7/10) — 风格分析 + 图片
+- [ ] StyleAnalyzer 接入 LLM 代理
+- [ ] 动态 CSS 主题
+- [ ] Unsplash 搜索 + 本地缓存
+- [ ] AI 图片生成（DALL-E/SD）
 
----
+### Day 6 (7/11) — 模组导入/导出
+- [ ] JSON 导出/导入
+- [ ] URL Hash 分享
+- [ ] 剪贴板分享
 
-## Key Decisions
+### Day 7 (7/12) — 存档系统
+- [ ] 存档槽位 UI
+- [ ] 存档/读档
+- [ ] 存档截图
 
-1. **Pure Frontend**: No backend, no Docker, no PostgreSQL. Everything in browser.
-2. **AI Search Default**: Unsplash API is free, no key needed, works immediately.
-3. **Player Upload**: Any image can be replaced by player upload (IndexedDB storage).
-4. **Style from Text**: AI analyzes uploaded story to determine visual style automatically.
-5. **Module JSON**: Portable format, can be shared as JSON file or URL hash.
-6. **Combat as Plugin**: Not in core engine. Optional overlay for battle scenes.
+### Day 8 (7/13) — 设置 + 配置
+- [ ] LLM Key 配置（安全存储）
+- [ ] 主题切换
+- [ ] 字体/速度设置
 
----
+### Day 9 (7/14) — 战斗插件
+- [ ] 战斗状态机
+- [ ] 回合制 UI
+- [ ] 伤害计算
 
-*Last updated: 2026-07-06*
+### Day 10 (7/15) — Polish
+- [ ] 动画优化
+- [ ] 错误处理
+- [ ] 性能优化
+
+### Day 11-14 (7/16-7/19) — 缓冲
+- [ ] Bug 修复
+- [ ] 测试
+- [ ] 打包分发
+
+## 打包分发
+
+```bash
+# 开发
+npm run dev          # Vite dev server + Electron
+
+# 构建
+npm run build        # 前端 build + 后端 build
+npm run dist         # Electron Builder 打包
+
+# 输出
+dist/
+├── AI-GM-Standalone-1.0.0.AppImage    # Linux
+├── AI-GM-Standalone-1.0.0.exe         # Windows
+└── AI-GM-Standalone-1.0.0.dmg         # macOS
+```
