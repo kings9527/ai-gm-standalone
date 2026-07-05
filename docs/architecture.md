@@ -1,209 +1,270 @@
 # AI-GM Standalone Architecture
 
-## Overview
-AI-GM standalone — a browser-based RPG engine powered by LLM. Built for Cthulhu TRPG and extensible to other systems.
+## Project: AI-Powered Visual Novel RPG Engine
 
-**Split from SillyTavern plugin**: engine logic preserved, UI rewritten, storage upgraded to PostgreSQL.
+A visual novel engine where players upload a story, an AI asks follow-up questions, and generates a complete TRPG module. The game plays like a visual novel with dynamic backgrounds, character sprites, and dialogue.
+
+---
 
 ## Tech Stack
 
 | Layer | Tech | Reason |
 |-------|------|--------|
-| Frontend | React 18 + Tailwind CSS + Zustand | Component-rich UI, fast styling, lightweight state |
-| Backend | Node.js + Express | Engine code migrated from plugin, ESM modules |
-| Database | PostgreSQL + pgvector | JSONB for flexible character cards, pgvector for context retrieval |
-| LLM | Direct provider (OpenAI/Claude/Ollama) | Independence first; ST bridge as optional adapter |
-| Dev | Docker Compose + Vite HMR | One-command start, fast frontend dev |
+| Frontend | React 18 + Vite + TypeScript | Fast dev, component-based |
+| State | Zustand | Lightweight, no boilerplate |
+| Animation | framer-motion | Sprite transitions, dialogue effects |
+| Styling | Tailwind CSS | Dynamic theme application |
+| Storage | IndexedDB (localforage) | Pure frontend, offline capable |
+| LLM | Direct API (OpenAI/Claude/Ollama) | Player provides key |
+| Image | Unsplash/Pexels search (default) | Free, no API key needed |
 
-## Project Structure
+---
+
+## Architecture (Pure Frontend)
 
 ```
 ai-gm-standalone/
-├── docker-compose.yml          # PostgreSQL + backend + frontend
-├── .env.example                # Environment variables template
-├── docs/
-│   ├── architecture.md         # This file
-│   ├── user-manual.md          # Player guide (TODO)
-│   └── module-format.md        # Module/campaign schema (TODO)
-├── backend/
-│   ├── package.json
-│   ├── src/
-│   │   ├── index.js            # Express server entry
-│   │   ├── config.js           # Environment + defaults
-│   │   ├── routes/             # API routes
-│   │   │   ├── health.js
-│   │   │   ├── campaigns.js
-│   │   │   ├── characters.js
-│   │   │   ├── dice.js
-│   │   │   ├── combat.js
-│   │   │   ├── state.js
-│   │   │   └── llm.js
-│   │   ├── engine/             # Migrated from plugin/engine/
-│   │   │   ├── dice.js
-│   │   │   ├── rule-engine.js
-│   │   │   ├── state-machine.js
-│   │   │   ├── combat-tracker.js
-│   │   │   ├── npc-decision.js
-│   │   │   └── module-parser.js
-│   │   ├── storage/            # PostgreSQL persistence
-│   │   │   ├── campaign-pg.js
-│   │   │   ├── character-pg.js
-│   │   │   └── chat-pg.js
-│   │   ├── models/             # Database schema + queries
-│   │   │   └── schema.sql
-│   │   ├── llm/                # Migrated from plugin/utils/llm-client.js
-│   │   │   ├── client.js
-│   │   │   ├── providers/
-│   │   │   │   ├── openai.js
-│   │   │   │   ├── claude.js
-│   │   │   │   ├── ollama.js
-│   │   │   │   └── st-bridge.js
-│   │   │   └── cache.js
-│   │   └── utils/              # Shared utilities
-│   │       ├── sanitize.js     # Migrated from plugin/utils/
-│   │       └── prompt-builder.js
-│   └── test/                   # Engine + API tests
 ├── frontend/
+│   ├── src/
+│   │   ├── engine/                 ← Visual Novel Engine Core
+│   │   │   ├── dice.ts             ← Dice roller (from old project)
+│   │   │   ├── rule-engine.ts      ← TRPG rules (from old project)
+│   │   │   ├── state-machine.ts    ← Game state + scene transitions (from old project, ST decoupled)
+│   │   │   └── npc-decision.ts     ← NPC AI behavior (from old project)
+│   │   ├── components/engine/      ← Visual Novel UI Layers
+│   │   │   ├── VisualNovelEngine.tsx    ← Main orchestrator (BG → Sprite → Dialogue → Effect)
+│   │   │   ├── BackgroundLayer.tsx      ← Scene backgrounds + transitions
+│   │   │   ├── SpriteLayer.tsx          ← Character sprites (position, expression, fade)
+│   │   │   ├── DialogueLayer.tsx        ← Dialogue box + typewriter + choices
+│   │   │   └── EffectLayer.tsx          ← Screen effects (shake, grain, vignette)
+│   │   ├── components/generator/   ← Module Generator
+│   │   │   ├── Uploader.tsx        ← Story upload (text/markdown/image)
+│   │   │   ├── QuestionFlow.tsx    ← AI follow-up questions (visual novel style)
+│   │   │   └── Preview.tsx         ← Module preview (scene tree + character cards)
+│   │   ├── llm/                    ← LLM Client (from old project)
+│   │   │   ├── client.ts           ← Unified LLM client (OpenAI/Claude/Ollama)
+│   │   │   ├── prompts.ts          ← Prompt builder (from old project)
+│   │   │   └── style-analyzer.ts   ← Text → style.json (AI analysis)
+│   │   ├── utils/                  ← Utilities (from old project)
+│   │   │   ├── sanitize.ts         ← XSS prevention + input validation
+│   │   │   └── storage.ts          ← IndexedDB wrapper (modules/saves/images)
+│   │   ├── modshare/               ← Module Import/Export
+│   │   │   ├── exporter.ts         ← Export module → JSON file
+│   │   │   └── importer.ts         ← Import JSON → playable module
+│   │   ├── stores/                 ← Zustand Stores
+│   │   │   ├── gameStore.ts        ← Game state (current scene, player, campaign)
+│   │   │   ├── moduleStore.ts      ← Module data (scenes, NPCs, items)
+│   │   │   └── settingsStore.ts    ← AI config, image preferences, theme
+│   │   ├── types/                  ← TypeScript Types
+│   │   │   ├── module.ts           ← Module JSON schema types
+│   │   │   ├── engine.ts           ← Visual novel engine types
+│   │   │   └── llm.ts              ← LLM client types
+│   │   ├── App.tsx                 ← Main app (router: home/generator/play/settings)
+│   │   └── main.tsx                ← Entry point
+│   ├── index.html
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   ├── src/
-│   │   ├── main.tsx            # React entry
-│   │   ├── App.tsx             # Router + layout
-│   │   ├── components/         # Game UI components
-│   │   │   ├── SceneRenderer.tsx
-│   │   │   ├── CombatPanel.tsx
-│   │   │   ├── NpcCard.tsx
-│   │   │   ├── DiceRoller.tsx
-│   │   │   ├── ChatLog.tsx
-│   │   │   ├── SaveSlot.tsx
-│   │   │   └── LlmConfig.tsx
-│   │   ├── stores/             # Zustand stores
-│   │   │   ├── gameStore.ts
-│   │   │   ├── combatStore.ts
-│   │   │   └── llmStore.ts
-│   │   ├── api/                # Backend API clients
-│   │   │   └── client.ts
-│   │   └── types/              # TypeScript interfaces
-│   │       └── index.ts
-│   └── public/
-│       └── index.html
-└── test/
-    └── e2e/                    # End-to-end tests (TODO)
+│   ├── tsconfig.json
+│   └── tailwind.config.js
+└── docs/
+    └── architecture.md               ← This file
 ```
-
-## Engine Migration Plan
-
-| Source (plugin) | Target (standalone) | Action |
-|-----------------|---------------------|--------|
-| `plugin/engine/dice.js` | `backend/src/engine/dice.js` | Copy + adjust ESM imports |
-| `plugin/engine/rule-engine.js` | `backend/src/engine/rule-engine.js` | Copy + adjust ESM imports |
-| `plugin/engine/state-machine.js` | `backend/src/engine/state-machine.js` | Copy + remove ST bridge coupling |
-| `plugin/engine/combat-tracker.js` | `backend/src/engine/combat-tracker.js` | Copy + adjust ESM imports |
-| `plugin/engine/npc-decision.js` | `backend/src/engine/npc-decision.js` | Copy + adjust LLM client import |
-| `plugin/engine/module-parser.js` | `backend/src/engine/module-parser.js` | Copy + adjust ESM imports |
-| `plugin/utils/llm-client.js` | `backend/src/llm/client.js` | Copy + split providers into files |
-| `plugin/utils/sanitize.js` | `backend/src/utils/sanitize.js` | Copy directly |
-| `plugin/utils/prompt-builder.js` | `backend/src/utils/prompt-builder.js` | Copy directly |
-
-**No business logic changes** — all engine tests preserved.
-
-## UI Rewrite Plan
-
-| Source (plugin) | Target (standalone) | Framework |
-|-----------------|---------------------|-----------|
-| `plugin/ui/panel.js` | `frontend/src/components/CombatPanel.tsx` + `SceneRenderer.tsx` | React + Tailwind |
-| `plugin/ui/game-controller.js` | `frontend/src/stores/gameStore.ts` + `api/client.ts` | Zustand + fetch |
-| `plugin/ui/npc-card.js` | `frontend/src/components/NpcCard.tsx` | React + framer-motion |
-| `plugin/ui/scene-renderer.js` | `frontend/src/components/SceneRenderer.tsx` | React + Tailwind gradients |
-| `plugin/index.js` (frontend) | `frontend/src/App.tsx` | React Router |
-| `plugin/index.js` (backend) | `backend/src/routes/*.js` | Express |
-
-## Database Schema (Phase 1)
-
-### Tables
-
-- `campaigns` — campaign ID, name, module_id, player_stats, current_scene, state, created_at, updated_at
-- `characters` — character ID, name, avatar_url, stats (JSONB), personality (JSONB), dialogue_style (JSONB)
-- `chats` — chat ID, campaign_id, character_id, role, content, type, created_at
-- `snapshots` — save slot, campaign_id, label, state (JSONB), created_at
-- `vectors` — document_id, embedding (vector), content, metadata (JSONB) — for context retrieval
-- `modules` — module_id, name, version, system, content (JSONB), created_at
-
-### Vector Retrieval
-
-Uses `pgvector` extension. Chunking strategy mirrors ST's approach: 512 tokens per chunk, 50 overlap.
-
-## API Routes
-
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/health` | GET | Server status |
-| `/campaigns` | POST/GET/PUT/DELETE | CRUD campaigns |
-| `/characters` | POST/GET/PUT/DELETE | CRUD character cards |
-| `/dice/roll` | POST | Roll dice via engine |
-| `/combat/init` | POST | Initialize combat |
-| `/combat/action` | POST | Combat action |
-| `/state/action` | POST | Process player action |
-| `/state/transition` | POST | Scene transition |
-| `/llm/config` | GET/POST | LLM configuration |
-| `/llm/test` | POST | Test LLM connectivity |
-| `/llm/chat` | POST | Direct LLM chat |
-| `/llm/complete` | POST | LLM completion |
-| `/save` | POST | Save snapshot |
-| `/save/list` | GET | List snapshots |
-| `/load` | POST | Load snapshot |
-
-## Environment Variables
-
-```
-NODE_ENV=development
-PORT=3000
-DATABASE_URL=postgresql://user:pass@localhost:5432/aigm
-LLM_PROVIDER=openai
-LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4o-mini
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_TEMPERATURE=0.7
-LLM_MAX_TOKENS=2048
-LLM_TIMEOUT=30000
-LLM_RETRIES=2
-ST_BRIDGE_URL=             # Optional: SillyTavern proxy URL
-```
-
-## Development Workflow
-
-```bash
-# 1. Start infrastructure
-cd ai-gm-standalone
-docker-compose up -d db
-
-# 2. Start backend (terminal 1)
-cd backend
-npm install
-npm run dev
-
-# 3. Start frontend (terminal 2)
-cd frontend
-npm install
-npm run dev
-
-# 4. Open browser
-open http://localhost:5173
-```
-
-## Milestones
-
-| Phase | Target | Date |
-|-------|--------|------|
-| Day 1 | Skeleton + engine migration + DB schema | 2026-07-06 |
-| Day 2 | Backend API + frontend React skeleton | 2026-07-07 |
-| Day 3 | Character system + LLM integration | 2026-07-08 |
-| Day 4 | Scene renderer + combat UI | 2026-07-09 |
-| Day 5 | Save/load + vector retrieval | 2026-07-10 |
-| Day 6 | Module parser + campaign creation | 2026-07-11 |
-| Day 7 | E2E test + documentation | 2026-07-12 |
-| Day 8 | Polish + Docker production build | 2026-07-13 |
 
 ---
-*Architecture v1.0 — 2026-07-06*
+
+## Module JSON Format
+
+```typescript
+interface Module {
+  id: string;
+  name: string;
+  system: 'coc' | 'dnd5e' | 'custom';
+  version: string;
+  style: StyleConfig;           // ← AI-generated from text analysis
+  start_scene: string;
+  scenes: Record<string, Scene>;
+  npcs: Record<string, NPC>;
+  items: Record<string, Item>;
+  events: Record<string, Event>;
+}
+
+interface StyleConfig {
+  palette: {
+    bg: string;          // Background gradient/color
+    accent: string;      // UI accent
+    text: string;        // Text color
+    dialogue_bg: string; // Dialogue box background
+  };
+  atmosphere: string;     // 'horror', 'mystery', 'adventure', 'slice_of_life'
+  era: string;           // 'victorian', 'modern', 'fantasy', 'sci-fi'
+  art_style: string;     // 'dark_realistic', 'anime', 'pixel', 'watercolor'
+  lighting: string;      // 'oil_lamp', 'neon', 'daylight', 'moonlight'
+  mood_keywords: string[];
+  font_family: string;
+  effects: string[];     // 'grain', 'vignette', 'chromatic_aberration'
+  image_strategy: {
+    background: 'search' | 'generate' | 'upload';
+    sprites: 'search' | 'generate' | 'upload';
+    search_provider: 'unsplash' | 'pexels';
+  };
+}
+
+interface Scene {
+  id: string;
+  title: string;
+  description: string;
+  bg: string;            // Background image URL or CSS gradient
+  bg_music?: string;     // Optional music URL
+  sprites: SpritePlacement[];
+  dialogue: DialogueEntry;
+  choices: Choice[];
+  exits: Exit[];
+  interactables: string[];
+  npcs: string[];
+  combat?: CombatConfig;
+  ending?: EndingConfig;
+  events?: string[];     // Event IDs to trigger
+}
+
+interface SpritePlacement {
+  char_id: string;
+  position: 'left' | 'center' | 'right';
+  expression: string;    // 'normal', 'smile', 'serious', 'angry', 'scared'
+  enter_animation: 'fade' | 'slide_left' | 'slide_right' | 'none';
+}
+
+interface DialogueEntry {
+  speaker: string | null;  // null = narrator
+  text: string;
+  typewriter: boolean;     // true = character-by-character
+  voice?: string;          // Optional TTS voice
+}
+
+interface Choice {
+  id: string;
+  text: string;
+  condition?: Condition;   // Show only if condition met
+  action: 'next' | 'scene' | 'dice_check' | 'combat' | 'custom';
+  target?: string;         // scene_id or custom action data
+  dice_check?: { skill: string; target: number };
+}
+
+interface Exit {
+  target: string;          // scene_id
+  label: string;
+  description?: string;
+  condition?: Condition;
+}
+
+interface Condition {
+  [key: string]: number | boolean | string | [number, number];
+}
+```
+
+---
+
+## Game Flow
+
+```
+Player opens website
+    │
+    ├─→ [Home] Upload story / Import module / Continue saved game
+    │
+    ├─→ [Generator] Upload → AI text analysis → AI questions (5-10 rounds)
+    │                    → Generate module.json → Preview → Play
+    │
+    └─→ [Play] Visual Novel Engine renders:
+         - BackgroundLayer: scene.bg (search/generate/upload)
+         - SpriteLayer: character sprites (position + expression + enter animation)
+         - DialogueLayer: speaker name + typewriter text + choice buttons
+         - EffectLayer: transitions + screen effects
+```
+
+---
+
+## Image Strategy (Per Player Preference)
+
+| Strategy | Backend | Cost | Quality |
+|----------|---------|------|---------|
+| **AI Search (default)** | Unsplash/Pexels API | Free | Generic but good |
+| **AI Generate** | OpenAI DALL-E / SD | $0.02-0.04/image | Custom, perfect fit |
+| **Player Upload** | None (IndexedDB) | Free | Best for custom characters |
+
+AI analyzes text → generates keywords → searches/downloads → displays.
+Player can override any image by uploading their own.
+
+---
+
+## LLM Integration
+
+```
+Player input (text upload)
+    │
+    ▼
+[AI: Text Analysis] → style.json (atmosphere, era, palette, art_style)
+    │
+    ▼
+[AI: Question Flow] → 5-10 rounds of follow-up questions
+    │                    (visual novel style: BG + sprite + dialogue box)
+    ▼
+[AI: Module Generation] → module.json (scenes, NPCs, choices, exits)
+    │
+    ▼
+[AI: Image Keywords] → background search prompts + sprite search prompts
+    │
+    ▼
+[Visual Novel Engine] → renders module.json
+```
+
+LLM Providers: OpenAI (GPT-4o-mini default), Claude, Ollama (local, free).
+Player configures API key in Settings. No backend required.
+
+---
+
+## 10-Day Development Timeline (7/6 → 7/16)
+
+| Day | Date | Focus | Deliverable |
+|-----|------|-------|-------------|
+| 1 | 7/6 | Architecture + Engine Migration | Skeleton + 4 engine files ported |
+| 2 | 7/7 | Visual Novel Layers | BG + Sprite + Dialogue + Effect layers working |
+| 3 | 7/8 | State Machine Integration | Scene transitions, choices, exits working |
+| 4 | 7/9 | Module Generator (Upload + AI Analysis) | Upload text → AI analyzes → style.json |
+| 5 | 7/10 | AI Question Flow | Visual novel style Q&A → module.json preview |
+| 6 | 7/11 | Image System | Search + generate + upload all working |
+| 7 | 7/12 | Module Import/Export + Storage | JSON export/import, IndexedDB saves |
+| 8 | 7/13 | Combat Plugin (optional) | Battle UI overlay |
+| 9 | 7/14 | Polish + Animations | Smooth transitions, effects, typewriter polish |
+| 10 | 7/15 | Testing + Bug Fixes | Full playthrough test |
+| 11 | 7/16 | Buffer/Release | Final fixes, GitHub release |
+
+---
+
+## Reused from Old Project (sillytavern-ai-gm/plugin)
+
+| File | Lines | Migration Effort | New Location |
+|------|-------|------------------|--------------|
+| `engine/dice.js` | ~150 | Direct copy (change import/export) | `engine/dice.ts` |
+| `engine/rule-engine.js` | ~200 | Direct copy | `engine/rule-engine.ts` |
+| `engine/state-machine.js` | ~600 | Remove ST bridge, keep core logic | `engine/state-machine.ts` |
+| `engine/npc-decision.js` | ~500 | Direct copy (already decoupled) | `engine/npc-decision.ts` |
+| `utils/llm-client.js` | ~450 | Remove ST proxy, keep OpenAI/Claude/Ollama | `llm/client.ts` |
+| `utils/prompt-builder.js` | ~150 | Direct copy | `llm/prompts.ts` |
+| `utils/sanitize.js` | ~100 | Direct copy | `utils/sanitize.ts` |
+| **Total** | **~2,150** | **~1 day** | **7 files** |
+
+New code to write: ~3,000 lines (Visual Novel UI + Generator + Storage + Types + App).
+
+---
+
+## Key Decisions
+
+1. **Pure Frontend**: No backend, no Docker, no PostgreSQL. Everything in browser.
+2. **AI Search Default**: Unsplash API is free, no key needed, works immediately.
+3. **Player Upload**: Any image can be replaced by player upload (IndexedDB storage).
+4. **Style from Text**: AI analyzes uploaded story to determine visual style automatically.
+5. **Module JSON**: Portable format, can be shared as JSON file or URL hash.
+6. **Combat as Plugin**: Not in core engine. Optional overlay for battle scenes.
+
+---
+
+*Last updated: 2026-07-06*
