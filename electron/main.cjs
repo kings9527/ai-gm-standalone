@@ -16,7 +16,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -48,7 +48,7 @@ function startBackend() {
     : path.join(process.resourcesPath, 'backend/src/index.js');
 
   backendProcess = spawn('node', [backendPath], {
-    env: { ...process.env, PORT: String(BACKEND_PORT), NODE_ENV: isDev ? 'development' : 'production' },
+    env: { ...process.env, PORT: String(BACKEND_PORT), NODE_ENV: isDev ? 'development' : 'production', AIGM_USER_DATA: app.getPath('userData') },
     stdio: 'pipe',
   });
 
@@ -211,5 +211,10 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
+  if (backendProcess) backendProcess.kill();
+});
+
+// Ensure backend is killed even if Electron crashes
+process.on('exit', () => {
   if (backendProcess) backendProcess.kill();
 });

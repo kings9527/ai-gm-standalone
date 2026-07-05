@@ -49,5 +49,5 @@
       "target": ["AppImage", "deb"]
     }
   },
-  "main": "electron/main.js"
+  "main": "electron/main.cjs"
 }
