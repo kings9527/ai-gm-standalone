@@ -52,6 +52,11 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
+// 404 handler - return JSON for API routes
+app.use((req, res) => {
+  res.status(404).json({ error: `Cannot ${req.method} ${req.path}` });
+});
+
 app.listen(PORT, () => {
   console.log(`[AI-GM Backend] Running on port ${PORT}`);
   console.log(`[AI-GM Backend] User data: ${userDataDir}`);
