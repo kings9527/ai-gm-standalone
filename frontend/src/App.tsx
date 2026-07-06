@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import VisualNovelEngine from './components/engine/VisualNovelEngine';
+import GeneratorPage from './components/generator/GeneratorPage';
 import type { Module } from './types/module';
 
 /**
@@ -15,7 +16,7 @@ const App: React.FC = () => {
       <HashRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/generator" element={<GeneratorPage />} />
+          <Route path="/generator" element={<GeneratorPageRoute />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -53,12 +54,8 @@ const HomePage: React.FC = () => (
   </div>
 );
 
-// Generator Page (placeholder)
-const GeneratorPage: React.FC = () => (
-  <div className="w-full h-full flex items-center justify-center">
-    <p className="text-gray-400">模组生成器 — 明日开发</p>
-  </div>
-);
+// Generator Page - AI Module Generator
+const GeneratorPageRoute: React.FC = () => <GeneratorPage />;
 
 // Play Page - Visual Novel Engine Integration
 const PlayPage: React.FC = () => {
