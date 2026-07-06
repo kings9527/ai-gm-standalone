@@ -8,6 +8,7 @@ import llmRouter from './routes/llm.js';
 import modulesRouter from './routes/modules.js';
 import savesRouter from './routes/saves.js';
 import imagesRouter from './routes/images.js';
+import stylesRouter from './routes/styles.js';
 import settingsRouter from './routes/settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,6 +46,7 @@ app.use('/api/modules', modulesRouter);
 app.use('/api/saves', savesRouter);
 app.use('/api/images', imagesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/styles', stylesRouter);
 
 // Error handler
 app.use((err, _req, res, _next) => {

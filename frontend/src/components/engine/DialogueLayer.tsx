@@ -12,7 +12,7 @@ interface DialogueLayerProps {
 /**
  * DialogueLayer
  * Renders the dialogue box with typewriter effect and choice buttons.
- * Bottom-center, overlay on all layers.
+ * Uses CSS variables for dynamic theming (--agm-dialogue-bg, --agm-accent, --agm-text).
  */
 export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   dialogue,
@@ -24,6 +24,17 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
   const typewriterRef = useRef<number | null>(null);
+
+  // Read CSS variables for dynamic theming
+  const getCSSVar = (name: string, fallback: string) => {
+    if (typeof window === 'undefined') return fallback;
+    const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return val || fallback;
+  };
+
+  const accentColor = getCSSVar('--agm-accent', '#8b0000');
+  const textColor = getCSSVar('--agm-text', '#e2e8f0');
+  const dialogueBg = getCSSVar('--agm-dialogue-bg', 'rgba(10,10,10,0.9)');
 
   // Typewriter effect
   useEffect(() => {
@@ -85,33 +96,49 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
         onClick={handleClick}
       >
         <div
-          className="rounded-xl p-6 mx-4 backdrop-blur-sm border border-red-900/30"
+          className="rounded-xl p-6 mx-4 backdrop-blur-sm border transition-colors"
           style={{
-            background: 'rgba(10,10,10,0.9)',
-            boxShadow: '0 0 40px rgba(139,0,0,0.15)',
+            background: dialogueBg,
+            borderColor: `${accentColor}30`,
+            boxShadow: `0 0 40px ${accentColor}15`,
           }}
         >
           {/* Speaker Name */}
           {dialogue.speaker && (
             <div className="mb-2 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-700 animate-pulse" />
-              <span className="text-red-400 font-bold text-sm tracking-wider uppercase">
+              <div
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: accentColor }}
+              />
+              <span
+                className="font-bold text-sm tracking-wider uppercase"
+                style={{ color: accentColor }}
+              >
                 {dialogue.speaker}
               </span>
             </div>
           )}
 
           {/* Text */}
-          <div className="text-gray-100 text-lg leading-relaxed min-h-[3rem]">
+          <div
+            className="text-lg leading-relaxed min-h-[3rem]"
+            style={{ color: textColor }}
+          >
             {displayedText}
             {isTyping && (
-              <span className="inline-block w-2 h-5 ml-1 bg-red-500 animate-pulse align-middle" />
+              <span
+                className="inline-block w-2 h-5 ml-1 align-middle animate-pulse"
+                style={{ backgroundColor: accentColor }}
+              />
             )}
           </div>
 
           {/* Advance hint */}
           {!isTyping && choices.length === 0 && (
-            <div className="mt-3 text-right text-xs text-red-500/60 animate-bounce">
+            <div
+              className="mt-3 text-right text-xs animate-bounce"
+              style={{ color: `${accentColor}99` }}
+            >
               ▼ 点击继续
             </div>
           )}
@@ -132,17 +159,33 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
                   className={`w-full text-left px-5 py-3 rounded-lg border transition-all duration-200 ${
                     choice.disabled
                       ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/50'
-                      : 'border-red-800/40 bg-gray-900/80 hover:bg-red-950/40 hover:border-red-700/60 hover:translate-x-2'
+                      : 'hover:translate-x-2'
                   }`}
                   disabled={choice.disabled}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChoice(choice.id);
                   }}
+                  style={choice.disabled ? undefined : {
+                    borderColor: `${accentColor}40`,
+                    backgroundColor: 'rgba(10,10,10,0.8)',
+                  }}
                   whileHover={!choice.disabled ? { scale: 1.02 } : {}}
                   whileTap={!choice.disabled ? { scale: 0.98 } : {}}
+                  onMouseEnter={(e) => {
+                    if (!choice.disabled) {
+                      e.currentTarget.style.backgroundColor = `${accentColor}15`;
+                      e.currentTarget.style.borderColor = `${accentColor}60`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!choice.disabled) {
+                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.8)';
+                      e.currentTarget.style.borderColor = `${accentColor}40`;
+                    }
+                  }}
                 >
-                  <span className="text-gray-200">{choice.text}</span>
+                  <span style={{ color: textColor }}>{choice.text}</span>
                 </motion.button>
               ))}
             </motion.div>

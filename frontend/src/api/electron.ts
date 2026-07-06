@@ -28,6 +28,12 @@ declare global {
       imageGenerate: (body: any) => Promise<any>;
       imageList: (type: string) => Promise<any[]>;
 
+      styleList: () => Promise<any[]>;
+      styleGet: (id: string) => Promise<any>;
+      styleSave: (data: any) => Promise<any>;
+      styleUpdate: (id: string, data: any) => Promise<any>;
+      styleDelete: (id: string) => Promise<any>;
+
       settingsGet: (key: string) => Promise<any>;
       settingsSet: (key: string, value: any) => Promise<any>;
       settingsGetAll: () => Promise<Record<string, string>>;
@@ -142,6 +148,28 @@ export const electronAPI = {
   async imageList(type: string) {
     if (api) return api.imageList(type);
     return fallbackFetch(`/api/images?type=${encodeURIComponent(type)}`);
+  },
+
+  // Styles
+  async styleList() {
+    if (api) return api.styleList();
+    return fallbackFetch('/api/styles');
+  },
+  async styleGet(id: string) {
+    if (api) return api.styleGet(id);
+    return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`);
+  },
+  async styleSave(data: any) {
+    if (api) return api.styleSave(data);
+    return fallbackFetch('/api/styles', { method: 'POST', body: JSON.stringify(data) });
+  },
+  async styleUpdate(id: string, data: any) {
+    if (api) return api.styleUpdate(id, data);
+    return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async styleDelete(id: string) {
+    if (api) return api.styleDelete(id);
+    return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   // Settings

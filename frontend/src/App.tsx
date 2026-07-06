@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import VisualNovelEngine from './components/engine/VisualNovelEngine';
 import GeneratorPage from './components/generator/GeneratorPage';
+import { StyleAnalyzerPanel } from './components/style-analyzer';
 import type { Module } from './types/module';
 
 /**
@@ -17,6 +18,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/generator" element={<GeneratorPageRoute />} />
+          <Route path="/style-analyzer" element={<StyleAnalyzerPanel />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -32,6 +34,12 @@ const HomePage: React.FC = () => (
     <h1 className="text-4xl font-bold mb-2 text-red-500 tracking-wider">AI-GM</h1>
     <p className="text-gray-400 mb-8">AI 驱动的视觉小说 RPG 引擎</p>
     <div className="flex flex-col gap-4 w-64">
+      <a
+        href="#/style-analyzer"
+        className="px-6 py-3 rounded-lg bg-red-900/40 border border-red-800/40 text-center hover:bg-red-800/40 transition-colors"
+      >
+        AI 风格分析器
+      </a>
       <a
         href="#/generator"
         className="px-6 py-3 rounded-lg bg-red-900/40 border border-red-800/40 text-center hover:bg-red-800/40 transition-colors"
