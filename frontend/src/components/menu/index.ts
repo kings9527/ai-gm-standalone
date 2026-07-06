@@ -1,0 +1,1 @@
+export { InGameMenu } from './InGameMenu';

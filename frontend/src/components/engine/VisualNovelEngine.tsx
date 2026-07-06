@@ -6,20 +6,32 @@ import DialogueLayer from './DialogueLayer';
 import EffectLayer from './EffectLayer';
 import type { VNState, VNEffect } from '../../types/engine';
 import type { Module, Scene } from '../../types/module';
+import { useGameStore } from '../../stores/gameStore';
 
 interface VisualNovelEngineProps {
   module: Module;
+  initialSceneId?: string;
   onSave?: () => void;
+  onMenuToggle?: () => void;
+  onSceneChange?: (sceneId: string) => void;
 }
 
 /**
  * VisualNovelEngine
  * Main orchestrator: composes BG → Sprite → Dialogue → Effect layers.
  * Manages scene transitions, state updates, and sprite interactions.
+ * Integrates with gameStore for save/load state synchronization.
  */
-export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, onSave }) => {
+export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
+  module,
+  initialSceneId,
+  onSave,
+  onMenuToggle,
+  onSceneChange,
+}) => {
+  const startScene = initialSceneId || module.start_scene;
   const [vnState, setVnState] = useState<VNState>({
-    currentSceneId: module.start_scene,
+    currentSceneId: startScene,
     bg: '',
     bgTransition: 'fade',
     sprites: [],
@@ -30,6 +42,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
   });
 
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
+  const { updateScene, setCurrentSceneId } = useGameStore();
 
   // Load scene data when scene changes
   useEffect(() => {
@@ -40,6 +53,8 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
     }
 
     setCurrentScene(scene);
+    setCurrentSceneId(vnState.currentSceneId);
+    updateScene(vnState.currentSceneId);
 
     // Determine who is speaking from dialogue
     const speakerId = scene.dialogue?.speaker
@@ -85,13 +100,28 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
 
     setVnState((prev) => ({ ...prev, ...newState }));
 
+    // Notify parent of scene change for auto-save
+    onSceneChange?.(vnState.currentSceneId);
+
     // Auto-clear transition flag after animation
     const timer = setTimeout(() => {
       setVnState((prev) => ({ ...prev, isTransitioning: false }));
     }, 1200);
 
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vnState.currentSceneId, module]);
+
+  // ESC key handler for menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onMenuToggle?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onMenuToggle]);
 
   const handleAdvance = useCallback(() => {
     if (currentScene?.exits && currentScene.exits.length > 0) {
@@ -184,7 +214,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
       <EffectLayer effects={vnState.effects} onEffectEnd={handleEffectEnd} />
 
       {/* Debug: Effect test buttons */}
-      <div className="absolute top-4 left-4 z-40 flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-30 flex flex-col gap-2">
         <span className="text-xs text-gray-600 mb-1">特效测试</span>
         <motion.button
           className="px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-xs hover:bg-red-950/40 transition-colors"
@@ -215,7 +245,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
       {/* UI Overlay: Save button */}
       {onSave && (
         <motion.button
-          className="absolute top-4 right-4 z-40 px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-sm hover:bg-red-950/40 transition-colors"
+          className="absolute top-4 right-4 z-30 px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-sm hover:bg-red-950/40 transition-colors"
           onClick={onSave}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import VisualNovelEngine from './components/engine/VisualNovelEngine';
 import GeneratorPage from './components/generator/GeneratorPage';
 import { StyleAnalyzerPanel } from './components/style-analyzer';
 import { ImageSelector } from './components/image-selector';
-import type { Module } from './types/module';
+import { SaveLoadPanel } from './components/save-load';
+import { InGameMenu } from './components/menu';
+import { useGameStore } from './stores/gameStore';
+import { useSaveStore } from './stores/saveStore';
+import { GameStateMachine } from './engine/state-machine';
+import type { Module, Campaign } from './types/module';
 
 /**
  * App.tsx
@@ -91,14 +96,40 @@ const ImageManagerPage: React.FC = () => {
   );
 };
 
-// Play Page - Visual Novel Engine Integration
+// Play Page - Visual Novel Engine with Save/Load System
 const PlayPage: React.FC = () => {
+  const navigate = useNavigate();
   const [module, setModule] = useState<Module | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Menu & panel states
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [savePanelMode, setSavePanelMode] = useState<'save' | 'load'>('save');
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
+
+  // Game state
+  const {
+    campaign,
+    stateMachine,
+    currentSceneId,
+    setCampaign,
+    setModule: setStoreModule,
+    setStateMachine,
+    reset: resetGameStore,
+  } = useGameStore();
+
+  const { autoSave } = useSaveStore();
+
+  // Track if we're loading from a save
+  const [loadedFromSave, setLoadedFromSave] = useState(false);
+  const [loadedSceneId, setLoadedSceneId] = useState<string | undefined>(undefined);
+
+  // Auto-save debounce ref
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load module on mount
   useEffect(() => {
-    // Load demo module
     fetch('/demo-module.json')
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -106,6 +137,7 @@ const PlayPage: React.FC = () => {
       })
       .then((data: Module) => {
         setModule(data);
+        setStoreModule(data);
         setLoading(false);
       })
       .catch((err) => {
@@ -113,6 +145,132 @@ const PlayPage: React.FC = () => {
         setError('加载模组失败，请检查网络连接');
         setLoading(false);
       });
+  }, [setStoreModule]);
+
+  // Initialize campaign when module is loaded (if not loading from save)
+  useEffect(() => {
+    if (!module || loadedFromSave) return;
+    if (campaign) return; // Already have a campaign
+
+    const initialCampaign: Campaign = {
+      id: `campaign_${Date.now()}`,
+      module_id: module.id,
+      player: {
+        name: '调查员',
+        stats: { 侦查: 60, 聆听: 50, 图书馆使用: 50, 格斗: 40, 射击: 40, 闪避: 40, 说服: 50, 心理学: 50 },
+        hp: 12,
+        max_hp: 12,
+        sanity: 60,
+        max_sanity: 60,
+        inventory: [],
+        status_effects: [],
+      },
+      current_scene: module.start_scene,
+      scene_history: [module.start_scene],
+      global_vars: {},
+      npcs_state: {},
+      combat_state: null,
+      flags: {},
+      turn: 0,
+    };
+
+    setCampaign(initialCampaign);
+
+    // Create GameStateMachine
+    const sm = new GameStateMachine(module, initialCampaign, null);
+    setStateMachine(sm);
+  }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
+
+  // Handle scene change -> auto-save to slot 0 (debounced)
+  const handleSceneChange = useCallback(
+    (sceneId: string) => {
+      if (!campaign || !module) return;
+
+      // Update campaign scene in store
+      setCampaign({ ...campaign, current_scene: sceneId, scene_history: [...campaign.scene_history, sceneId] });
+
+      // Debounced auto-save
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        const currentCampaign = useGameStore.getState().campaign;
+        if (currentCampaign && module) {
+          autoSave({ campaign: currentCampaign, module }).catch((err) => {
+            console.warn('[PlayPage] Auto-save failed:', err);
+          });
+        }
+      }, 2000);
+    },
+    [campaign, module, setCampaign, autoSave]
+  );
+
+  // Handle load save
+  const handleLoadSave = useCallback(
+    async (saveId: string) => {
+      setSavePanelOpen(false);
+      setMenuOpen(false);
+      setLoading(true);
+
+      try {
+        const { loadSave } = useSaveStore.getState();
+        const save = await loadSave(saveId);
+        if (!save) {
+          throw new Error('存档加载失败');
+        }
+
+        // Restore game state
+        const restoredModule = save.module;
+        const restoredCampaign = save.campaign;
+
+        setModule(restoredModule);
+        setStoreModule(restoredModule);
+        setCampaign(restoredCampaign);
+        setLoadedFromSave(true);
+        setLoadedSceneId(restoredCampaign.current_scene);
+
+        // Recreate state machine
+        const sm = new GameStateMachine(restoredModule, restoredCampaign, null);
+        setStateMachine(sm);
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error('[PlayPage] Failed to load save:', err);
+        setError(err.message || '读档失败');
+        setLoading(false);
+      }
+    },
+    [setCampaign, setStateMachine, setStoreModule]
+  );
+
+  // Handle manual save
+  const handleOpenSave = useCallback(() => {
+    setMenuOpen(false);
+    setSavePanelMode('save');
+    setSavePanelOpen(true);
+  }, []);
+
+  const handleOpenLoad = useCallback(() => {
+    setMenuOpen(false);
+    setSavePanelMode('load');
+    setSavePanelOpen(true);
+  }, []);
+
+  const handleQuit = useCallback(() => {
+    resetGameStore();
+    if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    navigate('/');
+  }, [navigate, resetGameStore]);
+
+  const handleResume = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
+
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+    };
   }, []);
 
   if (loading) {
@@ -128,21 +286,54 @@ const PlayPage: React.FC = () => {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-4">
         <span className="text-red-500">⚠ {error || '模组加载失败'}</span>
-        <a href="#/" className="text-sm text-gray-500 hover:text-gray-300 underline">
+        <button
+          onClick={() => navigate('/')}
+          className="text-sm text-gray-500 hover:text-gray-300 underline"
+        >
           返回主页
-        </a>
+        </button>
       </div>
     );
   }
 
   return (
-    <VisualNovelEngine
-      module={module}
-      onSave={() => {
-        console.log('Save triggered at', new Date().toISOString());
-        // TODO: Implement save logic with gameStore
-      }}
-    />
+    <div className="relative w-full h-full">
+      <VisualNovelEngine
+        module={module}
+        initialSceneId={loadedSceneId}
+        onSave={handleOpenSave}
+        onMenuToggle={() => setMenuOpen((prev) => !prev)}
+        onSceneChange={handleSceneChange}
+      />
+
+      {/* In-Game Menu (ESC) */}
+      <InGameMenu
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onSave={handleOpenSave}
+        onLoad={handleOpenLoad}
+        onSettings={() => {
+          setMenuOpen(false);
+          navigate('/settings');
+        }}
+        onQuit={handleQuit}
+        onResume={handleResume}
+      />
+
+      {/* Save/Load Panel */}
+      <SaveLoadPanel
+        mode={savePanelMode}
+        isOpen={savePanelOpen}
+        onClose={() => setSavePanelOpen(false)}
+        campaign={campaign}
+        module={module}
+        currentSceneId={currentSceneId}
+        onLoadSave={handleLoadSave}
+        onSaveComplete={() => {
+          // Optional: show a toast or keep panel open
+        }}
+      />
+    </div>
   );
 };
 
