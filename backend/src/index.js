@@ -35,6 +35,9 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Serve local images statically
+app.use('/api/images/static', express.static(path.join(userDataDir, 'images')));
+
 // Health
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

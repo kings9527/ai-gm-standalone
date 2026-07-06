@@ -139,6 +139,10 @@ export class SQLiteDatabase {
     return this.db.prepare('SELECT * FROM images ORDER BY created_at DESC').all();
   }
 
+  getImage(id) {
+    return this.db.prepare('SELECT * FROM images WHERE id = ?').get(id);
+  }
+
   saveImage(data) {
     const { id, type, source, url, local_path, prompt } = data;
     this.db.prepare('INSERT OR REPLACE INTO images (id, type, source, url, local_path, prompt) VALUES (?, ?, ?, ?, ?, ?)')

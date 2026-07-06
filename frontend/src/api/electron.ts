@@ -27,6 +27,9 @@ declare global {
       imageDownload: (params: { url: string; type: string }) => Promise<any>;
       imageGenerate: (body: any) => Promise<any>;
       imageList: (type: string) => Promise<any[]>;
+      imageDelete: (id: string) => Promise<any>;
+      imageUpload: (params: { data: string; filename: string; type: string }) => Promise<any>;
+      imageDialog: () => Promise<{ data: string; filename: string } | null>;
 
       styleList: () => Promise<any[]>;
       styleGet: (id: string) => Promise<any>;
@@ -148,6 +151,18 @@ export const electronAPI = {
   async imageList(type: string) {
     if (api) return api.imageList(type);
     return fallbackFetch(`/api/images?type=${encodeURIComponent(type)}`);
+  },
+  async imageDelete(id: string) {
+    if (api) return api.imageDelete(id);
+    return fallbackFetch(`/api/images/${id}`, { method: 'DELETE' });
+  },
+  async imageUpload(params: { data: string; filename: string; type: string }) {
+    if (api) return api.imageUpload(params);
+    return fallbackFetch('/api/images/upload', { method: 'POST', body: JSON.stringify(params) });
+  },
+  async imageDialog() {
+    if (api) return api.imageDialog();
+    throw new Error('File dialog requires Electron');
   },
 
   // Styles

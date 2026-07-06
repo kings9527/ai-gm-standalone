@@ -175,6 +175,31 @@ ipcMain.handle('aigm:image:generate', async (_event, body) =>
 ipcMain.handle('aigm:image:list', async (_event, type) =>
   apiFetch(`/api/images?type=${encodeURIComponent(type)}`)
 );
+ipcMain.handle('aigm:image:delete', async (_event, id) =>
+  apiFetch(`/api/images/${id}`, { method: 'DELETE' })
+);
+ipcMain.handle('aigm:image:upload', async (_event, { data, filename, type }) => {
+  return apiFetch('/api/images/upload', {
+    method: 'POST',
+    body: JSON.stringify({ data, filename, type }),
+  });
+});
+ipcMain.handle('aigm:image:dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] },
+    ],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const fs = require('fs').promises;
+  const filePath = result.filePaths[0];
+  const buffer = await fs.readFile(filePath);
+  const base64 = buffer.toString('base64');
+  const ext = path.extname(filePath);
+  const mimeType = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : ext === '.webp' ? 'image/webp' : 'image/png';
+  return { data: `data:${mimeType};base64,${base64}`, filename: path.basename(filePath) };
+});
 
 // Settings
 ipcMain.handle('aigm:settings:get', async (_event, key) =>

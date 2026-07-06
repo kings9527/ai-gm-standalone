@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   imageDownload: (params) => ipcRenderer.invoke('aigm:image:download', params),
   imageGenerate: (body) => ipcRenderer.invoke('aigm:image:generate', body),
   imageList: (type) => ipcRenderer.invoke('aigm:image:list', type),
+  imageDelete: (id) => ipcRenderer.invoke('aigm:image:delete', id),
+  imageUpload: (params) => ipcRenderer.invoke('aigm:image:upload', params),
+  imageDialog: () => ipcRenderer.invoke('aigm:image:dialog'),
 
   // Settings
   settingsGet: (key) => ipcRenderer.invoke('aigm:settings:get', key),

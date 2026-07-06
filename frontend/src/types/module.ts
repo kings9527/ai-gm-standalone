@@ -204,3 +204,13 @@ export interface GameSave {
   timestamp: string;
   thumbnail?: string;
 }
+
+export interface ImageItem {
+  id: string;
+  type: string;
+  source: string;
+  url: string | null;
+  local_path: string | null;
+  prompt: string | null;
+  created_at: string;
+}
