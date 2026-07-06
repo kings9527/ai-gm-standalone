@@ -1,35 +1,49 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { VNEffect } from '../../types/engine';
 
 interface EffectLayerProps {
   effects: VNEffect[];
+  onEffectEnd?: (index: number) => void;
 }
 
 /**
  * EffectLayer
- * Renders screen effects: shake, grain, vignette, chromatic aberration, fade in/out.
+ * Renders screen effects: shake, grain, vignette, chromatic aberration, fade in/out, flash.
  * Overlay on top of everything.
+ * Grain and vignette are persistent; other effects auto-remove after duration.
  */
-export const EffectLayer: React.FC<EffectLayerProps> = ({ effects }) => {
+export const EffectLayer: React.FC<EffectLayerProps> = ({ effects, onEffectEnd }) => {
+  // Auto-remove non-persistent effects after their duration
+  useEffect(() => {
+    effects.forEach((effect, index) => {
+      if (effect.type !== 'grain' && effect.type !== 'vignette') {
+        const timer = setTimeout(() => {
+          onEffectEnd?.(index);
+        }, effect.duration);
+        return () => clearTimeout(timer);
+      }
+    });
+  }, [effects, onEffectEnd]);
+
   return (
     <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
       <AnimatePresence>
         {effects.map((effect, index) => (
           <motion.div
-            key={`${effect.type}-${index}`}
+            key={`${effect.type}-${index}-${effect.duration}`}
             className="absolute inset-0"
             initial={getInitialState(effect)}
             animate={getAnimateState(effect)}
             exit={getExitState(effect)}
-            transition={{ duration: effect.duration / 1000, ease: 'easeInOut' }}
+            transition={getTransition(effect)}
           >
             {renderEffectContent(effect)}
           </motion.div>
         ))}
       </AnimatePresence>
 
-      {/* Persistent grain overlay */}
+      {/* Persistent grain overlay with subtle animation */}
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -48,6 +62,31 @@ export const EffectLayer: React.FC<EffectLayerProps> = ({ effects }) => {
     </div>
   );
 };
+
+function getTransition(effect: VNEffect) {
+  const base = { ease: 'easeInOut' as const };
+
+  switch (effect.type) {
+    case 'shake':
+      return {
+        ...base,
+        duration: effect.duration / 1000,
+        repeat: Infinity,
+        repeatType: 'reverse' as const,
+      };
+    case 'flash':
+      return {
+        ...base,
+        duration: effect.duration / 1000,
+        times: [0, 0.5, 1],
+      };
+    default:
+      return {
+        ...base,
+        duration: effect.duration / 1000,
+      };
+  }
+}
 
 function getInitialState(effect: VNEffect) {
   switch (effect.type) {
@@ -72,11 +111,11 @@ function getAnimateState(effect: VNEffect) {
       return { opacity: 0 };
     case 'shake':
       return {
-        x: [0, -10, 10, -10, 10, 0],
-        y: [0, 5, -5, 5, -5, 0],
+        x: [0, -10 * effect.intensity, 10 * effect.intensity, -10 * effect.intensity, 10 * effect.intensity, 0],
+        y: [0, 5 * effect.intensity, -5 * effect.intensity, 5 * effect.intensity, -5 * effect.intensity, 0],
       };
     case 'flash':
-      return { opacity: [0, 1, 0] };
+      return { opacity: [0, effect.intensity, 0] };
     default:
       return {};
   }
@@ -107,12 +146,7 @@ function renderEffectContent(effect: VNEffect) {
         />
       );
     case 'flash':
-      return (
-        <div
-          className="absolute inset-0 bg-white"
-          style={{ opacity: effect.intensity }}
-        />
-      );
+      return <div className="absolute inset-0 bg-white" style={{ opacity: effect.intensity }} />;
     default:
       return null;
   }

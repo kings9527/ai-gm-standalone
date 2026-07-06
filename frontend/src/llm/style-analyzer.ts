@@ -16,10 +16,10 @@ export class StyleAnalyzer {
   }
 
   async analyze(text: string): Promise<StyleConfig> {
-    const builder = new PromptBuilder({} as any);
-    const prompt = builder.buildStyleAnalysisPrompt(text);
+    const builder = new PromptBuilder({} as any, {} as any);
+    const prompt = builder.buildStyleAnalysisPrompt();
 
-    const response = await this.client.chatJSON(
+    const response = await this.client.chat(
       [
         prompt,
         { role: 'user', content: text.substring(0, 3000) },
@@ -27,7 +27,7 @@ export class StyleAnalyzer {
       { maxTokens: 512, temperature: 0.5 }
     );
 
-    const result = response as Partial<StyleConfig>;
+    const result = this.client.extractJSON(response.content) as Partial<StyleConfig> || {};
 
     // Validate and fill defaults
     return {

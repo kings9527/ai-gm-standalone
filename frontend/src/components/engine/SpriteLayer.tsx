@@ -4,18 +4,27 @@ import type { VNSprite } from '../../types/engine';
 
 interface SpriteLayerProps {
   sprites: VNSprite[];
+  onSpriteClick?: (charId: string) => void;
 }
 
 /**
  * SpriteLayer
  * Renders character sprites with position, expression, and enter animations.
  * Highlights the speaker, fades non-speakers.
+ * Supports left/center/right positioning.
  */
-export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites }) => {
-  const positionStyles: Record<string, React.CSSProperties> = {
-    left: { left: '5%', bottom: '5%' },
-    center: { left: '50%', bottom: '5%', transform: 'translateX(-50%)' },
-    right: { right: '5%', bottom: '5%' },
+export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites, onSpriteClick }) => {
+  const getPositionClass = (position: string) => {
+    switch (position) {
+      case 'left':
+        return 'left-[5%]';
+      case 'center':
+        return 'left-1/2 -translate-x-1/2';
+      case 'right':
+        return 'right-[5%]';
+      default:
+        return 'left-[5%]';
+    }
   };
 
   return (
@@ -24,9 +33,8 @@ export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites }) => {
         {sprites.map((sprite) => (
           <motion.div
             key={sprite.charId}
-            className="absolute pointer-events-auto"
+            className={`absolute bottom-[5%] pointer-events-auto ${getPositionClass(sprite.position)}`}
             style={{
-              ...positionStyles[sprite.position],
               width: '300px',
               height: '500px',
             }}
@@ -38,11 +46,14 @@ export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites }) => {
             }}
             exit={getExitAnimation(sprite.enterAnimation)}
             transition={{ duration: 0.6, ease: 'easeOut' }}
+            onClick={() => onSpriteClick?.(sprite.charId)}
           >
             {/* Sprite container with border based on speaking state */}
             <div
               className={`w-full h-full rounded-lg overflow-hidden transition-all duration-300 ${
-                sprite.isSpeaking ? 'ring-2 ring-red-800 shadow-lg shadow-red-900/30' : ''
+                sprite.isSpeaking
+                  ? 'ring-2 ring-red-800 shadow-lg shadow-red-900/30'
+                  : ''
               }`}
             >
               {sprite.imageUrl ? (
@@ -54,13 +65,15 @@ export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites }) => {
                 />
               ) : (
                 <div
-                  className="w-full h-full flex items-center justify-center text-6xl font-bold"
+                  className="w-full h-full flex flex-col items-center justify-center gap-2"
                   style={{
                     background: 'linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%)',
-                    color: '#666',
                   }}
                 >
-                  {sprite.name.charAt(0)}
+                  <span className="text-6xl font-bold text-gray-600">
+                    {sprite.name.charAt(0)}
+                  </span>
+                  <span className="text-sm text-gray-500">{sprite.name}</span>
                 </div>
               )}
             </div>
@@ -74,11 +87,11 @@ export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites }) => {
 function getInitialAnimation(enter: string) {
   switch (enter) {
     case 'fade':
-      return { opacity: 0 };
+      return { opacity: 0, scale: 0.95 };
     case 'slide_left':
-      return { opacity: 0, x: -100 };
+      return { opacity: 0, x: -150 };
     case 'slide_right':
-      return { opacity: 0, x: 100 };
+      return { opacity: 0, x: 150 };
     default:
       return { opacity: 0 };
   }
@@ -87,11 +100,11 @@ function getInitialAnimation(enter: string) {
 function getExitAnimation(enter: string) {
   switch (enter) {
     case 'fade':
-      return { opacity: 0 };
+      return { opacity: 0, scale: 0.95 };
     case 'slide_left':
-      return { opacity: 0, x: -100 };
+      return { opacity: 0, x: -150 };
     case 'slide_right':
-      return { opacity: 0, x: 100 };
+      return { opacity: 0, x: 150 };
     default:
       return { opacity: 0 };
   }

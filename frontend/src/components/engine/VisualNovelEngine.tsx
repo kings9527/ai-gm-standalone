@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import BackgroundLayer from './BackgroundLayer';
 import SpriteLayer from './SpriteLayer';
@@ -15,7 +15,7 @@ interface VisualNovelEngineProps {
 /**
  * VisualNovelEngine
  * Main orchestrator: composes BG → Sprite → Dialogue → Effect layers.
- * Manages scene transitions and state updates.
+ * Manages scene transitions, state updates, and sprite interactions.
  */
 export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, onSave }) => {
   const [vnState, setVnState] = useState<VNState>({
@@ -31,12 +31,22 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
 
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
 
-  // Load scene data
-  React.useEffect(() => {
+  // Load scene data when scene changes
+  useEffect(() => {
     const scene = module.scenes[vnState.currentSceneId];
-    if (!scene) return;
+    if (!scene) {
+      console.warn(`Scene not found: ${vnState.currentSceneId}`);
+      return;
+    }
 
     setCurrentScene(scene);
+
+    // Determine who is speaking from dialogue
+    const speakerId = scene.dialogue?.speaker
+      ? Object.keys(module.npcs).find(
+          (id) => module.npcs[id].name === scene.dialogue!.speaker
+        )
+      : null;
 
     // Map scene data to VN state
     const newState: Partial<VNState> = {
@@ -50,7 +60,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
           imageUrl: npc?.sprites?.[s.expression] || '',
           position: s.position,
           expression: s.expression,
-          isSpeaking: false,
+          isSpeaking: speakerId === s.char_id,
           enterAnimation: s.enter_animation,
           opacity: 1,
         };
@@ -74,10 +84,16 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
     };
 
     setVnState((prev) => ({ ...prev, ...newState }));
+
+    // Auto-clear transition flag after animation
+    const timer = setTimeout(() => {
+      setVnState((prev) => ({ ...prev, isTransitioning: false }));
+    }, 1200);
+
+    return () => clearTimeout(timer);
   }, [vnState.currentSceneId, module]);
 
   const handleAdvance = useCallback(() => {
-    // If no choices, advance to next scene or default exit
     if (currentScene?.exits && currentScene.exits.length > 0) {
       const exit = currentScene.exits[0];
       setVnState((prev) => ({
@@ -102,11 +118,10 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
       } else if (choice.action === 'next') {
         handleAdvance();
       } else if (choice.action === 'dice_check' && choice.dice_check) {
-        // Trigger dice check effect
         const diceEffect: VNEffect = {
           type: 'shake',
-          intensity: 0.5,
-          duration: 500,
+          intensity: 0.8,
+          duration: 800,
         };
         setVnState((prev) => ({
           ...prev,
@@ -127,6 +142,20 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
     }));
   }, []);
 
+  const handleEffectEnd = useCallback((index: number) => {
+    setVnState((prev) => ({
+      ...prev,
+      effects: prev.effects.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  const handleAddEffect = useCallback((effect: VNEffect) => {
+    setVnState((prev) => ({
+      ...prev,
+      effects: [...prev.effects, effect],
+    }));
+  }, []);
+
   if (!currentScene) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-black text-gray-400">
@@ -141,7 +170,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
       <BackgroundLayer bg={vnState.bg} transition={vnState.bgTransition} />
 
       {/* Layer 2: Sprites */}
-      <SpriteLayer sprites={vnState.sprites} />
+      <SpriteLayer sprites={vnState.sprites} onSpriteClick={handleSpriteClick} />
 
       {/* Layer 3: Dialogue + Choices */}
       <DialogueLayer
@@ -152,7 +181,36 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({ module, on
       />
 
       {/* Layer 4: Effects */}
-      <EffectLayer effects={vnState.effects} />
+      <EffectLayer effects={vnState.effects} onEffectEnd={handleEffectEnd} />
+
+      {/* Debug: Effect test buttons */}
+      <div className="absolute top-4 left-4 z-40 flex flex-col gap-2">
+        <span className="text-xs text-gray-600 mb-1">特效测试</span>
+        <motion.button
+          className="px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-xs hover:bg-red-950/40 transition-colors"
+          onClick={() => handleAddEffect({ type: 'shake', intensity: 1, duration: 600 })}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          震动
+        </motion.button>
+        <motion.button
+          className="px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-xs hover:bg-red-950/40 transition-colors"
+          onClick={() => handleAddEffect({ type: 'flash', intensity: 0.8, duration: 400 })}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          闪光
+        </motion.button>
+        <motion.button
+          className="px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-xs hover:bg-red-950/40 transition-colors"
+          onClick={() => handleAddEffect({ type: 'chromatic', intensity: 0.5, duration: 2000 })}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          色差
+        </motion.button>
+      </div>
 
       {/* UI Overlay: Save button */}
       {onSave && (

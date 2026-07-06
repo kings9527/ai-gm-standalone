@@ -1,0 +1,184 @@
+{
+  "id": "demo-module",
+  "name": "暗影低语 - Demo",
+  "system": "custom",
+  "version": "1.0.0",
+  "style": {
+    "palette": {
+      "bg": "#0a0a0a",
+      "accent": "#8b0000",
+      "text": "#e2e8f0",
+      "dialogue_bg": "rgba(10,10,10,0.9)"
+    },
+    "atmosphere": "悬疑恐怖",
+    "era": "现代",
+    "art_style": "暗黑写实",
+    "lighting": "低光、阴影",
+    "mood_keywords": ["悬疑", "恐惧", "未知", "压迫感"],
+    "font_family": "sans-serif",
+    "effects": ["grain", "vignette"],
+    "image_strategy": {
+      "background": "generate",
+      "sprites": "generate",
+      "search_provider": "unsplash"
+    }
+  },
+  "start_scene": "scene_1",
+  "scenes": {
+    "scene_1": {
+      "id": "scene_1",
+      "title": "废弃医院大厅",
+      "description": "你站在废弃医院的大厅，昏暗的灯光闪烁不定。",
+      "bg": "linear-gradient(180deg, #1a0a0a 0%, #0a0a0a 60%, #000000 100%)",
+      "bg_music": "ambient_horror",
+      "sprites": [
+        {
+          "char_id": "npc_1",
+          "position": "left",
+          "expression": "default",
+          "enter_animation": "slide_left"
+        }
+      ],
+      "dialogue": {
+        "speaker": "林夜",
+        "text": "这里...就是传说中那座废弃的医院吗？空气中弥漫着腐朽的味道，每一步都像是踩在某种生物的残骸上...",
+        "typewriter": true
+      },
+      "choices": [
+        {
+          "id": "choice_1",
+          "text": "继续深入探索",
+          "action": "scene",
+          "target": "scene_2"
+        },
+        {
+          "id": "choice_2",
+          "text": "调查大厅角落的旧物",
+          "action": "scene",
+          "target": "scene_3"
+        }
+      ],
+      "exits": [
+        { "target": "scene_2", "label": "前进", "description": "走向走廊深处" }
+      ]
+    },
+    "scene_2": {
+      "id": "scene_2",
+      "title": "走廊深处",
+      "description": "走廊尽头传来奇怪的声音。",
+      "bg": "linear-gradient(90deg, #0f0a0a 0%, #1a0505 50%, #0a0a0a 100%)",
+      "sprites": [
+        {
+          "char_id": "npc_1",
+          "position": "right",
+          "expression": "default",
+          "enter_animation": "slide_right"
+        },
+        {
+          "char_id": "npc_2",
+          "position": "left",
+          "expression": "default",
+          "enter_animation": "fade"
+        }
+      ],
+      "dialogue": {
+        "speaker": "苏雨",
+        "text": "等等！你听到那个声音了吗？像是...像是有什么东西在墙壁后面移动。我们还是回去吧，这里不对劲。",
+        "typewriter": true
+      },
+      "choices": [
+        {
+          "id": "choice_3",
+          "text": "安慰苏雨，继续前进",
+          "action": "next"
+        },
+        {
+          "id": "choice_4",
+          "text": "投掷骰子进行侦查检定",
+          "action": "dice_check",
+          "dice_check": { "skill": "侦查", "target": 60 }
+        }
+      ],
+      "exits": [
+        { "target": "scene_1", "label": "返回大厅", "description": "回到大厅" }
+      ]
+    },
+    "scene_3": {
+      "id": "scene_3",
+      "title": "角落发现",
+      "description": "角落堆满了废弃的医疗设备和文件。",
+      "bg": "linear-gradient(180deg, #0a0f0a 0%, #0a0a0a 100%)",
+      "sprites": [
+        {
+          "char_id": "npc_1",
+          "position": "center",
+          "expression": "surprised",
+          "enter_animation": "fade"
+        }
+      ],
+      "dialogue": {
+        "speaker": "林夜",
+        "text": "这些文件...是实验记录！上面写着某种禁忌的仪式。还有这个——【旧日记本】，也许能找到更多线索。",
+        "typewriter": true
+      },
+      "choices": [
+        {
+          "id": "choice_5",
+          "text": "阅读日记本",
+          "action": "next"
+        },
+        {
+          "id": "choice_6",
+          "text": "带着日记本返回大厅",
+          "action": "scene",
+          "target": "scene_1"
+        }
+      ],
+      "exits": [
+        { "target": "scene_1", "label": "返回", "description": "带着发现返回大厅" }
+      ]
+    }
+  },
+  "npcs": {
+    "npc_1": {
+      "id": "npc_1",
+      "name": "林夜",
+      "description": "年轻的调查记者，对超自然事件充满好奇。",
+      "personality": "冷静、理性、固执",
+      "role": "neutral",
+      "attitude": "警惕",
+      "stats": { "侦查": 55, "理智": 60, "力量": 45, "敏捷": 50 },
+      "hp": 10,
+      "sanity": 60,
+      "sprites": {
+        "default": "",
+        "surprised": ""
+      }
+    },
+    "npc_2": {
+      "id": "npc_2",
+      "name": "苏雨",
+      "description": "林夜的搭档，对灵异事件敏感但胆小。",
+      "personality": "敏感、谨慎、善良",
+      "role": "ally",
+      "attitude": "友好",
+      "stats": { "侦查": 40, "理智": 50, "力量": 35, "敏捷": 55 },
+      "hp": 8,
+      "sanity": 50,
+      "sprites": {
+        "default": ""
+      }
+    }
+  },
+  "items": {
+    "item_1": {
+      "id": "item_1",
+      "name": "旧日记本",
+      "description": "一本泛黄的日记本，封面上有奇怪的符号。",
+      "readable": true,
+      "usable": false,
+      "content": "7月15日：实验成功了，但那东西...它在看着我。7月16日：不要进入地下室。不要。不要。"
+    }
+  },
+  "events": {}
+}

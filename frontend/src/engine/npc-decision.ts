@@ -1,4 +1,4 @@
-import type { Campaign, NPC, NPCState } from '../types/module';
+import type { Campaign, Module, NPC, NPCState } from '../types/module';
 import type { LLMClient } from '../llm/client';
 import { PromptBuilder } from '../llm/prompts';
 
@@ -43,22 +43,24 @@ export interface NPCDialogueResult {
 
 export class NPCDecisionEngine {
   campaign: Campaign;
+  module: Module;
   npcId: string;
   npcState: NPCState;
   npcTemplate: NPC;
 
-  constructor(campaign: Campaign, npcId: string) {
+  constructor(campaign: Campaign, moduleData: Module, npcId: string) {
     this.campaign = campaign;
+    this.module = moduleData;
     this.npcId = npcId;
     this.npcState = this._ensureNPCState(campaign, npcId);
-    this.npcTemplate = campaign.module?.npcs?.[npcId] || ({} as NPC);
+    this.npcTemplate = moduleData.npcs?.[npcId] || ({} as NPC);
     this._validateTemplate();
   }
 
   private _ensureNPCState(campaign: Campaign, npcId: string): NPCState {
     if (!campaign.npcs_state) campaign.npcs_state = {};
     if (!campaign.npcs_state[npcId]) {
-      const template = campaign.module?.npcs?.[npcId] || ({} as NPC);
+      const template = this.module.npcs?.[npcId] || ({} as NPC);
       campaign.npcs_state[npcId] = {
         id: npcId,
         current_hp: template.hp || template.stats?.HP || 10,
@@ -118,7 +120,7 @@ export class NPCDecisionEngine {
 
   private _buildContext(situation: any, chatHistory: string = '') {
     const player = this.campaign.player || ({} as any);
-    const scene = this.campaign.module?.scenes?.[this.campaign.current_scene] || ({} as any);
+    const scene = this.module.scenes?.[this.campaign.current_scene] || ({} as any);
     const isCombat = this.campaign.combat_state?.active === true;
     const isPlayerTurn = isCombat && this.campaign.combat_state?.current_turn?.startsWith?.('player');
 
@@ -284,7 +286,7 @@ export class NPCDecisionEngine {
   private async _llmEnhancedDecision(context: any, llmClient: LLMClient): Promise<NPCDecision> {
     const { npc, template, situation, campaign_state, chat_history } = context;
 
-    const promptBuilder = new PromptBuilder(this.campaign);
+    const promptBuilder = new PromptBuilder(this.campaign, this.module);
     const gmPrompt = promptBuilder.buildGMContextPrompt();
 
     const systemPrompt = `${gmPrompt?.content || ''}
@@ -426,7 +428,7 @@ What do you do?`;
     const template = this.npcTemplate;
     const npc = this.npcState;
 
-    const systemPrompt = `You are ${template.name || 'an NPC'} in a ${this.campaign.module?.system || 'horror'} RPG. You must respond in strict JSON format. Stay concise (1-2 sentences). Never break character. ${template.personality ? `Personality: ${template.personality}` : ''}`;
+    const systemPrompt = `You are ${template.name || 'an NPC'} in a ${this.module.system || 'horror'} RPG. You must respond in strict JSON format. Stay concise (1-2 sentences). Never break character. ${template.personality ? `Personality: ${template.personality}` : ''}`;
 
     const prompt = `${contextSummary}
 

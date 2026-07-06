@@ -15,7 +15,7 @@ export interface GameAction {
 
 export interface GameResult {
   type: string;
-  scene?: string;
+  scene?: string | Record<string, unknown>;
   narration?: string;
   available_actions?: Array<{ type: string; target?: string; label: string }>;
   [key: string]: unknown;
@@ -85,6 +85,7 @@ export class GameStateMachine {
         const llmResult = await this._llmParseIntent(input);
         if (llmResult && llmResult.confidence > 0.7) {
           return { type: llmResult.type, raw: input, llm_enhanced: true, confidence: llmResult.confidence, target: llmResult.target || null };
+        }
       } catch (err: any) {
         console.warn('[AI-GM] LLM intent parsing failed, falling back to keyword:', err.message);
       }
@@ -221,10 +222,10 @@ Respond ONLY with a JSON object in this exact format:
     for (const [key, value] of Object.entries(effects)) {
       if (key.includes('+')) {
         const baseKey = key.replace('+', '').trim();
-        this.campaign.global_vars[baseKey] = (this.campaign.global_vars[baseKey] || 0) + (value as number);
+        this.campaign.global_vars[baseKey] = ((this.campaign.global_vars[baseKey] as number) || 0) + (value as number);
       } else if (key.includes('-')) {
         const baseKey = key.replace('-', '').trim();
-        this.campaign.global_vars[baseKey] = (this.campaign.global_vars[baseKey] || 0) - (value as number);
+        this.campaign.global_vars[baseKey] = ((this.campaign.global_vars[baseKey] as number) || 0) - (value as number);
       } else if (key === 'sanity_loss') {
         const loss = this.parseDiceExpression(value as string);
         const oldSanity = this.campaign.player.sanity || 50;
@@ -239,8 +240,8 @@ Respond ONLY with a JSON object in this exact format:
     if (!this.currentScene.exits) return null;
     return this.currentScene.exits.find((exit) => {
       if (exit.target === intent || exit.label === intent) return true;
-      if (exit.condition === 'always') return true;
-      if (exit.condition && typeof exit.condition === 'object') {
+      if (!exit.condition || Object.keys(exit.condition).length === 0) return true;
+      if (typeof exit.condition === 'object') {
         return this.evaluateCondition(exit.condition);
       }
       if (input && exit.description) {
@@ -255,13 +256,14 @@ Respond ONLY with a JSON object in this exact format:
     for (const [key, value] of Object.entries(condition)) {
       const campaignValue = this.campaign.global_vars[key];
       if (Array.isArray(value)) {
-        if (campaignValue < value[0] || campaignValue > value[1]) return false;
+        const cv = campaignValue as number;
+        if (cv < value[0] || cv > value[1]) return false;
       } else if (typeof value === 'boolean') {
         if (!!campaignValue !== value) return false;
       } else if (typeof value === 'number') {
-        if (campaignValue !== value) return false;
+        if ((campaignValue as number) !== value) return false;
       } else if (typeof value === 'string') {
-        if (campaignValue !== value) return false;
+        if ((campaignValue as string) !== value) return false;
       }
     }
     return true;
@@ -278,7 +280,7 @@ Respond ONLY with a JSON object in this exact format:
       const item = items[itemId];
       if (!item) continue;
       if (input.toLowerCase().includes(item.name.toLowerCase()) || input.toLowerCase().includes(itemId.toLowerCase())) {
-        matchedItem = { id: itemId, ...item };
+        matchedItem = { ...item };
         break;
       }
     }
@@ -406,7 +408,7 @@ Respond ONLY with a JSON object in this exact format:
     if (!this.module.events) return null;
 
     for (const [eventId, event] of Object.entries(this.module.events)) {
-      const trigger = event.trigger;
+      const trigger = event.trigger as any;
       if (!trigger) continue;
       if (trigger.scene && trigger.scene !== this.currentScene.id) continue;
       if (!trigger.skill) continue;
@@ -444,7 +446,7 @@ Respond ONLY with a JSON object in this exact format:
       const npc = this.module.npcs?.[npcId];
       if (!npc) continue;
       if (input.toLowerCase().includes(npc.name.toLowerCase()) || input.toLowerCase().includes(npcId.toLowerCase())) {
-        matchedNPC = { id: npcId, ...npc };
+        matchedNPC = { ...npc };
         break;
       }
     }
@@ -452,19 +454,19 @@ Respond ONLY with a JSON object in this exact format:
     if (!matchedNPC && npcs.length === 1) {
       const npcId = npcs[0];
       const npc = this.module.npcs?.[npcId];
-      if (npc) matchedNPC = { id: npcId, ...npc };
+      if (npc) matchedNPC = { ...npc };
     }
 
     if (matchedNPC) {
       // NPC Decision Engine integration (lazy import to avoid circular dependency)
       const { NPCDecisionEngine } = await import('./npc-decision');
-      const engine = new NPCDecisionEngine(this.campaign, matchedNPC.id);
+      const engine = new NPCDecisionEngine(this.campaign, this.module, matchedNPC.id);
 
       const decision = await engine.decide({ type: 'player_talk', player_input: input }, this.llmClient, chatHistory);
       const dialogueResult = await engine.generateDialogue(
         `Player says: "${input}"`,
         decision.mood,
-        decision.dialogue_topic,
+        decision.dialogue_topic ?? null,
         this.llmClient,
       );
 
@@ -478,7 +480,7 @@ Respond ONLY with a JSON object in this exact format:
         interaction_type: 'talk',
         npc_id: matchedNPC.id,
         scene: this.currentScene.id,
-        narration: `${matchedNPC.name}：${dialogueResult.text || dialogueResult.dialogue || '【沉默】'}`,
+        narration: `${matchedNPC.name}：${dialogueResult.text || '【沉默】'}`,
         npc_decision: { action: decision.action, mood: decision.mood, confidence: decision.confidence },
         available_actions: [
           ...this.getAvailableActions(),
@@ -583,20 +585,20 @@ Respond ONLY with a JSON object in this exact format:
 
     if (this.currentScene.exits) {
       this.currentScene.exits.forEach((e) => {
-        if (e.condition === 'always' || (e.condition && this.evaluateCondition(e.condition))) {
+        if (!e.condition || Object.keys(e.condition).length === 0 || this.evaluateCondition(e.condition)) {
           actions.push({ type: 'move', target: e.target, label: e.label });
         }
       });
     }
 
-    if (this.currentScene.npcs?.length > 0) {
+    if (this.currentScene.npcs && this.currentScene.npcs.length > 0) {
       this.currentScene.npcs.forEach((npcId: string) => {
         const npc = this.module.npcs?.[npcId];
         actions.push({ type: 'talk', target: npcId, label: `与${npc?.name || npcId}交谈` });
       });
     }
 
-    if (this.currentScene.interactables?.length > 0) {
+    if (this.currentScene.interactables && this.currentScene.interactables.length > 0) {
       this.currentScene.interactables.forEach((itemId: string) => {
         const item = this.module.items?.[itemId];
         actions.push({ type: 'interact', target: itemId, label: `检查${item?.name || itemId}` });
@@ -673,8 +675,9 @@ Respond ONLY with a JSON object in this exact format:
 
   applyEffect(effect: any) {
     if (effect.operation === '+' || effect.operation === '-') {
-      const current = this.campaign.global_vars[effect.target] || 0;
-      this.campaign.global_vars[effect.target] = effect.operation === '+' ? current + effect.value : current - effect.value;
+      const current = (this.campaign.global_vars[effect.target] as number) || 0;
+      const val = typeof effect.value === 'string' ? this.parseDiceExpression(effect.value) : (effect.value as number);
+      this.campaign.global_vars[effect.target] = effect.operation === '+' ? current + val : current - val;
     } else if (effect.operation === 'dice') {
       const loss = this.parseDiceExpression(effect.value);
       if (effect.target === 'sanity_loss') {

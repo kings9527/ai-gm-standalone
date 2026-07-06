@@ -4,15 +4,15 @@
  * Ported from old project, adapted for standalone frontend.
  */
 
-import type { Campaign } from '../types/module';
+import type { Campaign, Module } from '../types/module';
 
 export class PromptBuilder {
   private campaign: Campaign;
-  private module: Campaign['module'];
+  private module: Module;
 
-  constructor(campaign: Campaign) {
+  constructor(campaign: Campaign, module: Module) {
     this.campaign = campaign;
-    this.module = campaign.module;
+    this.module = module;
   }
 
   buildGMContextPrompt() {
@@ -23,15 +23,15 @@ export class PromptBuilder {
       role: 'system' as const,
       content: `You are the Game Master (GM) for a ${this.module.system} tabletop RPG.
 
-Current Scene: ${scene.title}
-Description: ${scene.description}
+Current Scene: ${scene?.title || 'Unknown'}
+Description: ${scene?.description || ''}
 
 Player: ${player.name}
 Player Stats: ${JSON.stringify(player.stats)}
 Player Status: HP ${player.hp}/${player.max_hp}, SAN ${player.sanity}/${player.max_sanity}
 
-NPCs Present: ${(scene.npcs || [])
-        .map((id) => this.module.npcs[id]?.name)
+NPCs Present: ${(scene?.npcs || [])
+        .map((id: string) => this.module.npcs[id]?.name)
         .filter(Boolean)
         .join(', ')}
 
@@ -49,7 +49,7 @@ Always respond in character as the GM. Never break the fourth wall.`,
     };
   }
 
-  buildStyleAnalysisPrompt(storyText: string) {
+  buildStyleAnalysisPrompt() {
     return {
       role: 'system' as const,
       content: `You are a visual style analyst for a visual novel RPG engine. Analyze the provided story text and extract the visual atmosphere, era, and mood.
@@ -132,12 +132,12 @@ Respond ONLY with a JSON object conforming to the Module schema (scenes, npcs, i
     };
   }
 
-  buildImageKeywordsPrompt(module: object) {
+  buildImageKeywordsPrompt(moduleData: Module) {
     return {
       role: 'system' as const,
       content: `Generate image search keywords for a visual novel module. For each scene background and NPC sprite, create 3-5 descriptive keywords that would find good matching images on Unsplash.
 
-Module: ${JSON.stringify(module, null, 2)}
+Module: ${JSON.stringify(moduleData, null, 2)}
 
 Respond ONLY with a JSON object:
 {

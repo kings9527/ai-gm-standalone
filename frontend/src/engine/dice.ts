@@ -20,7 +20,7 @@ export class DiceRoller {
       throw new Error(`Invalid dice expression: ${expression}`);
     }
     const result = this.parseAndRoll(expression.trim());
-    this.history.push({ expression, ...result, timestamp: new Date().toISOString() });
+    this.history.push({ ...result, timestamp: new Date().toISOString() });
     return result;
   }
 

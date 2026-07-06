@@ -46,7 +46,7 @@ export class LLMClient {
   ): Promise<LLMResponse> {
     const cacheKey = this.getCacheKey(messages);
     const cached = this.getCached(cacheKey);
-    if (cached) return { content: cached, usage: { prompt: 0, completion: 0 } };
+    if (cached) return { content: cached, promptTokens: 0, completionTokens: 0, model: '', cached: true };
 
     try {
       const body = {
@@ -60,7 +60,7 @@ export class LLMClient {
 
       const data = await electronAPI.llmChat(body);
       this.setCache(cacheKey, data.content);
-      return { content: data.content, usage: data.usage };
+      return { content: data.content, promptTokens: data.promptTokens || 0, completionTokens: data.completionTokens || 0, model: data.model || '', cached: false };
     } catch (error: any) {
       console.error('[LLMClient] Chat failed:', error);
       throw error;
