@@ -1,0 +1,373 @@
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { CombatState, CombatAction, CombatActionType } from '../../types/combat';
+import type { NPC, Player } from '../../types/module';
+import {
+  initCombat,
+  executeAttack,
+  executeSkill,
+  executeFlee,
+  executeAIAction,
+  advanceTurn,
+  checkCombatEnd,
+  getAvailableSkills,
+} from '../../engine/combat-system';
+import { CombatHUD } from './CombatHUD';
+import { ActionMenu } from './ActionMenu';
+import { CombatLog } from './CombatLog';
+
+interface CombatOverlayProps {
+  isActive: boolean;
+  player: Player;
+  enemies: NPC[];
+  allies?: NPC[];
+  ambush?: boolean;
+  onCombatEnd: (result: 'victory' | 'defeat' | 'fled', state: CombatState) => void;
+  onCombatUpdate?: (state: CombatState) => void;
+  moduleItems?: Record<string, { id: string; name: string; description: string; usable?: boolean }>;
+  playerInventory?: string[];
+}
+
+/**
+ * CombatOverlay
+ * 战斗覆盖层 — 作为VN引擎的overlay显示，接管画面交互
+ */
+export const CombatOverlay: React.FC<CombatOverlayProps> = ({
+  isActive,
+  player,
+  enemies,
+  allies = [],
+  ambush = false,
+  onCombatEnd,
+  onCombatUpdate,
+  moduleItems = {},
+  playerInventory = [],
+}) => {
+  const [combatState, setCombatState] = useState<CombatState | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(false);
+
+  // 初始化战斗
+  useEffect(() => {
+    if (isActive && !initializedRef.current) {
+      initializedRef.current = true;
+      const state = initCombat(player, enemies, allies, ambush);
+      setCombatState(state);
+      onCombatUpdate?.(state);
+    }
+    if (!isActive) {
+      initializedRef.current = false;
+      setCombatState(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
+
+  // AI回合自动执行
+  useEffect(() => {
+    if (!combatState || !combatState.active) return;
+
+    // 检查战斗是否结束
+    const endedState = checkCombatEnd(combatState);
+    if (endedState.phase === 'victory' || endedState.phase === 'defeat' || endedState.phase === 'fled') {
+      setCombatState(endedState);
+      onCombatUpdate?.(endedState);
+      const result = endedState.phase === 'victory' ? 'victory' : endedState.phase === 'defeat' ? 'defeat' : 'fled';
+      // 延迟通知战斗结束，让玩家看到结果
+      aiTimerRef.current = setTimeout(() => {
+        onCombatEnd(result, endedState);
+      }, 2000);
+      return;
+    }
+
+    // 非玩家回合：AI自动执行
+    if (!combatState.isPlayerTurn && combatState.currentTurnEntityId) {
+      setIsProcessing(true);
+      aiTimerRef.current = setTimeout(() => {
+        setCombatState((prev) => {
+          if (!prev) return prev;
+          let newState = executeAIAction(prev, prev.currentTurnEntityId!);
+          newState = advanceTurn(newState);
+          onCombatUpdate?.(newState);
+          return newState;
+        });
+        setIsProcessing(false);
+      }, 1200);
+    }
+
+    return () => {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combatState?.currentTurnEntityId, combatState?.isPlayerTurn, combatState?.active]);
+
+  // 玩家行动
+  const handlePlayerAction = useCallback(
+    (type: CombatActionType, skillId?: string, itemId?: string) => {
+      if (!combatState || !combatState.isPlayerTurn || isProcessing) return;
+
+      if (type === 'attack') {
+        // 进入目标选择模式
+        setCombatState((prev) => {
+          if (!prev) return prev;
+          return { ...prev, targetSelectionMode: true, selectedSkillId: null, selectedItemId: null };
+        });
+        return;
+      }
+
+      if (type === 'skill' && skillId) {
+        // 技能需要选择目标（如果是单体）
+        const skillDef = getAvailableSkills(combatState.entities[combatState.playerId]).find(
+          (s) => s.id === skillId
+        );
+        if (skillDef?.targetType === 'single') {
+          setCombatState((prev) => {
+            if (!prev) return prev;
+            return { ...prev, targetSelectionMode: true, selectedSkillId: skillId, selectedItemId: null };
+          });
+          return;
+        }
+        // 无需目标的技能（自身/全体）直接执行
+        const action: CombatAction = {
+          type: 'skill',
+          sourceId: combatState.playerId,
+          skillId,
+        };
+        executeAndAdvance(action);
+        return;
+      }
+
+      if (type === 'flee') {
+        const action: CombatAction = {
+          type: 'flee',
+          sourceId: combatState.playerId,
+        };
+        executeAndAdvance(action);
+        return;
+      }
+
+      if (type === 'item' && itemId) {
+        const action: CombatAction = {
+          type: 'item',
+          sourceId: combatState.playerId,
+          itemId,
+        };
+        executeAndAdvance(action);
+        return;
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [combatState, isProcessing]
+  );
+
+  // 选择目标
+  const handleSelectTarget = useCallback(
+    (targetId: string) => {
+      if (!combatState || !combatState.targetSelectionMode) return;
+
+      const action: CombatAction = {
+        type: combatState.selectedSkillId ? 'skill' : 'attack',
+        sourceId: combatState.playerId,
+        targetId,
+        skillId: combatState.selectedSkillId || undefined,
+      };
+
+      executeAndAdvance(action);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [combatState]
+  );
+
+  // 取消目标选择
+  const handleCancelTargetSelection = useCallback(() => {
+    setCombatState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, targetSelectionMode: false, selectedTargetId: null, selectedSkillId: null };
+    });
+  }, []);
+
+  // 执行行动并推进回合
+  const executeAndAdvance = useCallback(
+    (action: CombatAction) => {
+      setIsProcessing(true);
+      setCombatState((prev) => {
+        if (!prev) return prev;
+
+        let newState = { ...prev };
+
+        switch (action.type) {
+          case 'attack': {
+            if (!action.targetId) break;
+            const { state } = executeAttack(newState, action.sourceId, action.targetId);
+            newState = state;
+            break;
+          }
+          case 'skill': {
+            if (!action.targetId && action.skillId) {
+              // 无需目标的技能
+              const { state } = executeSkill(newState, action.sourceId, action.sourceId, action.skillId);
+              newState = state;
+            } else if (action.targetId && action.skillId) {
+              const { state } = executeSkill(newState, action.sourceId, action.targetId, action.skillId);
+              newState = state;
+            }
+            break;
+          }
+          case 'flee': {
+            const { state, result } = executeFlee(newState, action.sourceId);
+            newState = state;
+            if (result.type === 'flee_success') {
+              newState = { ...newState, phase: 'fled', active: false };
+            }
+            break;
+          }
+          case 'item': {
+            // 物品效果简化为恢复HP（可扩展）
+            const item = moduleItems[action.itemId || ''];
+            if (item) {
+              const healAmount = Math.floor(Math.random() * 4) + 2;
+              const player = newState.entities[newState.playerId];
+              if (player) {
+                player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                newState.entities = { ...newState.entities, [player.id]: { ...player } };
+                newState.log = [
+                  ...newState.log,
+                  {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    timestamp: Date.now(),
+                    type: 'heal',
+                    actor: player.id,
+                    message: `${player.name} 使用了 ${item.name}，恢复 ${healAmount} 点HP。`,
+                  },
+                ];
+              }
+            }
+            break;
+          }
+        }
+
+        newState = advanceTurn(newState);
+        onCombatUpdate?.(newState);
+        setIsProcessing(false);
+        return newState;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [moduleItems]
+  );
+
+  if (!isActive || !combatState) return null;
+
+  const playerEntity = combatState.entities[combatState.playerId];
+  const enemyEntities = combatState.enemyIds
+    .map((id) => combatState.entities[id])
+    .filter(Boolean);
+  const allyEntities = combatState.allyIds
+    .map((id) => combatState.entities[id])
+    .filter(Boolean);
+
+  const availableSkills = playerEntity ? getAvailableSkills(playerEntity) : [];
+  const inventory = playerInventory
+    .map((id) => moduleItems[id])
+    .filter(Boolean);
+
+  // 战斗结束画面
+  const isEnded = combatState.phase === 'victory' || combatState.phase === 'defeat' || combatState.phase === 'fled';
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="absolute inset-0 z-50 flex flex-col"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        {/* 暗色遮罩 */}
+        <div className="absolute inset-0 bg-black/40" />
+
+        {/* 回合指示器 */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+          <motion.div
+            className="px-4 py-1.5 rounded-full border backdrop-blur-sm"
+            style={{
+              borderColor: combatState.isPlayerTurn ? '#dc262640' : '#6b728040',
+              backgroundColor: combatState.isPlayerTurn ? 'rgba(220,38,38,0.15)' : 'rgba(10,10,10,0.6)',
+            }}
+            animate={{ scale: combatState.isPlayerTurn ? [1, 1.05, 1] : 1 }}
+            transition={{ repeat: combatState.isPlayerTurn ? Infinity : 0, duration: 1.5 }}
+          >
+            <span className="text-sm font-bold tracking-wider">
+              {isEnded
+                ? combatState.phase === 'victory'
+                  ? '🏆 战斗胜利！'
+                  : combatState.phase === 'defeat'
+                  ? '☠ 战斗失败...'
+                  : '💨 成功逃脱'
+                : `第 ${combatState.round} 回合 — ${combatState.isPlayerTurn ? '你的回合' : '敌方回合'}`}
+            </span>
+          </motion.div>
+        </div>
+
+        {/* HUD层 */}
+        <CombatHUD
+          player={playerEntity}
+          enemies={enemyEntities}
+          allies={allyEntities}
+          currentTurnEntityId={combatState.currentTurnEntityId}
+          selectedTargetId={combatState.selectedTargetId}
+          targetSelectionMode={combatState.targetSelectionMode}
+          onSelectTarget={handleSelectTarget}
+        />
+
+        {/* 战斗日志 */}
+        {!isEnded && <CombatLog logs={combatState.log} />}
+
+        {/* 行动菜单 */}
+        {!isEnded && (
+          <ActionMenu
+            isPlayerTurn={combatState.isPlayerTurn}
+            isTargetSelectionMode={combatState.targetSelectionMode}
+            skills={availableSkills}
+            inventory={inventory}
+            onAction={handlePlayerAction}
+            onCancelTargetSelection={handleCancelTargetSelection}
+            disabled={isProcessing}
+          />
+        )}
+
+        {/* 战斗结束覆盖层 */}
+        {isEnded && (
+          <motion.div
+            className="absolute inset-0 z-40 flex items-center justify-center bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div
+              className="text-center"
+              initial={{ scale: 0.5, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              <div className="text-6xl mb-4">
+                {combatState.phase === 'victory' ? '🏆' : combatState.phase === 'defeat' ? '☠' : '💨'}
+              </div>
+              <h2 className="text-3xl font-bold mb-2">
+                {combatState.phase === 'victory' ? '战斗胜利！' : combatState.phase === 'defeat' ? '你倒下了...' : '成功逃脱'}
+              </h2>
+              <p className="text-gray-400 text-sm">
+                {combatState.phase === 'victory'
+                  ? `共经历 ${combatState.round} 回合`
+                  : combatState.phase === 'defeat'
+                  ? 'SAN值归零或HP耗尽'
+                  : '你成功逃离了危险'}
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+export default CombatOverlay;

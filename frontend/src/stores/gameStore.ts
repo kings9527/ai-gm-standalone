@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import type { Campaign, Module, GameSave } from '../types/module';
+import type { CombatState } from '../types/combat';
 import type { GameStateMachine } from '../engine/state-machine';
 
 interface GameState {
   campaign: Campaign | null;
   module: Module | null;
   stateMachine: GameStateMachine | null;
+  combatState: CombatState | null;
   isPlaying: boolean;
   isTransitioning: boolean;
   currentSceneId: string | null;
@@ -14,6 +16,7 @@ interface GameState {
   setCampaign: (campaign: Campaign) => void;
   setModule: (module: Module) => void;
   setStateMachine: (sm: GameStateMachine | null) => void;
+  setCombatState: (state: CombatState | null) => void;
   updateScene: (sceneId: string) => void;
   updatePlayer: (updates: Partial<Campaign['player']>) => void;
   updateGlobalVar: (key: string, value: unknown) => void;
@@ -28,6 +31,7 @@ export const useGameStore = create<GameState>((set) => ({
   campaign: null,
   module: null,
   stateMachine: null,
+  combatState: null,
   isPlaying: false,
   isTransitioning: false,
   currentSceneId: null,
@@ -37,6 +41,8 @@ export const useGameStore = create<GameState>((set) => ({
   setModule: (module) => set({ module }),
 
   setStateMachine: (sm) => set({ stateMachine: sm }),
+
+  setCombatState: (combatState) => set({ combatState }),
 
   updateScene: (sceneId) =>
     set((state) => ({
@@ -82,6 +88,7 @@ export const useGameStore = create<GameState>((set) => ({
       campaign: null,
       module: null,
       stateMachine: null,
+      combatState: null,
       isPlaying: false,
       isTransitioning: false,
       currentSceneId: null,

@@ -4,8 +4,9 @@ import BackgroundLayer from './BackgroundLayer';
 import SpriteLayer from './SpriteLayer';
 import DialogueLayer from './DialogueLayer';
 import EffectLayer from './EffectLayer';
+import { CombatOverlay } from '../combat/CombatOverlay';
 import type { VNState, VNEffect } from '../../types/engine';
-import type { Module, Scene } from '../../types/module';
+import type { Module, Scene, NPC } from '../../types/module';
 import { useGameStore } from '../../stores/gameStore';
 
 interface VisualNovelEngineProps {
@@ -14,6 +15,7 @@ interface VisualNovelEngineProps {
   onSave?: () => void;
   onMenuToggle?: () => void;
   onSceneChange?: (sceneId: string) => void;
+  onCombatEnd?: (result: 'victory' | 'defeat' | 'fled') => void;
 }
 
 /**
@@ -28,6 +30,7 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
   onSave,
   onMenuToggle,
   onSceneChange,
+  onCombatEnd,
 }) => {
   const startScene = initialSceneId || module.start_scene;
   const [vnState, setVnState] = useState<VNState>({
@@ -42,7 +45,10 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
   });
 
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);
-  const { updateScene, setCurrentSceneId } = useGameStore();
+  const [combatActive, setCombatActive] = useState(false);
+  const [combatEnemies, setCombatEnemies] = useState<NPC[]>([]);
+
+  const { updateScene, setCurrentSceneId, campaign, setCombatState } = useGameStore();
 
   // Load scene data when scene changes
   useEffect(() => {
@@ -100,8 +106,17 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
 
     setVnState((prev) => ({ ...prev, ...newState }));
 
-    // Notify parent of scene change for auto-save
-    onSceneChange?.(vnState.currentSceneId);
+    // 检查场景是否有战斗配置，自动触发战斗
+    if (scene.combat?.enabled && scene.combat.enemies.length > 0) {
+      const enemyNPCs = scene.combat.enemies
+        .map((eid) => module.npcs?.[eid])
+        .filter(Boolean) as NPC[];
+      setCombatEnemies(enemyNPCs);
+      setCombatActive(true);
+    } else {
+      setCombatActive(false);
+      setCombatEnemies([]);
+    }
 
     // Auto-clear transition flag after animation
     const timer = setTimeout(() => {
@@ -172,6 +187,41 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
     }));
   }, []);
 
+  // 战斗结束回调
+  const handleCombatEnd = useCallback(
+    (result: 'victory' | 'defeat' | 'fled') => {
+      setCombatActive(false);
+      setCombatState(null);
+      onCombatEnd?.(result);
+
+      // 战斗结束后根据结果推进场景
+      if (result === 'victory' && currentScene?.exits && currentScene.exits.length > 0) {
+        // 胜利后继续前进
+        handleAdvance();
+      } else if (result === 'fled' && currentScene?.exits && currentScene.exits.length > 0) {
+        // 逃跑后回到上一个场景
+        const prevScene = campaign?.scene_history[campaign.scene_history.length - 2];
+        if (prevScene) {
+          setVnState((prev) => ({
+            ...prev,
+            currentSceneId: prevScene,
+            isTransitioning: true,
+          }));
+        }
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentScene, campaign, onCombatEnd]
+  );
+
+  // 战斗状态更新
+  const handleCombatUpdate = useCallback(
+    (cState: any) => {
+      setCombatState(cState);
+    },
+    [setCombatState]
+  );
+
   const handleEffectEnd = useCallback((index: number) => {
     setVnState((prev) => ({
       ...prev,
@@ -212,6 +262,23 @@ export const VisualNovelEngine: React.FC<VisualNovelEngineProps> = ({
 
       {/* Layer 4: Effects */}
       <EffectLayer effects={vnState.effects} onEffectEnd={handleEffectEnd} />
+
+      <CombatOverlay
+        isActive={combatActive}
+        player={campaign?.player || {
+          name: '调查员',
+          stats: {},
+          hp: 12, max_hp: 12,
+          sanity: 60, max_sanity: 60,
+          inventory: [],
+        }}
+        enemies={combatEnemies}
+        ambush={currentScene?.combat?.ambush || false}
+        onCombatEnd={handleCombatEnd}
+        onCombatUpdate={handleCombatUpdate}
+        moduleItems={module.items || {}}
+        playerInventory={campaign?.player?.inventory || []}
+      />
 
       {/* Debug: Effect test buttons */}
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-2">
