@@ -6,6 +6,7 @@ import { StyleAnalyzerPanel } from './components/style-analyzer';
 import { ImageSelector } from './components/image-selector';
 import { SaveLoadPanel } from './components/save-load';
 import { InGameMenu } from './components/menu';
+import { ModuleManagerPage } from './components/module-manager';
 import { useGameStore } from './stores/gameStore';
 import { useSaveStore } from './stores/saveStore';
 import { GameStateMachine } from './engine/state-machine';
@@ -27,7 +28,7 @@ const App: React.FC = () => {
           <Route path="/style-analyzer" element={<StyleAnalyzerPanel />} />
           <Route path="/images" element={<ImageManagerPage />} />
           <Route path="/play" element={<PlayPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/modules" element={<ModuleManagerPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
@@ -58,6 +59,12 @@ const HomePage: React.FC = () => (
         className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
       >
         继续游戏
+      </a>
+      <a
+        href="#/modules"
+        className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
+      >
+        模组管理
       </a>
       <a
         href="#/images"
