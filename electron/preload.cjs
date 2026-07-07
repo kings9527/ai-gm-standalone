@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   settingsSet: (key, value) => ipcRenderer.invoke('aigm:settings:set', { key, value }),
   settingsGetAll: () => ipcRenderer.invoke('aigm:settings:getAll'),
 
+  // Styles
+  styleList: () => ipcRenderer.invoke('aigm:style:list'),
+  styleGet: (id) => ipcRenderer.invoke('aigm:style:get', id),
+  styleSave: (data) => ipcRenderer.invoke('aigm:style:save', data),
+  styleUpdate: (id, data) => ipcRenderer.invoke('aigm:style:update', { id, ...data }),
+  styleDelete: (id) => ipcRenderer.invoke('aigm:style:delete', id),
+
   // Path
   userDataPath: () => ipcRenderer.invoke('aigm:path:userData'),
 });

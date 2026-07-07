@@ -239,14 +239,16 @@ Respond ONLY with a JSON object in this exact format:
   findMatchingExit(intent: any, input: string) {
     if (!this.currentScene.exits) return null;
     return this.currentScene.exits.find((exit) => {
+      if (!intent && !input) return false;
+      // Exact match by target or label
       if (exit.target === intent || exit.label === intent) return true;
+      // Partial match: input contains exit label or exit label contains input
+      if (intent && exit.label && (exit.label.includes(intent) || intent.includes(exit.label))) return true;
+      if (input && exit.label && (exit.label.includes(input) || input.includes(exit.label))) return true;
+      if (input && exit.description && (exit.description.includes(input) || input.includes(exit.description))) return true;
       if (!exit.condition || Object.keys(exit.condition).length === 0) return true;
       if (typeof exit.condition === 'object') {
         return this.evaluateCondition(exit.condition);
-      }
-      if (input && exit.description) {
-        const keywords = exit.description.toLowerCase().split(/\s+/);
-        return keywords.some((k) => input.toLowerCase().includes(k));
       }
       return false;
     }) || null;
@@ -279,7 +281,29 @@ Respond ONLY with a JSON object in this exact format:
     for (const itemId of interactables) {
       const item = items[itemId];
       if (!item) continue;
-      if (input.toLowerCase().includes(item.name.toLowerCase()) || input.toLowerCase().includes(itemId.toLowerCase())) {
+      const inputLower = input.toLowerCase();
+      const nameLower = item.name.toLowerCase();
+      const idLower = itemId.toLowerCase();
+      // Check if any significant words overlap
+      // For Chinese: check if any 2+ char substring of input matches part of name
+      let hasKeywordMatch = false;
+      if (/[\u4e00-\u9fff]/.test(input)) {
+        // Chinese text: extract 2-char substrings and check
+        for (let i = 0; i < inputLower.length - 1; i++) {
+          const substr = inputLower.substring(i, i + 2);
+          if (substr.length >= 2 && nameLower.includes(substr)) {
+            hasKeywordMatch = true;
+            break;
+          }
+        }
+      } else {
+        const inputWords = inputLower.split(/\s+/).filter(w => w.length > 1);
+        const nameWords = nameLower.split(/\s+/).filter(w => w.length > 1);
+        hasKeywordMatch = inputWords.some(w => nameLower.includes(w)) || nameWords.some(w => inputLower.includes(w));
+      }
+      // Full or partial match
+      if (hasKeywordMatch || inputLower.includes(nameLower) || nameLower.includes(inputLower) ||
+          inputLower.includes(idLower) || idLower.includes(inputLower)) {
         matchedItem = { ...item };
         break;
       }

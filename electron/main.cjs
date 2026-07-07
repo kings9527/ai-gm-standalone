@@ -210,6 +210,19 @@ ipcMain.handle('aigm:settings:set', async (_event, { key, value }) =>
 );
 ipcMain.handle('aigm:settings:getAll', async () => apiFetch('/api/settings'));
 
+// Styles
+ipcMain.handle('aigm:style:list', async () => apiFetch('/api/styles'));
+ipcMain.handle('aigm:style:get', async (_event, id) => apiFetch(`/api/styles/${encodeURIComponent(id)}`));
+ipcMain.handle('aigm:style:save', async (_event, data) =>
+  apiFetch('/api/styles', { method: 'POST', body: JSON.stringify(data) })
+);
+ipcMain.handle('aigm:style:update', async (_event, { id, ...data }) =>
+  apiFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) })
+);
+ipcMain.handle('aigm:style:delete', async (_event, id) =>
+  apiFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' })
+);
+
 // Path
 ipcMain.handle('aigm:path:userData', () => app.getPath('userData'));
 
