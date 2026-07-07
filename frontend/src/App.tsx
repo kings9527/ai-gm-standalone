@@ -344,29 +344,6 @@ const PlayPage: React.FC = () => {
   );
 };
 
-// Settings Page (placeholder)
-const SettingsPage: React.FC = () => (
-  <div className="w-full h-full flex flex-col bg-gray-950 p-8 overflow-y-auto">
-    <h2 className="text-xl font-bold text-red-400 mb-6">设置</h2>
-    <div className="space-y-4 max-w-2xl">
-      <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800/40">
-        <h3 className="text-sm font-medium text-gray-300 mb-2">API 配置</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          在设置中配置以下 Key 以启用完整功能：
-        </p>
-        <ul className="text-xs text-gray-400 space-y-1">
-          <li>• OPENAI_API_KEY — 用于 DALL-E 图片生成</li>
-          <li>• UNSPLASH_ACCESS_KEY — 用于 Unsplash 图片搜索</li>
-        </ul>
-      </div>
-      <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800/40">
-        <h3 className="text-sm font-medium text-gray-300 mb-2">图片缓存</h3>
-        <p className="text-xs text-gray-500">
-          图片缓存存储在 ~/AI-GM/images/ 目录下，按类型分为 bg/、sprite/、portrait/、upload/ 子目录。
-        </p>
-      </div>
-    </div>
-  </div>
-);
+import { SettingsPage } from './components/settings';
 
 export default App;
