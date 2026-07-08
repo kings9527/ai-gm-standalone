@@ -24,6 +24,7 @@ interface SaveState {
     campaign: Campaign;
     module: Module;
     thumbnail?: string;
+    vnSnapshot?: any; // VNState snapshot
   }) => Promise<GameSave>;
   loadSave: (saveId: string) => Promise<GameSave | null>;
   deleteSave: (saveId: string, moduleId: string) => Promise<void>;
@@ -31,6 +32,7 @@ interface SaveState {
     campaign: Campaign;
     module: Module;
     thumbnail?: string;
+    vnSnapshot?: any;
   }) => Promise<GameSave | null>;
   clearError: () => void;
 }
@@ -70,7 +72,7 @@ export const useSaveStore = create<SaveState>((set, get) => ({
     }
   },
 
-  createSave: async ({ slotNumber, name, campaign, module, thumbnail }) => {
+  createSave: async ({ slotNumber, name, campaign, module, thumbnail, vnSnapshot }) => {
     set({ isLoading: true, error: null });
     try {
       const existing = get().saves.find((s) => s.slotNumber === slotNumber)?.save;
@@ -87,6 +89,7 @@ export const useSaveStore = create<SaveState>((set, get) => ({
         module,
         timestamp: new Date().toISOString(),
         thumbnail: thumbnail || existing?.thumbnail,
+        vnSnapshot: vnSnapshot || existing?.vnSnapshot,
       };
 
       const result = await electronAPI.saveWrite(saveData);
@@ -138,7 +141,7 @@ export const useSaveStore = create<SaveState>((set, get) => ({
     }
   },
 
-  autoSave: async ({ campaign, module, thumbnail }) => {
+  autoSave: async ({ campaign, module, thumbnail, vnSnapshot }) => {
     try {
       const save = await get().createSave({
         slotNumber: QUICK_SAVE_SLOT,
@@ -146,6 +149,7 @@ export const useSaveStore = create<SaveState>((set, get) => ({
         campaign,
         module,
         thumbnail,
+        vnSnapshot,
       });
       console.log('[SaveStore] Auto-saved to slot', QUICK_SAVE_SLOT, save.timestamp);
       return save;

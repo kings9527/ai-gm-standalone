@@ -13,6 +13,7 @@ interface SaveLoadPanelProps {
   currentSceneId: string | null;
   onLoadSave?: (saveId: string) => void;
   onSaveComplete?: () => void;
+  onSnapshotRequest?: () => Promise<{ snapshot: any; thumbnail: string } | null>;
 }
 
 /**
@@ -29,6 +30,7 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
   currentSceneId,
   onLoadSave,
   onSaveComplete,
+  onSnapshotRequest,
 }) => {
   const { saves, isLoading, error, loadSaves, createSave, deleteSave, clearError } = useSaveStore();
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
@@ -55,9 +57,27 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
       if (!campaign || !module) return;
       clearError();
 
-      // Get scene thumbnail from current scene bg
-      const scene = module.scenes[currentSceneId || campaign.current_scene];
-      const thumbnail = scene?.bg || undefined;
+      // 获取 VN 快照和缩略图（优先从引擎截图）
+      let thumbnail: string | undefined = undefined;
+      let vnSnapshot: any | undefined = undefined;
+
+      if (onSnapshotRequest) {
+        try {
+          const result = await onSnapshotRequest();
+          if (result) {
+            thumbnail = result.thumbnail;
+            vnSnapshot = result.snapshot;
+          }
+        } catch (err) {
+          console.warn('[SaveLoadPanel] Snapshot request failed:', err);
+        }
+      }
+
+      // 降级：使用场景背景图
+      if (!thumbnail) {
+        const scene = module.scenes[currentSceneId || campaign.current_scene];
+        thumbnail = scene?.bg || undefined;
+      }
 
       try {
         await createSave({
@@ -65,7 +85,8 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
           name: slotNumber === QUICK_SAVE_SLOT ? undefined : saveName || undefined,
           campaign,
           module,
-          thumbnail: typeof thumbnail === 'string' && thumbnail.startsWith('http') ? thumbnail : undefined,
+          thumbnail,
+          vnSnapshot,
         });
         setSaveName('');
         setJustSaved(slotNumber);
@@ -74,7 +95,7 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
         // Error is already in store
       }
     },
-    [campaign, module, currentSceneId, saveName, createSave, clearError, onSaveComplete]
+    [campaign, module, currentSceneId, saveName, createSave, clearError, onSaveComplete, onSnapshotRequest]
   );
 
   const handleLoad = useCallback(

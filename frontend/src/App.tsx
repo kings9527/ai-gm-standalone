@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import VisualNovelEngine from './components/engine/VisualNovelEngine';
+import type { VisualNovelEngineHandle } from './components/engine/VisualNovelEngine';
 import GeneratorPage from './components/generator/GeneratorPage';
 import { StyleAnalyzerPanel } from './components/style-analyzer';
 import { ImageSelector } from './components/image-selector';
@@ -11,6 +12,7 @@ import { useGameStore } from './stores/gameStore';
 import { useSaveStore } from './stores/saveStore';
 import { GameStateMachine } from './engine/state-machine';
 import type { Module, Campaign } from './types/module';
+import { electronAPI } from './api/electron';
 
 /**
  * App.tsx
@@ -29,6 +31,7 @@ const App: React.FC = () => {
           <Route path="/images" element={<ImageManagerPage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/modules" element={<ModuleManagerPage />} />
+          <Route path="/settings" element={<SettingsPageRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
@@ -103,6 +106,13 @@ const ImageManagerPage: React.FC = () => {
   );
 };
 
+// Settings Page Route - wraps SettingsPage with back-to-game support
+const SettingsPageRoute: React.FC = () => {
+  const location = useLocation();
+  const fromGame = location.state?.fromGame === true;
+  return <SettingsPage fromGame={fromGame} />;
+};
+
 // Play Page - Visual Novel Engine with Save/Load System
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -114,6 +124,7 @@ const PlayPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [savePanelMode, setSavePanelMode] = useState<'save' | 'load'>('save');
   const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // VN 引擎暂停状态
 
   // Game state
   const {
@@ -124,6 +135,7 @@ const PlayPage: React.FC = () => {
     setModule: setStoreModule,
     setStateMachine,
     reset: resetGameStore,
+    restoreFromSave,
   } = useGameStore();
 
   const { autoSave } = useSaveStore();
@@ -131,6 +143,9 @@ const PlayPage: React.FC = () => {
   // Track if we're loading from a save
   const [loadedFromSave, setLoadedFromSave] = useState(false);
   const [loadedSceneId, setLoadedSceneId] = useState<string | undefined>(undefined);
+
+  // VN Engine ref for snapshot/thumbnail
+  const vnRef = useRef<VisualNovelEngineHandle>(null);
 
   // Auto-save debounce ref
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,28 +203,33 @@ const PlayPage: React.FC = () => {
     setStateMachine(sm);
   }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
 
-  // Handle scene change -> auto-save to slot 0 (debounced)
+  // Handle scene change -> update campaign and notify
   const handleSceneChange = useCallback(
     (sceneId: string) => {
       if (!campaign || !module) return;
-
       // Update campaign scene in store
       setCampaign({ ...campaign, current_scene: sceneId, scene_history: [...campaign.scene_history, sceneId] });
-
-      // Debounced auto-save
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        const currentCampaign = useGameStore.getState().campaign;
-        if (currentCampaign && module) {
-          autoSave({ campaign: currentCampaign, module }).catch((err) => {
-            console.warn('[PlayPage] Auto-save failed:', err);
-          });
-        }
-      }, 2000);
     },
-    [campaign, module, setCampaign, autoSave]
+    [campaign, module, setCampaign]
+  );
+
+  // Auto-save at key nodes (scene change, combat start)
+  const handleAutoSave = useCallback(
+    async (snapshot: any, thumbnail: string) => {
+      const currentCampaign = useGameStore.getState().campaign;
+      if (!currentCampaign || !module) return;
+      try {
+        await autoSave({
+          campaign: currentCampaign,
+          module,
+          thumbnail,
+          vnSnapshot: snapshot,
+        });
+      } catch (err: any) {
+        console.warn('[PlayPage] Auto-save failed:', err);
+      }
+    },
+    [module, autoSave]
   );
 
   // Handle load save
@@ -232,13 +252,18 @@ const PlayPage: React.FC = () => {
 
         setModule(restoredModule);
         setStoreModule(restoredModule);
-        setCampaign(restoredCampaign);
+        restoreFromSave(save);
         setLoadedFromSave(true);
         setLoadedSceneId(restoredCampaign.current_scene);
 
         // Recreate state machine
         const sm = new GameStateMachine(restoredModule, restoredCampaign, null);
         setStateMachine(sm);
+
+        // Restore VN snapshot if available
+        if (save.vnSnapshot && vnRef.current) {
+          vnRef.current.restoreSnapshot(save.vnSnapshot);
+        }
 
         setLoading(false);
       } catch (err: any) {
@@ -247,7 +272,7 @@ const PlayPage: React.FC = () => {
         setLoading(false);
       }
     },
-    [setCampaign, setStateMachine, setStoreModule]
+    [setStoreModule, restoreFromSave, setStateMachine]
   );
 
   // Handle manual save
@@ -271,7 +296,40 @@ const PlayPage: React.FC = () => {
 
   const handleResume = useCallback(() => {
     setMenuOpen(false);
+    setIsPaused(false);
   }, []);
+
+  const handleMenuToggle = useCallback(() => {
+    setMenuOpen((prev) => {
+      const next = !prev;
+      setIsPaused(next); // 菜单打开时暂停引擎，关闭时恢复
+      return next;
+    });
+  }, []);
+
+  const handleSettings = useCallback(() => {
+    setMenuOpen(false);
+    setIsPaused(true); // 进入设置时保持暂停
+    navigate('/settings', { state: { fromGame: true } });
+  }, [navigate]);
+
+  const handleExitApplication = useCallback(() => {
+    // Electron 环境调用退出
+    if (typeof electronAPI?.quit === 'function') {
+      electronAPI.quit();
+    } else {
+      window.close();
+    }
+  }, []);
+
+  // Handle manual save from panel
+  const handleManualSave = useCallback(async () => {
+    if (!campaign || !module) return null;
+    const snapshot = vnRef.current?.getSnapshot();
+    const thumbnail = await vnRef.current?.takeThumbnail();
+    if (!thumbnail) return null;
+    return { snapshot, thumbnail };
+  }, [campaign, module]);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -306,25 +364,29 @@ const PlayPage: React.FC = () => {
   return (
     <div className="relative w-full h-full">
       <VisualNovelEngine
+        ref={vnRef}
         module={module}
         initialSceneId={loadedSceneId}
+        isPaused={isPaused}
         onSave={handleOpenSave}
-        onMenuToggle={() => setMenuOpen((prev) => !prev)}
+        onMenuToggle={handleMenuToggle}
         onSceneChange={handleSceneChange}
+        onAutoSave={handleAutoSave}
       />
 
       {/* In-Game Menu (ESC) */}
       <InGameMenu
         isOpen={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => {
+          setMenuOpen(false);
+          setIsPaused(false);
+        }}
         onSave={handleOpenSave}
         onLoad={handleOpenLoad}
-        onSettings={() => {
-          setMenuOpen(false);
-          navigate('/settings');
-        }}
+        onSettings={handleSettings}
         onQuit={handleQuit}
         onResume={handleResume}
+        onExitApplication={handleExitApplication}
       />
 
       {/* Save/Load Panel */}
@@ -336,6 +398,7 @@ const PlayPage: React.FC = () => {
         module={module}
         currentSceneId={currentSceneId}
         onLoadSave={handleLoadSave}
+        onSnapshotRequest={handleManualSave}
         onSaveComplete={() => {
           // Optional: show a toast or keep panel open
         }}
@@ -344,6 +407,7 @@ const PlayPage: React.FC = () => {
   );
 };
 
+// Settings Page - with back-to-game support
 import { SettingsPage } from './components/settings';
 
 export default App;

@@ -118,7 +118,11 @@ const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label
 
 /* ── Main Page ──────────────────────────────────────────────────── */
 
-const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  fromGame?: boolean;
+}
+
+const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('llm');
   const [saving, setSaving] = useState(false);
@@ -476,11 +480,11 @@ const SettingsPage: React.FC = () => {
       <header className="flex items-center justify-between border-b border-gray-800/60 px-6 py-3 shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(fromGame ? '/play' : '/')}
             className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 transition-colors"
           >
             <ChevronLeft size={16} />
-            返回
+            {fromGame ? '返回游戏' : '返回'}
           </button>
           <h1 className="text-base font-bold text-red-400 tracking-wide">设置</h1>
           {!loaded && (

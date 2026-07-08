@@ -7,6 +7,7 @@ export interface VNState {
   choices: VNChoice[];
   effects: VNEffect[];
   isTransitioning: boolean;
+  isPaused?: boolean; // 引擎暂停状态
 }
 
 export interface VNSprite {
@@ -26,6 +27,7 @@ export interface VNDialogue {
   typewriter: boolean;
   typewriterSpeed: number;
   speakerColor: string;
+  typewriterProgress?: number; // 0~1，用于读档恢复打字进度
 }
 
 export interface VNChoice {

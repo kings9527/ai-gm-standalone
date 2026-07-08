@@ -1,10 +1,11 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import type { VNSprite } from '../../types/engine';
 
 interface SpriteLayerProps {
   sprites: VNSprite[];
   onSpriteClick?: (charId: string) => void;
+  isPaused?: boolean;
 }
 
 /**
@@ -12,8 +13,19 @@ interface SpriteLayerProps {
  * Renders character sprites with position, expression, and enter animations.
  * Highlights the speaker, fades non-speakers.
  * Supports left/center/right positioning.
+ * Supports pause: when paused, animations are frozen.
  */
-export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites, onSpriteClick }) => {
+export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites, onSpriteClick, isPaused = false }) => {
+  const controls = useAnimationControls();
+
+  useEffect(() => {
+    if (isPaused) {
+      controls.stop();
+    } else {
+      controls.start({ opacity: 1, scale: 1 });
+    }
+  }, [isPaused, controls]);
+
   const getPositionClass = (position: string) => {
     switch (position) {
       case 'left':
@@ -39,7 +51,7 @@ export const SpriteLayer: React.FC<SpriteLayerProps> = ({ sprites, onSpriteClick
               height: '500px',
             }}
             initial={getInitialAnimation(sprite.enterAnimation)}
-            animate={{
+            animate={isPaused ? { opacity: 1, scale: 1 } : {
               opacity: sprite.isSpeaking ? 1 : 0.7,
               scale: sprite.isSpeaking ? 1.02 : 1,
               filter: sprite.isSpeaking ? 'brightness(1.1)' : 'brightness(0.85)',

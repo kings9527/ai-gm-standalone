@@ -5,6 +5,7 @@ import type { VNEffect } from '../../types/engine';
 interface EffectLayerProps {
   effects: VNEffect[];
   onEffectEnd?: (index: number) => void;
+  isPaused?: boolean;
 }
 
 /**
@@ -12,10 +13,12 @@ interface EffectLayerProps {
  * Renders screen effects: shake, grain, vignette, chromatic aberration, fade in/out, flash.
  * Overlay on top of everything.
  * Grain and vignette are persistent; other effects auto-remove after duration.
+ * Supports pause: when paused, new auto-remove timers are not started.
  */
-export const EffectLayer: React.FC<EffectLayerProps> = ({ effects, onEffectEnd }) => {
-  // Auto-remove non-persistent effects after their duration
+export const EffectLayer: React.FC<EffectLayerProps> = ({ effects, onEffectEnd, isPaused = false }) => {
+  // Auto-remove non-persistent effects after their duration (only when not paused)
   useEffect(() => {
+    if (isPaused) return; // 暂停时不启动新特效的自动移除计时器
     effects.forEach((effect, index) => {
       if (effect.type !== 'grain' && effect.type !== 'vignette') {
         const timer = setTimeout(() => {
@@ -24,7 +27,7 @@ export const EffectLayer: React.FC<EffectLayerProps> = ({ effects, onEffectEnd }
         return () => clearTimeout(timer);
       }
     });
-  }, [effects, onEffectEnd]);
+  }, [effects, onEffectEnd, isPaused]);
 
   return (
     <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">

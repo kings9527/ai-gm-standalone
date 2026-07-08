@@ -205,6 +205,13 @@ export const electronAPI = {
     if (api) return api.userDataPath();
     return '/tmp/ai-gm';
   },
+
+  async quit() {
+    if (api && typeof (api as any).quit === 'function') {
+      return (api as any).quit();
+    }
+    window.close();
+  },
 };
 
 export default electronAPI;

@@ -10,6 +10,7 @@ interface InGameMenuProps {
   onSettings: () => void;
   onQuit: () => void;
   onResume: () => void;
+  onExitApplication?: () => void; // 退出应用（Electron 环境）
 }
 
 /**
@@ -25,6 +26,7 @@ export const InGameMenu: React.FC<InGameMenuProps> = ({
   onSettings,
   onQuit,
   onResume,
+  onExitApplication,
 }) => {
   // ESC key handler
   useEffect(() => {
@@ -45,6 +47,7 @@ export const InGameMenu: React.FC<InGameMenuProps> = ({
     { icon: RotateCcw, label: '读取存档', action: onLoad, color: 'text-amber-400', border: 'border-amber-900/30', hover: 'hover:bg-amber-950/20 hover:border-amber-800/40' },
     { icon: Settings, label: '设置', action: onSettings, color: 'text-blue-400', border: 'border-blue-900/30', hover: 'hover:bg-blue-950/20 hover:border-blue-800/40' },
     { icon: LogOut, label: '退出到主菜单', action: onQuit, color: 'text-gray-400', border: 'border-gray-800/40', hover: 'hover:bg-gray-900/40 hover:border-gray-700/40' },
+    ...(onExitApplication ? [{ icon: X, label: '退出游戏', action: onExitApplication, color: 'text-red-500' as const, border: 'border-red-900/30' as const, hover: 'hover:bg-red-950/20 hover:border-red-800/40' as const }] : []),
   ];
 
   return (

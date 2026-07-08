@@ -196,6 +196,8 @@ export interface StatusEffect {
   description: string;
 }
 
+import type { VNState } from './engine';
+
 export interface GameSave {
   id: string;
   name: string;
@@ -203,6 +205,7 @@ export interface GameSave {
   module: Module;
   timestamp: string;
   thumbnail?: string;
+  vnSnapshot?: VNState; // 存档时 VN 引擎状态
 }
 
 export interface ImageItem {

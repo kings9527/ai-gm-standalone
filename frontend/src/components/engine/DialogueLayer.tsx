@@ -7,11 +7,13 @@ interface DialogueLayerProps {
   choices: VNChoice[];
   onAdvance: () => void;
   onChoice: (choiceId: string) => void;
+  isPaused?: boolean;
 }
 
 /**
  * DialogueLayer
  * Renders the dialogue box with typewriter effect and choice buttons.
+ * Supports pause/resume for in-game menu overlay.
  * Uses CSS variables for dynamic theming (--agm-dialogue-bg, --agm-accent, --agm-text).
  */
 export const DialogueLayer: React.FC<DialogueLayerProps> = ({
@@ -19,11 +21,19 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   choices,
   onAdvance,
   onChoice,
+  isPaused = false,
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
   const typewriterRef = useRef<number | null>(null);
+  const indexRef = useRef(0);
+  const isPausedRef = useRef(isPaused);
+
+  // Sync pause ref without re-triggering effect
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   // Read CSS variables for dynamic theming
   const getCSSVar = (name: string, fallback: string) => {
@@ -36,7 +46,7 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   const textColor = getCSSVar('--agm-text', '#e2e8f0');
   const dialogueBg = getCSSVar('--agm-dialogue-bg', 'rgba(10,10,10,0.9)');
 
-  // Typewriter effect
+  // Typewriter effect with pause/resume support and progress restore
   useEffect(() => {
     if (!dialogue || !dialogue.typewriter) {
       setDisplayedText(dialogue?.text || '');
@@ -45,17 +55,27 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
       return;
     }
 
-    setDisplayedText('');
-    setIsTyping(true);
-    setShowChoices(false);
+    const fullText = dialogue.text || '';
+    const savedProgress = dialogue.typewriterProgress ?? 0;
+    const startIndex = Math.floor(savedProgress * fullText.length);
 
-    let index = 0;
+    setDisplayedText(fullText.substring(0, startIndex));
+    indexRef.current = startIndex;
+    setIsTyping(startIndex < fullText.length);
+    setShowChoices(startIndex >= fullText.length);
+
     const speed = dialogue.typewriterSpeed || 30;
 
     const type = () => {
-      if (index < dialogue.text.length) {
-        setDisplayedText(dialogue.text.substring(0, index + 1));
-        index++;
+      if (isPausedRef.current) {
+        // 暂停时保持轮询，检查恢复状态
+        typewriterRef.current = window.setTimeout(type, speed);
+        return;
+      }
+      if (indexRef.current < fullText.length) {
+        const nextIndex = indexRef.current + 1;
+        setDisplayedText(fullText.substring(0, nextIndex));
+        indexRef.current = nextIndex;
         typewriterRef.current = window.setTimeout(type, speed);
       } else {
         setIsTyping(false);
@@ -63,12 +83,14 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
       }
     };
 
-    typewriterRef.current = window.setTimeout(type, speed);
+    if (startIndex < fullText.length) {
+      typewriterRef.current = window.setTimeout(type, speed);
+    }
 
     return () => {
       if (typewriterRef.current) clearTimeout(typewriterRef.current);
     };
-  }, [dialogue?.text, dialogue?.typewriter, dialogue?.typewriterSpeed]);
+  }, [dialogue?.text, dialogue?.typewriter, dialogue?.typewriterSpeed, dialogue?.typewriterProgress]);
 
   // Click to skip typewriter or advance
   const handleClick = () => {

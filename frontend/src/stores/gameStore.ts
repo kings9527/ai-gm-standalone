@@ -25,6 +25,10 @@ interface GameState {
   setIsTransitioning: (transitioning: boolean) => void;
   setCurrentSceneId: (sceneId: string) => void;
   reset: () => void;
+
+  // Restore from save
+  restoreFromSave: (save: GameSave) => void;
+  setPlayingAndScene: (sceneId: string) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -93,4 +97,25 @@ export const useGameStore = create<GameState>((set) => ({
       isTransitioning: false,
       currentSceneId: null,
     }),
+
+  restoreFromSave: (save) =>
+    set({
+      campaign: save.campaign,
+      module: save.module,
+      isPlaying: true,
+      currentSceneId: save.campaign.current_scene,
+    }),
+
+  setPlayingAndScene: (sceneId) =>
+    set((state) => ({
+      isPlaying: true,
+      currentSceneId: sceneId,
+      campaign: state.campaign
+        ? {
+            ...state.campaign,
+            current_scene: sceneId,
+            scene_history: [...state.campaign.scene_history, sceneId],
+          }
+        : null,
+    })),
 }));
