@@ -3,13 +3,16 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "description": "AI-powered game master standalone desktop application",
+  "author": "AI-GM Project <contact@aigm.project>",
+  "license": "MIT",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
     "dev:frontend": "cd frontend && vite",
     "dev:backend": "cd backend && npm run dev",
     "dev:electron": "wait-on http://localhost:5173 http://localhost:9742 && electron .",
     "build": "npm run build:frontend && npm run build:backend",
-    "build:frontend": "cd frontend && vite build",
+    "build:frontend": "cd frontend && npx vite build",
     "build:backend": "cd backend && npm install",
     "dist": "npm run build && electron-builder",
     "dist:dir": "npm run build && electron-builder --dir",
@@ -19,19 +22,26 @@
     "concurrently": "^9.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
+    "jimp": "^1.0.0",
     "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
   },
   "build": {
     "appId": "com.aigm.standalone",
     "productName": "AI-GM Standalone",
+    "copyright": "Copyright © 2026 AI-GM Project",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build"
     },
     "files": [
       "frontend/dist/**/*",
       "backend/src/**/*",
       "backend/package.json",
-      "electron/**/*"
+      "electron/**/*",
+      "build/icons/**/*"
     ],
     "extraResources": [
       {
@@ -39,14 +49,101 @@
         "to": "backend"
       }
     ],
+    "icon": "build/icons/icon.png",
+    "asar": true,
+    "asarUnpack": [
+      "backend/node_modules/better-sqlite3/**"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "aigm-project",
+      "repo": "ai-gm-standalone",
+      "releaseType": "release"
+    },
     "mac": {
-      "target": ["dmg", "zip"]
+      "icon": "build/icons/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "category": "public.app-category.games",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "AI-GM Standalone",
+      "icon": "build/icons/icon.icns",
+      "backgroundColor": "#1a1a2e",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "icon": "build/icons/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "publisherName": "AI-GM Project",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icons/icon.ico",
+      "uninstallerIcon": "build/icons/icon.ico",
+      "installerHeaderIcon": "build/icons/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI-GM Standalone",
+      "include": "build/nsis/installer.nsh",
+      "license": "LICENSE.txt"
     },
     "linux": {
-      "target": ["AppImage", "deb"]
+      "icon": "build/icons/icon.png",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Game",
+      "maintainer": "AI-GM Project",
+      "vendor": "AI-GM Project",
+      "synopsis": "AI-powered game master standalone application",
+      "description": "A standalone desktop application for AI-powered game master experiences."
     }
   },
   "main": "electron/main.cjs"

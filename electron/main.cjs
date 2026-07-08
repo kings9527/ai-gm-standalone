@@ -1,6 +1,83 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const { autoUpdater } = require('electron-updater');
+
+// =============================================================================
+// AUTO-UPDATER (electron-updater)
+// =============================================================================
+// Strategy: GitHub Releases
+//   - Publishes to GitHub Releases via electron-builder --publish=always
+//   - Auto-updater checks for updates on app startup (production only)
+//   - Falls back to manual check via IPC
+//
+// TODO: Replace with your actual GitHub repository:
+//   "publish": { "provider": "github", "owner": "YOUR_ORG", "repo": "YOUR_REPO" }
+// in package.json build configuration.
+// =============================================================================
+
+function setupAutoUpdater() {
+  if (isDev) {
+    console.log('[AutoUpdater] Disabled in development mode');
+    return;
+  }
+
+  // Check for updates on startup (silent)
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+    console.error('[AutoUpdater] Check failed:', err.message);
+  });
+
+  // Event: update available
+  autoUpdater.on('update-available', (info) => {
+    console.log('[AutoUpdater] Update available:', info.version);
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version ${info.version} is available. It will be downloaded in the background.`,
+      buttons: ['OK'],
+    });
+  });
+
+  // Event: update downloaded
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AutoUpdater] Update downloaded:', info.version);
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.version} has been downloaded. Restart the application to apply the update.`,
+      buttons: ['Restart Now', 'Later'],
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  // Event: update not available
+  autoUpdater.on('update-not-available', () => {
+    console.log('[AutoUpdater] No updates available');
+  });
+
+  // Event: error
+  autoUpdater.on('error', (err) => {
+    console.error('[AutoUpdater] Error:', err.message);
+  });
+}
+
+// IPC handler for manual update check
+ipcMain.handle('aigm:updater:check', async () => {
+  if (isDev) return { dev: true, message: 'Update check disabled in development' };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return {
+      updateAvailable: result?.updateInfo?.version !== app.getVersion(),
+      currentVersion: app.getVersion(),
+      latestVersion: result?.updateInfo?.version || null,
+    };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
 
 // Keep a global reference to prevent GC
 let mainWindow;
@@ -232,6 +309,7 @@ app.whenReady().then(async () => {
     await startBackend();
     console.log('[Main] Backend ready');
     createWindow();
+    setupAutoUpdater();
   } catch (err) {
     console.error('[Main] Failed to start backend:', err);
     dialog.showErrorBox('启动失败', '后端服务启动失败，请检查日志。');

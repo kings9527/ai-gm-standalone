@@ -49,4 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Path
   userDataPath: () => ipcRenderer.invoke('aigm:path:userData'),
+
+  // Updater
+  updaterCheck: () => ipcRenderer.invoke('aigm:updater:check'),
 });
