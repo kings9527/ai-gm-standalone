@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import VisualNovelEngine from './components/engine/VisualNovelEngine';
 import type { VisualNovelEngineHandle } from './components/engine/VisualNovelEngine';
 import GeneratorPage from './components/generator/GeneratorPage';
@@ -8,6 +9,7 @@ import { ImageSelector } from './components/image-selector';
 import { SaveLoadPanel } from './components/save-load';
 import { InGameMenu } from './components/menu';
 import { ModuleManagerPage } from './components/module-manager';
+import { ToastProvider, GlobalErrorBoundary, PageTransition, SkeletonCard, SkeletonList } from './components/ui';
 import { useGameStore } from './stores/gameStore';
 import { useSaveStore } from './stores/saveStore';
 import { GameStateMachine } from './engine/state-machine';
@@ -18,77 +20,111 @@ import { electronAPI } from './api/electron';
  * App.tsx
  * Main router for AI-GM Standalone.
  * Routes: / (home), /generator, /play, /settings, /images
+ *
+ * NEW: Global ToastProvider, ErrorBoundary, PageTransition animations,
+ *      Skeleton loading states, enhanced button hover feedback,
+ *      responsive layout.
  */
 
-const App: React.FC = () => {
+/* ── Button hover component ───────────────────────────────────── */
+
+const HoverButton: React.FC<{
+  href: string;
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary';
+  className?: string;
+}> = ({ href, children, variant = 'secondary', className = '' }) => {
+  const isPrimary = variant === 'primary';
   return (
-    <div className="w-full h-screen bg-black text-gray-100 overflow-hidden">
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/generator" element={<GeneratorPageRoute />} />
-          <Route path="/style-analyzer" element={<StyleAnalyzerPanel />} />
-          <Route path="/images" element={<ImageManagerPage />} />
-          <Route path="/play" element={<PlayPage />} />
-          <Route path="/modules" element={<ModuleManagerPage />} />
-          <Route path="/settings" element={<SettingsPageRoute />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </HashRouter>
-    </div>
+    <motion.a
+      href={href}
+      whileHover={{ scale: 1.03, y: -1 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      className={`block px-6 py-3 rounded-lg border text-center transition-colors ${
+        isPrimary
+          ? 'bg-red-900/40 border-red-800/40 text-red-200 hover:bg-red-800/50 hover:shadow-lg hover:shadow-red-900/20'
+          : 'bg-gray-800/40 border-gray-700/40 text-gray-200 hover:bg-gray-700/50 hover:shadow-lg hover:shadow-gray-900/20'
+      } ${className}`}
+    >
+      {children}
+    </motion.a>
   );
 };
 
-// Home Page
+/* ── Home Page ────────────────────────────────────────────────── */
+
 const HomePage: React.FC = () => (
-  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black">
-    <h1 className="text-4xl font-bold mb-2 text-red-500 tracking-wider">AI-GM</h1>
-    <p className="text-gray-400 mb-8">AI 驱动的视觉小说 RPG 引擎</p>
-    <div className="flex flex-col gap-4 w-64">
-      <a
-        href="#/style-analyzer"
-        className="px-6 py-3 rounded-lg bg-red-900/40 border border-red-800/40 text-center hover:bg-red-800/40 transition-colors"
-      >
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black p-4"
+  >
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1, duration: 0.5 }}
+    >
+      <h1 className="text-4xl md:text-5xl font-bold mb-2 text-red-500 tracking-wider text-center">
+        AI-GM
+      </h1>
+    </motion.div>
+    <motion.p
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.25, duration: 0.5 }}
+      className="text-gray-400 mb-8 text-center"
+    >
+      AI 驱动的视觉小说 RPG 引擎
+    </motion.p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35, duration: 0.5 }}
+      className="flex flex-col gap-3 w-full max-w-xs sm:w-64"
+    >
+      <HoverButton href="#/style-analyzer" variant="primary">
         AI 风格分析器
-      </a>
-      <a
-        href="#/generator"
-        className="px-6 py-3 rounded-lg bg-red-900/40 border border-red-800/40 text-center hover:bg-red-800/40 transition-colors"
-      >
+      </HoverButton>
+      <HoverButton href="#/generator" variant="primary">
         上传故事，创建模组
-      </a>
-      <a
-        href="#/play"
-        className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
-      >
+      </HoverButton>
+      <HoverButton href="#/play">
         继续游戏
-      </a>
-      <a
-        href="#/modules"
-        className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
-      >
+      </HoverButton>
+      <HoverButton href="#/modules">
         模组管理
-      </a>
-      <a
-        href="#/images"
-        className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
-      >
+      </HoverButton>
+      <HoverButton href="#/images">
         图片管理
-      </a>
-      <a
-        href="#/settings"
-        className="px-6 py-3 rounded-lg bg-gray-800/40 border border-gray-700/40 text-center hover:bg-gray-700/40 transition-colors"
-      >
+      </HoverButton>
+      <HoverButton href="#/settings">
         设置
-      </a>
-    </div>
+      </HoverButton>
+    </motion.div>
+  </motion.div>
+);
+
+/* ── Loading & Error Fallbacks ───────────────────────────────── */
+
+const PageLoading: React.FC<{ message?: string }> = ({ message = '加载中...' }) => (
+  <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-4">
+    <motion.div
+      className="w-8 h-8 border-2 border-red-800 border-t-transparent rounded-full"
+      animate={{ rotate: 360 }}
+      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+    />
+    <span>{message}</span>
   </div>
 );
 
-// Generator Page - AI Module Generator
-const GeneratorPageRoute: React.FC = () => <GeneratorPage />;
+const GeneratorPageRoute: React.FC = () => (
+  <Suspense fallback={<PageLoading message="加载生成器..." />}>
+    <GeneratorPage />
+  </Suspense>
+);
 
-// Image Manager Page - Full-page image management
 const ImageManagerPage: React.FC = () => {
   const [selected, setSelected] = useState<any>(null);
   return (
@@ -113,20 +149,19 @@ const SettingsPageRoute: React.FC = () => {
   return <SettingsPage fromGame={fromGame} />;
 };
 
-// Play Page - Visual Novel Engine with Save/Load System
+/* ── Play Page ────────────────────────────────────────────────── */
+
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
   const [module, setModule] = useState<Module | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Menu & panel states
   const [menuOpen, setMenuOpen] = useState(false);
   const [savePanelMode, setSavePanelMode] = useState<'save' | 'load'>('save');
   const [savePanelOpen, setSavePanelOpen] = useState(false);
-  const [isPaused, setIsPaused] = useState(false); // VN 引擎暂停状态
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Game state
   const {
     campaign,
     stateMachine,
@@ -138,16 +173,10 @@ const PlayPage: React.FC = () => {
     restoreFromSave,
   } = useGameStore();
 
-  const { autoSave } = useSaveStore();
-
-  // Track if we're loading from a save
   const [loadedFromSave, setLoadedFromSave] = useState(false);
   const [loadedSceneId, setLoadedSceneId] = useState<string | undefined>(undefined);
 
-  // VN Engine ref for snapshot/thumbnail
   const vnRef = useRef<VisualNovelEngineHandle>(null);
-
-  // Auto-save debounce ref
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load module on mount
@@ -172,7 +201,7 @@ const PlayPage: React.FC = () => {
   // Initialize campaign when module is loaded (if not loading from save)
   useEffect(() => {
     if (!module || loadedFromSave) return;
-    if (campaign) return; // Already have a campaign
+    if (campaign) return;
 
     const initialCampaign: Campaign = {
       id: `campaign_${Date.now()}`,
@@ -197,29 +226,24 @@ const PlayPage: React.FC = () => {
     };
 
     setCampaign(initialCampaign);
-
-    // Create GameStateMachine
     const sm = new GameStateMachine(module, initialCampaign, null);
     setStateMachine(sm);
   }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
 
-  // Handle scene change -> update campaign and notify
   const handleSceneChange = useCallback(
     (sceneId: string) => {
       if (!campaign || !module) return;
-      // Update campaign scene in store
       setCampaign({ ...campaign, current_scene: sceneId, scene_history: [...campaign.scene_history, sceneId] });
     },
     [campaign, module, setCampaign]
   );
 
-  // Auto-save at key nodes (scene change, combat start)
   const handleAutoSave = useCallback(
     async (snapshot: any, thumbnail: string) => {
       const currentCampaign = useGameStore.getState().campaign;
       if (!currentCampaign || !module) return;
       try {
-        await autoSave({
+        await useSaveStore.getState().autoSave({
           campaign: currentCampaign,
           module,
           thumbnail,
@@ -229,10 +253,9 @@ const PlayPage: React.FC = () => {
         console.warn('[PlayPage] Auto-save failed:', err);
       }
     },
-    [module, autoSave]
+    [module]
   );
 
-  // Handle load save
   const handleLoadSave = useCallback(
     async (saveId: string) => {
       setSavePanelOpen(false);
@@ -240,13 +263,9 @@ const PlayPage: React.FC = () => {
       setLoading(true);
 
       try {
-        const { loadSave } = useSaveStore.getState();
-        const save = await loadSave(saveId);
-        if (!save) {
-          throw new Error('存档加载失败');
-        }
+        const save = await useSaveStore.getState().loadSave(saveId);
+        if (!save) throw new Error('存档加载失败');
 
-        // Restore game state
         const restoredModule = save.module;
         const restoredCampaign = save.campaign;
 
@@ -256,11 +275,9 @@ const PlayPage: React.FC = () => {
         setLoadedFromSave(true);
         setLoadedSceneId(restoredCampaign.current_scene);
 
-        // Recreate state machine
         const sm = new GameStateMachine(restoredModule, restoredCampaign, null);
         setStateMachine(sm);
 
-        // Restore VN snapshot if available
         if (save.vnSnapshot && vnRef.current) {
           vnRef.current.restoreSnapshot(save.vnSnapshot);
         }
@@ -275,7 +292,6 @@ const PlayPage: React.FC = () => {
     [setStoreModule, restoreFromSave, setStateMachine]
   );
 
-  // Handle manual save
   const handleOpenSave = useCallback(() => {
     setMenuOpen(false);
     setSavePanelMode('save');
@@ -302,19 +318,18 @@ const PlayPage: React.FC = () => {
   const handleMenuToggle = useCallback(() => {
     setMenuOpen((prev) => {
       const next = !prev;
-      setIsPaused(next); // 菜单打开时暂停引擎，关闭时恢复
+      setIsPaused(next);
       return next;
     });
   }, []);
 
   const handleSettings = useCallback(() => {
     setMenuOpen(false);
-    setIsPaused(true); // 进入设置时保持暂停
+    setIsPaused(true);
     navigate('/settings', { state: { fromGame: true } });
   }, [navigate]);
 
   const handleExitApplication = useCallback(() => {
-    // Electron 环境调用退出
     if (typeof electronAPI?.quit === 'function') {
       electronAPI.quit();
     } else {
@@ -322,7 +337,6 @@ const PlayPage: React.FC = () => {
     }
   }, []);
 
-  // Handle manual save from panel
   const handleManualSave = useCallback(async () => {
     if (!campaign || !module) return null;
     const snapshot = vnRef.current?.getSnapshot();
@@ -331,7 +345,6 @@ const PlayPage: React.FC = () => {
     return { snapshot, thumbnail };
   }, [campaign, module]);
 
-  // Cleanup auto-save timeout on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
@@ -340,24 +353,38 @@ const PlayPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-4">
-        <div className="w-8 h-8 border-2 border-red-800 border-t-transparent rounded-full animate-spin" />
-        <span>加载模组中...</span>
+      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-6 p-4">
+        <motion.div
+          className="w-10 h-10 border-2 border-red-800 border-t-transparent rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+        />
+        <span className="text-sm">加载模组中...</span>
+        {/* Skeleton preview */}
+        <div className="w-full max-w-md space-y-3 opacity-30">
+          <SkeletonCard />
+        </div>
       </div>
     );
   }
 
   if (error || !module) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-4">
-        <span className="text-red-500">⚠ {error || '模组加载失败'}</span>
-        <button
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-4 p-4"
+      >
+        <span className="text-red-500 text-lg">⚠ {error || '模组加载失败'}</span>
+        <motion.button
           onClick={() => navigate('/')}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
           className="text-sm text-gray-500 hover:text-gray-300 underline"
         >
           返回主页
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
     );
   }
 
@@ -374,7 +401,6 @@ const PlayPage: React.FC = () => {
         onAutoSave={handleAutoSave}
       />
 
-      {/* In-Game Menu (ESC) */}
       <InGameMenu
         isOpen={menuOpen}
         onClose={() => {
@@ -389,7 +415,6 @@ const PlayPage: React.FC = () => {
         onExitApplication={handleExitApplication}
       />
 
-      {/* Save/Load Panel */}
       <SaveLoadPanel
         mode={savePanelMode}
         isOpen={savePanelOpen}
@@ -399,9 +424,7 @@ const PlayPage: React.FC = () => {
         currentSceneId={currentSceneId}
         onLoadSave={handleLoadSave}
         onSnapshotRequest={handleManualSave}
-        onSaveComplete={() => {
-          // Optional: show a toast or keep panel open
-        }}
+        onSaveComplete={() => {}}
       />
     </div>
   );
@@ -409,5 +432,32 @@ const PlayPage: React.FC = () => {
 
 // Settings Page - with back-to-game support
 import { SettingsPage } from './components/settings';
+
+/* ── App Root ─────────────────────────────────────────────────── */
+
+const App: React.FC = () => {
+  return (
+    <GlobalErrorBoundary>
+      <ToastProvider>
+        <div className="w-full h-screen bg-black text-gray-100 overflow-hidden">
+          <HashRouter>
+            <PageTransition mode="slide">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/generator" element={<GeneratorPageRoute />} />
+                <Route path="/style-analyzer" element={<StyleAnalyzerPanel />} />
+                <Route path="/images" element={<ImageManagerPage />} />
+                <Route path="/play" element={<PlayPage />} />
+                <Route path="/modules" element={<ModuleManagerPage />} />
+                <Route path="/settings" element={<SettingsPageRoute />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </PageTransition>
+          </HashRouter>
+        </div>
+      </ToastProvider>
+    </GlobalErrorBoundary>
+  );
+};
 
 export default App;

@@ -318,6 +318,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
           selectedTargetId={combatState.selectedTargetId}
           targetSelectionMode={combatState.targetSelectionMode}
           onSelectTarget={handleSelectTarget}
+          latestLog={combatState.log.slice(-5)}
         />
 
         {/* 战斗日志 */}

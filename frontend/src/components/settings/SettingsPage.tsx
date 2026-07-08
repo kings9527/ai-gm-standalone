@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   Save,
@@ -13,6 +14,8 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
+import type { LLMConfig } from '../../types/llm';
+import { useToast } from '../ui/ToastProvider';
 import {
   useSettingsStore,
   PROVIDER_MODELS,
@@ -20,6 +23,7 @@ import {
   type LLMProvider,
   type ImageStrategy,
   type ThemeMode,
+  type AppSettings,
 } from '../../stores/settingsStore';
 
 type TabKey = 'llm' | 'image' | 'game' | 'theme';
@@ -30,6 +34,83 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'game', label: '游戏设置', icon: <Gamepad2 size={16} /> },
   { key: 'theme', label: '主题设置', icon: <Palette size={16} /> },
 ];
+
+/* ── Validation Types ─────────────────────────────────────────── */
+
+interface FieldError {
+  field: string;
+  message: string;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: FieldError[];
+}
+
+/* ── Validation Rules ─────────────────────────────────────────── */
+
+function validateLLM(llm: LLMConfig): ValidationResult {
+  const errors: FieldError[] = [];
+
+  if (!llm.provider) {
+    errors.push({ field: 'provider', message: '请选择 LLM 提供商' });
+  }
+  if (!llm.model) {
+    errors.push({ field: 'model', message: '请选择模型' });
+  }
+  if (!llm.baseUrl || !/^https?:\/\/.+/.test(llm.baseUrl)) {
+    errors.push({ field: 'baseUrl', message: 'Base URL 格式不正确（需以 http:// 或 https:// 开头）' });
+  }
+  if (llm.apiKey && !/^(sk-|Bearer\s)?[A-Za-z0-9_-]{20,}$/.test(llm.apiKey)) {
+    errors.push({ field: 'apiKey', message: 'API Key 格式异常，请检查是否完整' });
+  }
+  if (llm.maxTokens < 64 || llm.maxTokens > 8192) {
+    errors.push({ field: 'maxTokens', message: 'Max Tokens 必须在 64 - 8192 之间' });
+  }
+  if (llm.temperature < 0 || llm.temperature > 2) {
+    errors.push({ field: 'temperature', message: 'Temperature 必须在 0 - 2 之间' });
+  }
+  if (llm.timeout < 5000 || llm.timeout > 120000) {
+    errors.push({ field: 'timeout', message: '超时时间必须在 5000ms - 120000ms 之间' });
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function validateImage(image: { unsplashKey: string; dalleKey: string; defaultStrategy: string }): ValidationResult {
+  const errors: FieldError[] = [];
+  if (image.unsplashKey && !/^[A-Za-z0-9_-]{10,}$/.test(image.unsplashKey)) {
+    errors.push({ field: 'unsplashKey', message: 'Unsplash Key 格式异常' });
+  }
+  if (image.dalleKey && !/^(sk-|Bearer\s)?[A-Za-z0-9_-]{20,}$/.test(image.dalleKey)) {
+    errors.push({ field: 'dalleKey', message: 'DALL-E Key 格式异常' });
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+function validateGame(game: { typewriterSpeed: number; fontSize: number; autoAdvanceDelay: number; skipUnread: boolean }): ValidationResult {
+  const errors: FieldError[] = [];
+  if (game.typewriterSpeed < 0 || game.typewriterSpeed > 500) {
+    errors.push({ field: 'typewriterSpeed', message: '打字机速度必须在 0 - 500ms 之间' });
+  }
+  if (game.fontSize < 10 || game.fontSize > 32) {
+    errors.push({ field: 'fontSize', message: '字体大小必须在 10 - 32px 之间' });
+  }
+  if (game.autoAdvanceDelay < 0 || game.autoAdvanceDelay > 10000) {
+    errors.push({ field: 'autoAdvanceDelay', message: '自动前进延迟必须在 0 - 10000ms 之间' });
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+function validateAll(settings: AppSettings): ValidationResult {
+  const results = [
+    validateLLM(settings.llm),
+    validateImage(settings.image),
+    validateGame(settings.game),
+  ];
+  const errors = results.flatMap((r) => r.errors);
+  return { valid: errors.length === 0, errors };
+}
 
 /* ── Reusable UI primitives ─────────────────────────────────────── */
 
@@ -53,18 +134,54 @@ const Label: React.FC<{ children: React.ReactNode; required?: boolean }> = ({
   </label>
 );
 
-const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
-  <input
-    {...props}
-    className={`w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 outline-none transition-colors focus:border-red-700 focus:ring-1 focus:ring-red-900/40 ${props.className || ''}`}
-  />
+const FieldErrorMsg: React.FC<{ error?: string }> = ({ error }) => {
+  if (!error) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1 mt-1.5"
+    >
+      <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
+      <span className="text-[11px] text-red-400">{error}</span>
+    </motion.div>
+  );
+};
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: string;
+}
+
+const Input: React.FC<InputProps> = ({ error, className = '', ...props }) => (
+  <div>
+    <input
+      {...props}
+      className={`w-full rounded-md border bg-gray-800/60 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 outline-none transition-colors focus:ring-1 focus:ring-red-900/40 ${
+        error
+          ? 'border-red-700 focus:border-red-600'
+          : 'border-gray-700 focus:border-red-700'
+      } ${className}`}
+    />
+    <FieldErrorMsg error={error} />
+  </div>
 );
 
-const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (props) => (
-  <select
-    {...props}
-    className={`w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-200 outline-none transition-colors focus:border-red-700 focus:ring-1 focus:ring-red-900/40 ${props.className || ''}`}
-  />
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  error?: string;
+}
+
+const Select: React.FC<SelectProps> = ({ error, className = '', ...props }) => (
+  <div>
+    <select
+      {...props}
+      className={`w-full rounded-md border bg-gray-800/60 px-3 py-2 text-sm text-gray-200 outline-none transition-colors focus:ring-1 focus:ring-red-900/40 ${
+        error
+          ? 'border-red-700 focus:border-red-600'
+          : 'border-gray-700 focus:border-red-700'
+      } ${className}`}
+    />
+    <FieldErrorMsg error={error} />
+  </div>
 );
 
 const Slider: React.FC<{
@@ -74,20 +191,24 @@ const Slider: React.FC<{
   value: number;
   onChange: (v: number) => void;
   suffix?: string;
-}> = ({ min, max, step = 1, value, onChange, suffix }) => (
-  <div className="flex items-center gap-3">
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="flex-1 h-1.5 appearance-none rounded-full bg-gray-700 accent-red-600"
-    />
-    <span className="min-w-[3rem] text-right text-xs text-gray-400 tabular-nums">
-      {value}{suffix}
-    </span>
+  error?: string;
+}> = ({ min, max, step = 1, value, onChange, suffix, error }) => (
+  <div>
+    <div className="flex items-center gap-3">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 h-1.5 appearance-none rounded-full bg-gray-700 accent-red-600"
+      />
+      <span className="min-w-[3rem] text-right text-xs text-gray-400 tabular-nums">
+        {value}{suffix}
+      </span>
+    </div>
+    <FieldErrorMsg error={error} />
   </div>
 );
 
@@ -124,10 +245,12 @@ interface SettingsPageProps {
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>('llm');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const {
     llm,
@@ -143,6 +266,29 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
     loaded,
   } = useSettingsStore();
 
+  // Validation state
+  const validation = useMemo(() => {
+    const s = useSettingsStore.getState();
+    return validateAll(s);
+  }, [llm, image, game]);
+
+  const llmValidation = useMemo(() => validateLLM(llm), [llm]);
+  const imageValidation = useMemo(() => validateImage(image), [image]);
+  const gameValidation = useMemo(() => validateGame(game), [game]);
+
+  const getFieldError = useCallback(
+    (field: string, tab: TabKey): string | undefined => {
+      if (!touched[field]) return undefined;
+      const v = tab === 'llm' ? llmValidation : tab === 'image' ? imageValidation : gameValidation;
+      return v.errors.find((e) => e.field === field)?.message;
+    },
+    [touched, llmValidation, imageValidation, gameValidation]
+  );
+
+  const markTouched = useCallback((field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }, []);
+
   // Load settings on mount
   useEffect(() => {
     loadFromBackend();
@@ -154,7 +300,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
     const root = document.documentElement;
     const body = document.body;
 
-    // Theme mode
     if (theme.mode === 'dark') {
       body.classList.add('dark');
       body.classList.remove('light');
@@ -162,34 +307,49 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
       body.classList.add('light');
       body.classList.remove('dark');
     } else {
-      // auto: follow system
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       body.classList.toggle('dark', prefersDark);
       body.classList.toggle('light', !prefersDark);
     }
 
-    // Custom CSS variables
     for (const [k, v] of Object.entries(theme.customVars)) {
       if (v) root.style.setProperty(k, v);
     }
 
-    // Game settings -> CSS variables
     root.style.setProperty('--agm-font-size', `${game.fontSize}px`);
   }, [theme.mode, theme.customVars, game.fontSize]);
 
   const handleSave = useCallback(async () => {
+    // Touch all fields to show errors
+    const allFields = [
+      'provider', 'model', 'baseUrl', 'apiKey', 'maxTokens', 'temperature', 'timeout',
+      'unsplashKey', 'dalleKey',
+      'typewriterSpeed', 'fontSize', 'autoAdvanceDelay',
+    ];
+    setTouched(Object.fromEntries(allFields.map((f) => [f, true])));
+
+    const result = validateAll(useSettingsStore.getState());
+    if (!result.valid) {
+      showToast(`有 ${result.errors.length} 项设置不符合要求，请检查后重试`, 'error');
+      setSaveMsg({ type: 'err', text: `校验失败：${result.errors[0].message}` });
+      setTimeout(() => setSaveMsg(null), 4000);
+      return;
+    }
+
     setSaving(true);
     setSaveMsg(null);
     try {
       await saveToBackend();
       setSaveMsg({ type: 'ok', text: '设置已保存' });
+      showToast('设置已保存', 'success');
     } catch (err: any) {
       setSaveMsg({ type: 'err', text: err.message || '保存失败' });
+      showToast(err.message || '保存失败', 'error');
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 3000);
     }
-  }, [saveToBackend]);
+  }, [saveToBackend, showToast]);
 
   const toggleKeyVisibility = (key: string) =>
     setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -197,12 +357,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   const renderLLM = () => (
     <div className="space-y-5">
       <SectionCard title="提供商与模型">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label required>提供商</Label>
             <Select
               value={llm.provider}
+              error={getFieldError('provider', 'llm')}
               onChange={(e) => {
+                markTouched('provider');
                 const p = e.target.value as LLMProvider;
                 const defaults = PROVIDER_DEFAULTS[p];
                 setLLM({ provider: p, baseUrl: defaults.baseUrl!, model: defaults.model! });
@@ -217,7 +379,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
             <Label required>模型</Label>
             <Select
               value={llm.model}
-              onChange={(e) => setLLM({ model: e.target.value })}
+              error={getFieldError('model', 'llm')}
+              onChange={(e) => {
+                markTouched('model');
+                setLLM({ model: e.target.value });
+              }}
             >
               {PROVIDER_MODELS[llm.provider].map((m) => (
                 <option key={m} value={m}>
@@ -235,7 +401,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
             <Label>Base URL</Label>
             <Input
               value={llm.baseUrl}
-              onChange={(e) => setLLM({ baseUrl: e.target.value })}
+              error={getFieldError('baseUrl', 'llm')}
+              onChange={(e) => {
+                markTouched('baseUrl');
+                setLLM({ baseUrl: e.target.value });
+              }}
+              onBlur={() => markTouched('baseUrl')}
               placeholder="https://api.openai.com/v1"
             />
           </div>
@@ -245,14 +416,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               <Input
                 type={showKeys['llmApiKey'] ? 'text' : 'password'}
                 value={llm.apiKey}
-                onChange={(e) => setLLM({ apiKey: e.target.value })}
+                error={getFieldError('apiKey', 'llm')}
+                onChange={(e) => {
+                  markTouched('apiKey');
+                  setLLM({ apiKey: e.target.value });
+                }}
+                onBlur={() => markTouched('apiKey')}
                 placeholder="sk-..."
                 className="pr-10"
               />
               <button
                 type="button"
                 onClick={() => toggleKeyVisibility('llmApiKey')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                className="absolute right-2 top-2 text-gray-500 hover:text-gray-300"
               >
                 {showKeys['llmApiKey'] ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -265,7 +441,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
       </SectionCard>
 
       <SectionCard title="生成参数">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <Label>Max Tokens</Label>
             <Input
@@ -273,7 +449,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               min={64}
               max={8192}
               value={llm.maxTokens}
-              onChange={(e) => setLLM({ maxTokens: Number(e.target.value) })}
+              error={getFieldError('maxTokens', 'llm')}
+              onChange={(e) => {
+                markTouched('maxTokens');
+                setLLM({ maxTokens: Number(e.target.value) });
+              }}
+              onBlur={() => markTouched('maxTokens')}
             />
           </div>
           <div>
@@ -284,7 +465,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               max={2}
               step={0.1}
               value={llm.temperature}
-              onChange={(e) => setLLM({ temperature: Number(e.target.value) })}
+              error={getFieldError('temperature', 'llm')}
+              onChange={(e) => {
+                markTouched('temperature');
+                setLLM({ temperature: Number(e.target.value) });
+              }}
+              onBlur={() => markTouched('temperature')}
             />
           </div>
           <div>
@@ -295,7 +481,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               max={120000}
               step={1000}
               value={llm.timeout}
-              onChange={(e) => setLLM({ timeout: Number(e.target.value) })}
+              error={getFieldError('timeout', 'llm')}
+              onChange={(e) => {
+                markTouched('timeout');
+                setLLM({ timeout: Number(e.target.value) });
+              }}
+              onBlur={() => markTouched('timeout')}
             />
           </div>
         </div>
@@ -324,14 +515,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               <Input
                 type={showKeys['unsplashKey'] ? 'text' : 'password'}
                 value={image.unsplashKey}
-                onChange={(e) => setImage({ unsplashKey: e.target.value })}
+                error={getFieldError('unsplashKey', 'image')}
+                onChange={(e) => {
+                  markTouched('unsplashKey');
+                  setImage({ unsplashKey: e.target.value });
+                }}
+                onBlur={() => markTouched('unsplashKey')}
                 placeholder="可选，用于图片搜索"
                 className="pr-10"
               />
               <button
                 type="button"
                 onClick={() => toggleKeyVisibility('unsplashKey')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                className="absolute right-2 top-2 text-gray-500 hover:text-gray-300"
               >
                 {showKeys['unsplashKey'] ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -343,14 +539,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               <Input
                 type={showKeys['dalleKey'] ? 'text' : 'password'}
                 value={image.dalleKey}
-                onChange={(e) => setImage({ dalleKey: e.target.value })}
+                error={getFieldError('dalleKey', 'image')}
+                onChange={(e) => {
+                  markTouched('dalleKey');
+                  setImage({ dalleKey: e.target.value });
+                }}
+                onBlur={() => markTouched('dalleKey')}
                 placeholder="可选，用于 AI 图片生成"
                 className="pr-10"
               />
               <button
                 type="button"
                 onClick={() => toggleKeyVisibility('dalleKey')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                className="absolute right-2 top-2 text-gray-500 hover:text-gray-300"
               >
                 {showKeys['dalleKey'] ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -375,12 +576,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               max={200}
               step={5}
               value={game.typewriterSpeed}
-              onChange={(v) => setGame({ typewriterSpeed: v })}
+              error={getFieldError('typewriterSpeed', 'game')}
+              onChange={(v) => {
+                markTouched('typewriterSpeed');
+                setGame({ typewriterSpeed: v });
+              }}
               suffix="ms"
             />
-            <p className="mt-1 text-[11px] text-gray-600">
-              0 = 即时显示
-            </p>
+            <p className="mt-1 text-[11px] text-gray-600">0 = 即时显示</p>
           </div>
           <div>
             <Label>字体大小</Label>
@@ -389,7 +592,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               max={24}
               step={1}
               value={game.fontSize}
-              onChange={(v) => setGame({ fontSize: v })}
+              error={getFieldError('fontSize', 'game')}
+              onChange={(v) => {
+                markTouched('fontSize');
+                setGame({ fontSize: v });
+              }}
               suffix="px"
             />
           </div>
@@ -405,7 +612,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               max={5000}
               step={100}
               value={game.autoAdvanceDelay}
-              onChange={(v) => setGame({ autoAdvanceDelay: v })}
+              error={getFieldError('autoAdvanceDelay', 'game')}
+              onChange={(v) => {
+                markTouched('autoAdvanceDelay');
+                setGame({ autoAdvanceDelay: v });
+              }}
               suffix="ms"
             />
             <p className="mt-1 text-[11px] text-gray-600">
@@ -425,11 +636,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   const renderTheme = () => (
     <div className="space-y-5">
       <SectionCard title="外观模式">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(['auto', 'dark', 'light'] as ThemeMode[]).map((m) => (
-            <button
+            <motion.button
               key={m}
               onClick={() => setTheme({ mode: m })}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className={`rounded-md border px-3 py-2.5 text-sm transition-colors ${
                 theme.mode === m
                   ? 'border-red-700 bg-red-900/20 text-red-300'
@@ -437,7 +650,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               }`}
             >
               {m === 'auto' ? '🌓 跟随系统' : m === 'dark' ? '🌑 深色' : '☀️ 浅色'}
-            </button>
+            </motion.button>
           ))}
         </div>
       </SectionCard>
@@ -449,7 +662,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
             { key: '--agm-accent', label: '强调色', placeholder: '#8b0000' },
             { key: '--agm-text', label: '文字色', placeholder: '#e2e8f0' },
           ].map(({ key, label, placeholder }) => (
-            <div key={key} className="grid grid-cols-[1fr_2fr] gap-3 items-center">
+            <div key={key} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-3 items-center">
               <span className="text-xs text-gray-400 font-mono">{key}</span>
               <Input
                 value={theme.customVars[key] || ''}
@@ -462,13 +675,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               />
             </div>
           ))}
-          <button
+          <motion.button
             onClick={() => setTheme({ customVars: {} })}
+            whileHover={{ scale: 1.01 }}
             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
           >
             <RotateCcw size={12} />
             重置自定义变量
-          </button>
+          </motion.button>
         </div>
       </SectionCard>
     </div>
@@ -479,58 +693,77 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
       {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-800/60 px-6 py-3 shrink-0">
         <div className="flex items-center gap-3">
-          <button
+          <motion.button
             onClick={() => navigate(fromGame ? '/play' : '/')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 transition-colors"
           >
             <ChevronLeft size={16} />
             {fromGame ? '返回游戏' : '返回'}
-          </button>
+          </motion.button>
           <h1 className="text-base font-bold text-red-400 tracking-wide">设置</h1>
-          {!loaded && (
-            <span className="text-[11px] text-gray-600">加载中...</span>
-          )}
+          {!loaded && <span className="text-[11px] text-gray-600">加载中...</span>}
         </div>
         <div className="flex items-center gap-3">
           {saveMsg && (
-            <span
+            <motion.span
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
               className={`flex items-center gap-1 text-xs ${
                 saveMsg.type === 'ok' ? 'text-green-400' : 'text-red-400'
               }`}
             >
               {saveMsg.type === 'ok' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
               {saveMsg.text}
-            </span>
+            </motion.span>
           )}
-          <button
+          <motion.button
             onClick={handleSave}
             disabled={saving}
+            whileHover={{ scale: saving ? 1 : 1.03 }}
+            whileTap={{ scale: saving ? 1 : 0.97 }}
             className="flex items-center gap-1.5 rounded-md bg-red-800/60 hover:bg-red-700/60 disabled:opacity-50 px-4 py-1.5 text-sm transition-colors"
           >
             <Save size={14} />
             {saving ? '保存中...' : '保存'}
-          </button>
+          </motion.button>
         </div>
       </header>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden flex-col sm:flex-row">
         {/* Sidebar */}
-        <nav className="w-48 shrink-0 border-r border-gray-800/60 p-3 space-y-1">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                activeTab === t.key
-                  ? 'bg-red-900/20 text-red-300 border border-red-800/30'
-                  : 'text-gray-400 hover:bg-gray-800/40 hover:text-gray-200'
-              }`}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          ))}
+        <nav className="w-full sm:w-48 shrink-0 border-b sm:border-b-0 sm:border-r border-gray-800/60 p-3 space-y-1 overflow-x-auto sm:overflow-visible flex sm:flex-col gap-1 sm:gap-0">
+          {TABS.map((t) => {
+            const hasErrors =
+              t.key === 'llm'
+                ? llmValidation.errors.length > 0
+                : t.key === 'image'
+                ? imageValidation.errors.length > 0
+                : t.key === 'game'
+                ? gameValidation.errors.length > 0
+                : false;
+            return (
+              <motion.button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className={`w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors whitespace-nowrap ${
+                  activeTab === t.key
+                    ? 'bg-red-900/20 text-red-300 border border-red-800/30'
+                    : 'text-gray-400 hover:bg-gray-800/40 hover:text-gray-200'
+                }`}
+              >
+                {t.icon}
+                {t.label}
+                {hasErrors && (
+                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                )}
+              </motion.button>
+            );
+          })}
         </nav>
 
         {/* Content */}
