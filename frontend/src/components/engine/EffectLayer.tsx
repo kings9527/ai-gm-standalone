@@ -18,15 +18,19 @@ interface EffectLayerProps {
 export const EffectLayer: React.FC<EffectLayerProps> = ({ effects, onEffectEnd, isPaused = false }) => {
   // Auto-remove non-persistent effects after their duration (only when not paused)
   useEffect(() => {
-    if (isPaused) return; // 暂停时不启动新特效的自动移除计时器
+    if (isPaused) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
     effects.forEach((effect, index) => {
       if (effect.type !== 'grain' && effect.type !== 'vignette') {
         const timer = setTimeout(() => {
           onEffectEnd?.(index);
         }, effect.duration);
-        return () => clearTimeout(timer);
+        timers.push(timer);
       }
     });
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
   }, [effects, onEffectEnd, isPaused]);
 
   return (

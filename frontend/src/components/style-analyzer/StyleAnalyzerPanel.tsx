@@ -145,7 +145,6 @@ Analyze the text's tone, setting, and emotional quality. Return ONLY the JSON ob
       applyCSSVariables(buildCSSVariables(normalizedStyle));
       setStage('preview');
     } catch (err: any) {
-      console.error('Style analysis failed:', err);
       setError(`分析失败: ${err.message || '未知错误'}`);
       setStage('error');
     }

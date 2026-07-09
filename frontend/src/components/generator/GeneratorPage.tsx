@@ -92,7 +92,6 @@ export const GeneratorPage: React.FC = () => {
       // 进入模组生成
       await runModuleGeneration(preprocess, analysisData, styleData);
     } catch (err: any) {
-      console.error('AI Analysis failed:', err);
       setError(`分析失败: ${err.message || '未知错误'}`);
       setStage('error');
     }
@@ -125,7 +124,6 @@ export const GeneratorPage: React.FC = () => {
       setGeneratedModule(module);
       setStage('preview');
     } catch (err: any) {
-      console.error('Module generation failed:', err);
       setError(`生成失败: ${err.message || '未知错误'}`);
       setStage('error');
     }
@@ -178,7 +176,6 @@ export const GeneratorPage: React.FC = () => {
       setCurrentModule(generatedModule);
       alert('模组已保存！');
     } catch (err: any) {
-      console.error('Save failed:', err);
       setError(`保存失败: ${err.message}`);
     }
   };

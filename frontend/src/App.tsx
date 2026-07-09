@@ -9,7 +9,7 @@ import { ImageSelector } from './components/image-selector';
 import { SaveLoadPanel } from './components/save-load';
 import { InGameMenu } from './components/menu';
 import { ModuleManagerPage } from './components/module-manager';
-import { ToastProvider, GlobalErrorBoundary, PageTransition, SkeletonCard, SkeletonList } from './components/ui';
+import { ToastProvider, GlobalErrorBoundary, PageTransition, SkeletonCard } from './components/ui';
 import { useGameStore } from './stores/gameStore';
 import { useSaveStore } from './stores/saveStore';
 import { GameStateMachine } from './engine/state-machine';
@@ -135,7 +135,6 @@ const ImageManagerPage: React.FC = () => {
         title="图片管理"
         onSelect={(img) => {
           setSelected(img);
-          console.log('Selected image:', img);
         }}
       />
     </div>
@@ -192,7 +191,6 @@ const PlayPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to load demo module:', err);
         setError('加载模组失败，请检查网络连接');
         setLoading(false);
       });
@@ -250,8 +248,7 @@ const PlayPage: React.FC = () => {
           vnSnapshot: snapshot,
         });
       } catch (err: any) {
-        console.warn('[PlayPage] Auto-save failed:', err);
-      }
+      /* no-op */ }
     },
     [module]
   );
@@ -284,7 +281,6 @@ const PlayPage: React.FC = () => {
 
         setLoading(false);
       } catch (err: any) {
-        console.error('[PlayPage] Failed to load save:', err);
         setError(err.message || '读档失败');
         setLoading(false);
       }
@@ -430,7 +426,6 @@ const PlayPage: React.FC = () => {
   );
 };
 
-// Settings Page - with back-to-game support
 import { SettingsPage } from './components/settings';
 
 /* ── App Root ─────────────────────────────────────────────────── */

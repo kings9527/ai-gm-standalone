@@ -9,6 +9,15 @@ import type { VNState, VNEffect } from '../../types/engine';
 import type { Module, Scene, NPC } from '../../types/module';
 import { useGameStore } from '../../stores/gameStore';
 
+// Module-level cache for html-to-image to avoid repeated dynamic imports
+let htmlToImageModule: typeof import('html-to-image') | null = null;
+async function getToPng() {
+  if (!htmlToImageModule) {
+    htmlToImageModule = await import('html-to-image');
+  }
+  return htmlToImageModule.toPng;
+}
+
 export interface VisualNovelEngineHandle {
   getSnapshot: () => VNState;
   takeThumbnail: () => Promise<string | undefined>;
@@ -67,7 +76,6 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     useEffect(() => {
       const scene = module.scenes[vnState.currentSceneId];
       if (!scene) {
-        console.warn(`Scene not found: ${vnState.currentSceneId}`);
         return;
       }
 
@@ -137,7 +145,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       }, 1200);
 
       return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [vnState.currentSceneId, module]);
 
     // 关键节点自动存档：场景切换
@@ -152,7 +160,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         onSceneChange?.(vnState.currentSceneId);
       }
       prevSceneIdRef.current = vnState.currentSceneId;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [vnState.currentSceneId]);
 
     // 关键节点自动存档：战斗开始
@@ -166,13 +174,13 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         }
       }
       prevCombatActiveRef.current = combatActive;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [combatActive]);
 
     const takeSnapshotAndSave = useCallback(async () => {
       if (!containerRef.current) return;
       try {
-        const { toPng } = await import('html-to-image');
+        const toPng = await getToPng();
         const dataUrl = await toPng(containerRef.current, {
           width: 320,
           height: 180,
@@ -185,7 +193,6 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         });
         onAutoSave?.(vnStateRef.current, dataUrl);
       } catch (err) {
-        console.warn('[VisualNovelEngine] Thumbnail generation failed:', err);
         // 降级：使用背景图作为缩略图
         const bg = vnStateRef.current.bg;
         onAutoSave?.(vnStateRef.current, bg);
@@ -273,7 +280,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           }
         }
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+       
       [currentScene, campaign, onCombatEnd]
     );
 
@@ -305,7 +312,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       takeThumbnail: async () => {
         if (!containerRef.current) return undefined;
         try {
-          const { toPng } = await import('html-to-image');
+          const toPng = await getToPng();
           return await toPng(containerRef.current, {
             width: 320,
             height: 180,
@@ -317,7 +324,6 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
             },
           });
         } catch (err) {
-          console.warn('[VisualNovelEngine] Thumbnail generation failed:', err);
           return vnStateRef.current.bg;
         }
       },

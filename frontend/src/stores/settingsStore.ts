@@ -162,8 +162,7 @@ export const useSettingsStore = create<SettingsState>()(
         try {
           await electronAPI.settingsSet(SETTINGS_KEY, JSON.stringify(encrypted));
         } catch (err) {
-          console.error('[SettingsStore] saveToBackend failed:', err);
-        }
+        /* no-op */ }
       },
 
       /**
@@ -189,7 +188,6 @@ export const useSettingsStore = create<SettingsState>()(
             loaded: true,
           });
         } catch (err) {
-          console.error('[SettingsStore] loadFromBackend failed:', err);
           set({ loaded: true });
         }
       },

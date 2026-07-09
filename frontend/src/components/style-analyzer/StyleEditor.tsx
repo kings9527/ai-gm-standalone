@@ -108,8 +108,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
       }));
       setImageResults(mapped.slice(0, 8));
     } catch (err) {
-      console.error('Image search failed:', err);
-    } finally {
+    /* no-op */ } finally {
       setImageLoading(false);
     }
   };

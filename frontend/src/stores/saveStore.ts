@@ -67,7 +67,6 @@ export const useSaveStore = create<SaveState>((set, get) => ({
       const saves = await electronAPI.saveList(moduleId);
       set({ saves: organizeSaves(saves || []), isLoading: false });
     } catch (err: any) {
-      console.error('[SaveStore] Failed to load saves:', err);
       set({ error: err.message || '加载存档失败', isLoading: false });
     }
   },
@@ -106,7 +105,6 @@ export const useSaveStore = create<SaveState>((set, get) => ({
 
       return newSave;
     } catch (err: any) {
-      console.error('[SaveStore] Failed to create save:', err);
       set({ error: err.message || '保存失败', isLoading: false });
       throw err;
     }
@@ -122,7 +120,6 @@ export const useSaveStore = create<SaveState>((set, get) => ({
       set({ isLoading: false });
       return save as GameSave;
     } catch (err: any) {
-      console.error('[SaveStore] Failed to load save:', err);
       set({ error: err.message || '读档失败', isLoading: false });
       return null;
     }
@@ -135,7 +132,6 @@ export const useSaveStore = create<SaveState>((set, get) => ({
       // Refresh the list
       await get().loadSaves(moduleId);
     } catch (err: any) {
-      console.error('[SaveStore] Failed to delete save:', err);
       set({ error: err.message || '删除存档失败', isLoading: false });
       throw err;
     }
@@ -151,10 +147,8 @@ export const useSaveStore = create<SaveState>((set, get) => ({
         thumbnail,
         vnSnapshot,
       });
-      console.log('[SaveStore] Auto-saved to slot', QUICK_SAVE_SLOT, save.timestamp);
       return save;
     } catch (err: any) {
-      console.warn('[SaveStore] Auto-save failed:', err.message);
       return null;
     }
   },

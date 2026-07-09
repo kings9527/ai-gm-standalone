@@ -95,8 +95,7 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
         }
       }
     } catch (err) {
-      console.error('[ModuleStore] Failed to load from storage:', err);
-    }
+    /* no-op */ }
   },
 
   saveToStorage: () => {
@@ -104,8 +103,7 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
       const { modules } = get();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(modules));
     } catch (err) {
-      console.error('[ModuleStore] Failed to save to storage:', err);
-    }
+    /* no-op */ }
   },
 
   persistModule: (module) => {

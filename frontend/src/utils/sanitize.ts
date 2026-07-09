@@ -18,7 +18,11 @@ export function escapeHtml(text: string): string {
 
 export function sanitizeInput(input: string, maxLength = 1000): string {
   if (!input || typeof input !== 'string') return '';
-  let sanitized = input.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+  let sanitized = input.replace(
+    // eslint-disable-next-line no-control-regex
+    /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,
+    ''
+  );
   sanitized = sanitized.trim();
   if (sanitized.length > maxLength) {
     sanitized = sanitized.substring(0, maxLength) + '...';

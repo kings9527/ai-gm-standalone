@@ -115,7 +115,6 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
       const styles = await electronAPI.styleList();
       set({ savedStyles: styles || [], loading: false });
     } catch (err: any) {
-      console.error('[StyleStore] Failed to load styles:', err);
       set({ error: err.message, loading: false });
     }
   },
@@ -129,7 +128,6 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
         set({ currentStyle: style, loading: false });
       }
     } catch (err: any) {
-      console.error('[StyleStore] Failed to load style:', err);
       set({ error: err.message, loading: false });
     }
   },
@@ -145,7 +143,6 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
       await get().loadSavedStyles();
       return res.id || id;
     } catch (err: any) {
-      console.error('[StyleStore] Failed to save style:', err);
       set({ error: err.message, loading: false });
       throw err;
     }
@@ -164,7 +161,6 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
       }
       await get().loadSavedStyles();
     } catch (err: any) {
-      console.error('[StyleStore] Failed to update style:', err);
       set({ error: err.message, loading: false });
       throw err;
     }
@@ -181,7 +177,6 @@ export const useStyleStore = create<StyleStoreState>((set, get) => ({
       await get().loadSavedStyles();
       set({ loading: false });
     } catch (err: any) {
-      console.error('[StyleStore] Failed to delete style:', err);
       set({ error: err.message, loading: false });
       throw err;
     }

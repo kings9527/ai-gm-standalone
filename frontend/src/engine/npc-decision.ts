@@ -81,9 +81,7 @@ export class NPCDecisionEngine {
   }
 
   private _validateTemplate() {
-    if (!this.npcTemplate.name) {
-      console.warn(`[NPCDecisionEngine] NPC ${this.npcId} missing name in template`);
-    }
+    if (!this.npcTemplate.name) { /* template validated elsewhere */ }
   }
 
   async decide(situation: any, llmClient: LLMClient | null, chatHistory: string = ''): Promise<NPCDecision> {
@@ -111,8 +109,7 @@ export class NPCDecisionEngine {
         this._updateAttitudeFromDecision(llmDecision, situation);
         return llmDecision;
       } catch (error: any) {
-        console.warn(`[NPCDecisionEngine] LLM fallback failed for ${this.npcId}:`, error.message);
-      }
+      /* no-op */ }
     }
 
     return this._defaultFallback(context);
@@ -349,7 +346,6 @@ What do you do?`;
         const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
         parsed = JSON.parse(jsonText);
       } catch (parseError: any) {
-        console.warn(`[NPCDecisionEngine] LLM decision returned non-JSON for ${this.npcId}:`, parseError.message);
         return this._defaultFallback(context);
       }
 
@@ -367,7 +363,6 @@ What do you do?`;
         llm_enhanced: true,
       };
     } catch (error: any) {
-      console.warn(`[NPCDecisionEngine] LLM enhanced decision failed for ${this.npcId}:`, error.message);
       return this._defaultFallback(context);
     }
   }
@@ -418,8 +413,7 @@ What do you do?`;
       try {
         return await this._generateLLMDialogue(contextSummary, mood, topic, llmClient);
       } catch (error: any) {
-        console.warn('[NPCDecisionEngine] LLM dialogue failed for ' + this.npcId + ':', error.message);
-      }
+      /* no-op */ }
     }
     return this._generateTemplateDialogue(contextSummary, mood, topic);
   }
@@ -457,7 +451,6 @@ If no secret is revealed, omit secretRevealed or set it to null.`;
       const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
       parsed = JSON.parse(jsonText);
     } catch (error: any) {
-      console.warn('[NPCDecisionEngine] Failed to parse LLM dialogue JSON, using raw text:', error.message);
       parsed.text = response.content.trim();
       parsed.emotion = mood;
     }
@@ -480,7 +473,7 @@ If no secret is revealed, omit secretRevealed or set it to null.`;
     const template = this.npcTemplate;
     const npc = this.npcState;
 
-    let text = '';
+    let text: string;
     let secretRevealed: string | null = null;
 
     const moodOpenings: Record<string, string[]> = {

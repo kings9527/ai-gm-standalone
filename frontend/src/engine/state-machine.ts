@@ -87,8 +87,7 @@ export class GameStateMachine {
           return { type: llmResult.type, raw: input, llm_enhanced: true, confidence: llmResult.confidence, target: llmResult.target || null };
         }
       } catch (err: any) {
-        console.warn('[AI-GM] LLM intent parsing failed, falling back to keyword:', err.message);
-      }
+      /* no-op */ }
     }
     return this._keywordParseIntent(input, actionType);
   }
@@ -318,7 +317,7 @@ Respond ONLY with a JSON object in this exact format:
       };
     }
 
-    let narration = '';
+    let narration: string;
     const effects: any[] = [];
 
     if (matchedItem.readable) {
@@ -568,8 +567,7 @@ Respond ONLY with a JSON object in this exact format:
         );
         if (result?.content) narration = result.content.trim();
       } catch (err: any) {
-        console.warn('[AI-GM] LLM combat narration failed:', err.message);
-      }
+      /* no-op */ }
     }
 
     return {

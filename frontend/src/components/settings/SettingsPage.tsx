@@ -292,7 +292,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   // Load settings on mount
   useEffect(() => {
     loadFromBackend();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Apply theme on mount / change

@@ -29,7 +29,6 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[GlobalErrorBoundary] Caught error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 

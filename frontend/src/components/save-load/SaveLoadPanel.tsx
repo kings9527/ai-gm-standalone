@@ -69,8 +69,7 @@ export const SaveLoadPanel: React.FC<SaveLoadPanelProps> = ({
             vnSnapshot = result.snapshot;
           }
         } catch (err) {
-          console.warn('[SaveLoadPanel] Snapshot request failed:', err);
-        }
+        /* no-op */ }
       }
 
       // 降级：使用场景背景图

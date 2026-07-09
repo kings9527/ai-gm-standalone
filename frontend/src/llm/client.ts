@@ -48,75 +48,65 @@ export class LLMClient {
     const cached = this.getCached(cacheKey);
     if (cached) return { content: cached, promptTokens: 0, completionTokens: 0, model: '', cached: true };
 
-    try {
-      const body = {
-        provider: this.config.provider,
-        model: this.config.model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: options.temperature ?? this.config.temperature ?? 0.7,
-        maxTokens: options.maxTokens ?? 2048,
-        stream: false,
-      };
+    const body = {
+      provider: this.config.provider,
+      model: this.config.model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      temperature: options.temperature ?? this.config.temperature ?? 0.7,
+      maxTokens: options.maxTokens ?? 2048,
+      stream: false,
+    };
 
-      const data = await electronAPI.llmChat(body);
-      this.setCache(cacheKey, data.content);
-      return { content: data.content, promptTokens: data.promptTokens || 0, completionTokens: data.completionTokens || 0, model: data.model || '', cached: false };
-    } catch (error: any) {
-      console.error('[LLMClient] Chat failed:', error);
-      throw error;
-    }
+    const data = await electronAPI.llmChat(body);
+    this.setCache(cacheKey, data.content);
+    return { content: data.content, promptTokens: data.promptTokens || 0, completionTokens: data.completionTokens || 0, model: data.model || '', cached: false };
   }
 
   async *streamChat(
     messages: LLMMessage[],
     options: { temperature?: number; maxTokens?: number } = {},
   ): AsyncGenerator<string, void, unknown> {
-    try {
-      const body = {
-        provider: this.config.provider,
-        model: this.config.model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: options.temperature ?? this.config.temperature ?? 0.7,
-        maxTokens: options.maxTokens ?? 2048,
-      };
+    const body = {
+      provider: this.config.provider,
+      model: this.config.model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      temperature: options.temperature ?? this.config.temperature ?? 0.7,
+      maxTokens: options.maxTokens ?? 2048,
+    };
 
-      let buffer = '';
-      let done = false;
+    let buffer = '';
+    let done = false;
 
-      await electronAPI.llmStream(
-        body,
-        (chunk: string) => {
-          buffer += chunk;
-        },
-        () => {
-          done = true;
-        },
-      );
+    await electronAPI.llmStream(
+      body,
+      (chunk: string) => {
+        buffer += chunk;
+      },
+      () => {
+        done = true;
+      },
+    );
 
-      // Wait for stream to complete and yield buffered content
-      while (!done) {
-        await new Promise((r) => setTimeout(r, 50));
+    // Wait for stream to complete and yield buffered content
+    while (!done) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    // Parse SSE format: data: {...}
+    const lines = buffer.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(data);
+        const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
+        if (content) yield content;
+      } catch {
+        // Not JSON, yield raw
+        if (data && data !== '[DONE]') yield data;
       }
-
-      // Parse SSE format: data: {...}
-      const lines = buffer.split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data:')) continue;
-        const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(data);
-          const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
-          if (content) yield content;
-        } catch {
-          // Not JSON, yield raw
-          if (data && data !== '[DONE]') yield data;
-        }
-      }
-    } catch (error: any) {
-      console.error('[LLMClient] Stream failed:', error);
-      throw error;
     }
   }
 

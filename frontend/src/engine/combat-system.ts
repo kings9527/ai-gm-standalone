@@ -269,8 +269,8 @@ export function d100Check(skillValue: number, modifier: number = 0): CombatResul
   const fumble = roll >= 96;
   const success = roll <= target;
 
-  let narration = '';
-  let type: CombatResult['type'] = 'miss';
+  let narration: string;
+  let type: CombatResult['type'];
 
   if (fumble) {
     type = 'fumble';
