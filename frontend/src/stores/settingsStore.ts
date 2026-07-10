@@ -109,13 +109,13 @@ const SENSITIVE_KEYS = ['apiKey', 'unsplashKey', 'dalleKey'];
 /**
  * Recursively encrypt sensitive fields in a settings object.
  */
-function encryptSensitive(obj: Record<string, any>): Record<string, any> {
+async function encryptSensitive(obj: Record<string, any>): Promise<Record<string, any>> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.includes(k) && typeof v === 'string' && v && !isEncrypted(v)) {
-      out[k] = encrypt(v);
+      out[k] = await encrypt(v);
     } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out[k] = encryptSensitive(v);
+      out[k] = await encryptSensitive(v);
     } else {
       out[k] = v;
     }
@@ -126,13 +126,13 @@ function encryptSensitive(obj: Record<string, any>): Record<string, any> {
 /**
  * Recursively decrypt sensitive fields in a settings object.
  */
-function decryptSensitive(obj: Record<string, any>): Record<string, any> {
+async function decryptSensitive(obj: Record<string, any>): Promise<Record<string, any>> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.includes(k) && typeof v === 'string' && v && isEncrypted(v)) {
-      out[k] = decrypt(v);
+      out[k] = await decrypt(v);
     } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out[k] = decryptSensitive(v);
+      out[k] = await decryptSensitive(v);
     } else {
       out[k] = v;
     }
@@ -177,7 +177,7 @@ export const useSettingsStore = create<SettingsState>()(
           game: { ...state.game },
           theme: { ...state.theme },
         };
-        const encrypted = encryptSensitive(payload as Record<string, any>);
+        const encrypted = await encryptSensitive(payload as Record<string, any>);
         try {
           await apiPost('/api/settings', encrypted);
         } catch (err) {
@@ -192,7 +192,7 @@ export const useSettingsStore = create<SettingsState>()(
       loadFromBackend: async () => {
         try {
           const data = await apiGet('/api/settings');
-          const decrypted = decryptSensitive(data) as AppSettings;
+          const decrypted = await decryptSensitive(data) as AppSettings;
           set({
             llm: { ...defaultLLM, ...decrypted.llm },
             llmConfig: { ...defaultLLM, ...decrypted.llm },
