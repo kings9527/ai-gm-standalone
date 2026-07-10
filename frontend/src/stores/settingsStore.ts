@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LLMConfig } from '../types/llm';
-import { electronAPI } from '../api/electron';
 import { encrypt, decrypt, isEncrypted } from '../utils/crypto';
 
 /* ------------------------------------------------------------------ */
@@ -82,7 +81,27 @@ const defaultTheme: ThemeConfig = {
   customVars: {},
 };
 
-const SETTINGS_KEY = 'aigm_settings_v1';
+/* ------------------------------------------------------------------ */
+//  API helpers (direct HTTP to backend — works in both Electron & web dev)
+/* ------------------------------------------------------------------ */
+
+const API_BASE = 'http://localhost:9742';
+
+async function apiPost(endpoint: string, body: any) {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${endpoint} failed: ${res.status}`);
+  return res.json();
+}
+
+async function apiGet(endpoint: string) {
+  const res = await fetch(`${API_BASE}${endpoint}`);
+  if (!res.ok) throw new Error(`API ${endpoint} failed: ${res.status}`);
+  return res.json();
+}
 
 /** Keys that should be encrypted before sending to backend */
 const SENSITIVE_KEYS = ['apiKey', 'unsplashKey', 'dalleKey'];
@@ -147,7 +166,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ theme: { ...s.theme, ...partial } })),
 
       /**
-       * Save all settings to backend SQLite (via Electron IPC or HTTP fallback).
+       * Save all settings to backend via nested-object batch API.
        * Sensitive fields are encrypted before transmission.
        */
       saveToBackend: async () => {
@@ -160,26 +179,20 @@ export const useSettingsStore = create<SettingsState>()(
         };
         const encrypted = encryptSensitive(payload as Record<string, any>);
         try {
-          await electronAPI.settingsSet(SETTINGS_KEY, JSON.stringify(encrypted));
+          await apiPost('/api/settings', encrypted);
         } catch (err) {
           console.error('[SettingsStore] saveToBackend failed:', err);
         }
       },
 
       /**
-       * Load all settings from backend SQLite.
+       * Load all settings from backend nested-object API.
        * Decrypts sensitive fields after retrieval.
        */
       loadFromBackend: async () => {
         try {
-          const result = await electronAPI.settingsGet(SETTINGS_KEY);
-          const raw = result?.value ?? null;
-          if (!raw) {
-            set({ loaded: true });
-            return;
-          }
-          const parsed = JSON.parse(raw);
-          const decrypted = decryptSensitive(parsed) as AppSettings;
+          const data = await apiGet('/api/settings');
+          const decrypted = decryptSensitive(data) as AppSettings;
           set({
             llm: { ...defaultLLM, ...decrypted.llm },
             llmConfig: { ...defaultLLM, ...decrypted.llm },

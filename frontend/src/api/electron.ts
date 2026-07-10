@@ -39,7 +39,7 @@ declare global {
 
       settingsGet: (key: string) => Promise<any>;
       settingsSet: (key: string, value: any) => Promise<any>;
-      settingsGetAll: () => Promise<Record<string, string>>;
+      settingsGetAll: () => Promise<any>;
 
       userDataPath: () => Promise<string>;
     };
@@ -199,6 +199,16 @@ export const electronAPI = {
   async settingsGetAll() {
     if (api) return api.settingsGetAll();
     return fallbackFetch('/api/settings');
+  },
+
+  /** Save entire nested settings object (new batch mode) */
+  async settingsSaveAll(payload: any) {
+    if (api) {
+      // IPC fallback: use settingsSet with empty key to signal batch mode (deprecated)
+      // or simply call settingsGetAll and do nothing — actually we need a new IPC channel.
+      // For now, use direct fetch in both modes.
+    }
+    return fallbackFetch('/api/settings', { method: 'POST', body: JSON.stringify(payload) });
   },
 
   async userDataPath() {
