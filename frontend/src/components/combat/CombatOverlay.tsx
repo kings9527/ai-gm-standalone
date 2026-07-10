@@ -62,7 +62,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       initializedRef.current = false;
       setCombatState(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
   // AI回合自动执行
@@ -104,7 +103,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     return () => {
       if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combatState?.currentTurnEntityId, combatState?.isPlayerTurn, combatState?.active]);
 
   // 玩家行动
@@ -161,7 +159,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
         executeAndAdvance(action);
         return;
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [combatState, isProcessing]
   );
@@ -179,7 +176,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       };
 
       executeAndAdvance(action);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [combatState]
   );
@@ -269,7 +265,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       // 防止快速点击导致状态竞争和更新丢失
       setTimeout(() => setIsProcessing(false), 0);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [moduleItems]
   );
 
