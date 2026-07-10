@@ -18,7 +18,7 @@
 
 无论是克苏鲁跑团（COC）、龙与地下城（D&D），还是自定义规则系统，AI-GM 都能帮你快速构建和运行桌面 RPG 体验。
 
-> **截图占位**：`[SCREENSHOT: app-overview-hero]` — 主界面 + 游戏界面 + 战斗界面三拼图展示
+> **截图**: 见 `docs/screenshots/app-overview-hero.png` — 主界面 + 游戏界面 + 战斗界面三拼图展示（需在运行应用后截取）
 
 ---
 
@@ -79,7 +79,7 @@
 | **Linux** | `.AppImage` | 推荐，无需安装 |
 | **Linux** | `.deb` | Debian/Ubuntu 系 |
 
-> **截图占位**：`[SCREENSHOT: downloads-page-screenshot]` — GitHub Releases 下载页面截图
+> **截图**: 见 `docs/screenshots/downloads-page.png` — GitHub Releases 下载页面截图
 
 ### 从源码构建
 
@@ -111,7 +111,7 @@ npm run dist
 
 启动应用后，自动完成后端服务启动和数据库初始化：
 
-> **截图占位**：`[SCREENSHOT: first-launch-home]` — 首次启动后的主界面
+> **截图**: 见 `docs/screenshots/first-launch-home.png` — 首次启动后的主界面
 
 ### 2. 配置 AI（可选）
 
@@ -121,7 +121,7 @@ npm run dist
 - **Claude**：输入 API Key，选择 Claude 3.5 Sonnet
 - **Ollama**：确保本地已运行 `ollama serve`，选择本地模型
 
-> **截图占位**：`[SCREENSHOT: quickstart-llm-settings]` — LLM 设置面板，显示已配置 OpenAI
+> **截图**: 见 `docs/screenshots/quickstart-llm-settings.png` — LLM 设置面板，显示已配置 OpenAI
 
 ### 3. 创建你的第一个模组
 
@@ -133,7 +133,7 @@ npm run dist
 4. 点击「生成模组」，等待 AI 处理
 5. 预览并保存到模组库
 
-> **截图占位**：`[SCREENSHOT: quickstart-generator-demo]` — 模组生成器界面，显示文本输入与生成按钮
+> **截图**: 见 `docs/screenshots/quickstart-generator-demo.png` — 模组生成器界面，显示文本输入与生成按钮
 
 **方式二：导入现有模组**
 
@@ -148,7 +148,7 @@ npm run dist
 3. 按 `ESC` 打开菜单进行存档/读档
 4. 遇到战斗时选择行动，击败敌人
 
-> **录屏占位**：`[VIDEO: quickstart-gameplay-demo]` — 2 分钟演示：从首页 → 进入游戏 → 对话推进 → 战斗 → 存档
+> **录屏**: 见 `docs/screenshots/quickstart-gameplay-demo.mp4` — 2 分钟演示：从首页 → 进入游戏 → 对话推进 → 战斗 → 存档（需手动录制）
 
 ---
 
@@ -156,23 +156,23 @@ npm run dist
 
 ### 主界面
 
-> **截图占位**：`[SCREENSHOT: showcase-homepage]` — 深色主题首页，展示所有导航按钮
+> **截图**: 见 `docs/screenshots/showcase-homepage.png` — 深色主题首页，展示所有导航按钮
 
 ### 游戏界面
 
-> **截图占位**：`[SCREENSHOT: showcase-gameplay]` — 典型游戏场景，背景 + 角色立绘 + 对话文本
+> **截图**: 见 `docs/screenshots/showcase-gameplay.png` — 典型游戏场景，背景 + 角色立绘 + 对话文本
 
 ### 战斗界面
 
-> **截图占位**：`[SCREENSHOT: showcase-combat]` — 战斗 HUD，显示敌人、行动菜单、战斗日志
+> **截图**: 见 `docs/screenshots/showcase-combat.png` — 战斗 HUD，显示敌人、行动菜单、战斗日志
 
 ### 模组生成器
 
-> **截图占位**：`[SCREENSHOT: showcase-generator]` — 模组生成器，文本输入 + 预览面板
+> **截图**: 见 `docs/screenshots/showcase-generator.png` — 模组生成器，文本输入 + 预览面板
 
 ### 风格分析器
 
-> **截图占位**：`[SCREENSHOT: showcase-style-analyzer]` — 风格分析结果，展示色板与关键词
+> **截图**: 见 `docs/screenshots/showcase-style-analyzer.png` — 风格分析结果，展示色板与关键词
 
 ---
 

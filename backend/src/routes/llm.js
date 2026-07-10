@@ -7,6 +7,9 @@ const router = Router();
 router.post('/chat', async (req, res, next) => {
   try {
     const { provider, model, messages, temperature, maxTokens, stream } = req.body;
+    if (!provider || typeof provider !== 'string') {
+      return res.status(400).json({ error: 'provider is required' });
+    }
     const settings = unflatten(req.db.getAllSettings());
 
     let apiKey;
@@ -105,6 +108,9 @@ router.post('/chat', async (req, res, next) => {
 router.post('/stream', async (req, res, next) => {
   try {
     const { provider, model, messages, temperature, maxTokens } = req.body;
+    if (!provider || typeof provider !== 'string') {
+      return res.status(400).json({ error: 'provider is required' });
+    }
     const settings = unflatten(req.db.getAllSettings());
 
     let apiKey;
