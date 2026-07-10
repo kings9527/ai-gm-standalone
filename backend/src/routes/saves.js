@@ -30,13 +30,21 @@ router.get('/:id', (req, res, next) => {
 // POST /api/saves
 router.post('/', (req, res, next) => {
   try {
-    const { id, module_id, slot_number, name, campaign } = req.body;
+    const body = req.body || {};
+    const campaignInput = body.campaign;
+    if (campaignInput === undefined || campaignInput === null) {
+      return res.status(400).json({ error: 'campaign is required' });
+    }
+    const moduleId = body.module_id ?? body.moduleId;
+    if (!moduleId) {
+      return res.status(400).json({ error: 'module_id or moduleId is required' });
+    }
     const data = {
-      id: id || `save_${Date.now()}`,
-      module_id,
-      slot_number: slot_number || 0,
-      name: name || 'Quicksave',
-      campaign_json: typeof campaign === 'string' ? campaign : JSON.stringify(campaign),
+      id: body.id || `save_${Date.now()}`,
+      module_id: moduleId,
+      slot_number: body.slot_number ?? body.slotNumber ?? 0,
+      name: body.name || 'Quicksave',
+      campaign_json: typeof campaignInput === 'string' ? campaignInput : JSON.stringify(campaignInput),
     };
     const result = req.db.writeSave(data);
     res.json({ success: true, id: result.id });
