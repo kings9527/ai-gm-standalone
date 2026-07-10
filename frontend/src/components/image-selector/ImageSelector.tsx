@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Download, Sparkles, Upload, Image, Trash2, X,
   FolderOpen, Loader2, Check, AlertCircle, RefreshCw,
-  ImageIcon, Palette, ChevronLeft, Grid,
+  ImageIcon, Palette, ChevronLeft, Grid, AlertTriangle,
 } from 'lucide-react';
 import { electronAPI } from '../../api/electron';
 import type { ImageItem } from '../../types/module';
@@ -59,6 +59,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
   const [selectedImage, setSelectedImage] = useState<ImageItem | SearchResult | null>(null);
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmImage, setDeleteConfirmImage] = useState<ImageItem | null>(null);
   const [uploadType, setUploadType] = useState<'bg' | 'sprite' | 'portrait' | 'upload'>('upload');
 
   // 加载本地图片
@@ -347,7 +348,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(img.id);
+                              setDeleteConfirmImage(img);
                             }}
                             disabled={deletingId === img.id}
                             className="p-1.5 rounded bg-gray-700/80 text-gray-300 hover:bg-red-700/80 transition-colors disabled:opacity-50"
@@ -578,6 +579,57 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {deleteConfirmImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setDeleteConfirmImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="w-full max-w-sm rounded-xl bg-gray-900 border border-gray-700/40 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800/40">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <h3 className="text-sm font-semibold text-gray-200">确认删除图片</h3>
+              </div>
+              <div className="p-5">
+                <p className="text-sm text-gray-300">
+                  确定要删除图片「<strong className="text-red-400">{deleteConfirmImage.id}</strong>」吗？
+                </p>
+                <p className="text-xs text-gray-500 mt-2">此操作不可撤销。</p>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800/40">
+                <button
+                  onClick={() => setDeleteConfirmImage(null)}
+                  className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  取消
+                </button>
+                <motion.button
+                  onClick={() => {
+                    handleDelete(deleteConfirmImage.id);
+                    setDeleteConfirmImage(null);
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-4 py-2 rounded-lg bg-red-900/40 border border-red-800/40 text-sm text-red-300 hover:bg-red-800/40 transition-colors"
+                >
+                  删除
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
