@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.0.0] — 2026-07-08
 
+### 📝 Documentation (D4 — 2026-07-09)
+
+- **README 截图占位符更新** — 所有 `[SCREENSHOT:...]` / `[VIDEO:...]` 占位符已替换为指向 `docs/screenshots/` 目录的实际文件路径说明，附带截取指引
+- **用户手册截图占位符更新** — 23 处截图/录屏占位符全部替换为实际路径，统一存放于 `docs/screenshots/`
+- **开发者指南 API 一致性验证** — 修正以下与实际代码不一致的文档描述：
+  - `POST /api/llm/stream` 返回格式：由「SSE stream」修正为「raw text/plain stream」
+  - `POST /api/modules` Body：补充完整字段列表（id/content/style 等）
+  - `llmStream` IPC 签名：注明 preload 单参数与前端三参数封装的差异
+  - `POST /api/settings`：补充 value 会被强制转为 String 的说明
+  - `imageSearch`：注明 IPC 层仅传递 query，type 在后端默认 bg
+  - 截图占位符统一替换为 `docs/screenshots/` 路径
+- **新增截图目录** — `docs/screenshots/` 创建完毕，待后续手动补充实际截图文件
+- **开发者指南最后更新日期** — 更新至 2026-07-09，附加 API 一致性验证记录
+
 ### 🎉 Initial Release
 
 AI-GM Standalone v1.0.0 is the first stable release of the AI-powered visual novel RPG engine for desktop.

@@ -30,7 +30,7 @@
 2. 双击运行安装程序，按向导提示完成安装
 3. 安装完成后，桌面会出现「AI-GM Standalone」快捷方式
 
-> **截图占位**：`[SCREENSHOT: windows-installer-wizard]` — Windows 安装向导界面
+> **截图**: 见 `docs/screenshots/windows-installer-wizard.png` — Windows 安装向导界面（需截取实际安装过程）
 
 ### macOS
 
@@ -38,7 +38,7 @@
 2. 双击挂载 DMG，将应用图标拖拽到「应用程序」文件夹
 3. 首次运行时若提示「无法验证开发者」，前往 **系统设置 → 隐私与安全性** → 点击「仍要打开」
 
-> **截图占位**：`[SCREENSHOT: macos-dmg-install]` — macOS DMG 安装界面
+> **截图**: 见 `docs/screenshots/macos-dmg-install.png` — macOS DMG 安装界面
 
 ### Linux
 
@@ -56,7 +56,7 @@ sudo dpkg -i ai-gm-standalone_1.0.0_amd64.deb
 sudo apt-get install -f  # 修复依赖
 ```
 
-> **截图占位**：`[SCREENSHOT: linux-appimage-run]` — Linux 终端运行 AppImage
+> **截图**: 见 `docs/screenshots/linux-appimage-run.png` — Linux 终端运行 AppImage
 
 ---
 
@@ -70,7 +70,7 @@ sudo apt-get install -f  # 修复依赖
 
 启动完成后，主界面如下：
 
-> **截图占位**：`[SCREENSHOT: main-home-screen]` — 应用主界面首页，显示「AI-GM」标题和导航按钮
+> **截图**: 见 `docs/screenshots/main-home-screen.png` — 应用主界面首页，显示「AI-GM」标题和导航按钮
 
 ---
 
@@ -87,7 +87,7 @@ sudo apt-get install -f  # 修复依赖
 | **图片管理** | 搜索、生成、上传图片资源 |
 | **设置** | 配置 LLM、图片、游戏、主题等 |
 
-> **录屏占位**：`[VIDEO: main-navigation-demo]` — 演示各页面切换动画与功能概览
+> **录屏**: 见 `docs/screenshots/main-navigation-demo.mp4` — 演示各页面切换动画与功能概览（需手动录制）
 
 ---
 
@@ -102,7 +102,7 @@ sudo apt-get install -f  # 修复依赖
 3. 选择 `.json` 格式的模组文件
 4. 导入成功后，模组会出现在列表中
 
-> **截图占位**：`[SCREENSHOT: module-import-dialog]` — 文件选择对话框与导入成功提示
+> **截图**: 见 `docs/screenshots/module-import-dialog.png` — 文件选择对话框与导入成功提示
 
 **模组文件格式要求：**
 
@@ -116,7 +116,7 @@ sudo apt-get install -f  # 修复依赖
 - **导出** 模组为 JSON 文件（备份或分享）
 - **删除** 不再需要的模组
 
-> **截图占位**：`[SCREENSHOT: module-manager-list]` — 模组管理页面，显示多个模组卡片
+> **截图**: 见 `docs/screenshots/module-manager-list.png` — 模组管理页面，显示多个模组卡片
 
 ---
 
@@ -128,7 +128,7 @@ sudo apt-get install -f  # 修复依赖
 2. 点击首页「继续游戏」或直接访问 `#/play`
 3. 应用会加载默认演示模组（或上次游玩的模组）
 
-> **截图占位**：`[SCREENSHOT: game-loading-screen]` — 加载界面，带旋转加载动画与骨架屏
+> **截图**: 见 `docs/screenshots/game-loading-screen.png` — 加载界面，带旋转加载动画与骨架屏
 
 ### 游戏界面
 
@@ -139,7 +139,7 @@ sudo apt-get install -f  # 修复依赖
 - **底部**：对话文本框（打字机效果）
 - **右下角**：选项按钮 / 操作按钮
 
-> **截图占位**：`[SCREENSHOT: gameplay-main-view]` — 典型游戏场景，包含背景、角色立绘和对话
+> **截图**: 见 `docs/screenshots/gameplay-main-view.png` — 典型游戏场景，包含背景、角色立绘和对话
 
 ### 操作方式
 
@@ -150,7 +150,7 @@ sudo apt-get install -f  # 修复依赖
 | 点击立绘区域 | 部分场景可触发交互 |
 | 按 `ESC` / 点击菜单按钮 | 打开游戏内菜单（存档、读档、设置、退出） |
 
-> **录屏占位**：`[VIDEO: gameplay-interaction-demo]` — 演示对话推进、选项选择、场景切换
+> **录屏**: 见 `docs/screenshots/gameplay-interaction-demo.mp4` — 演示对话推进、选项选择、场景切换（需手动录制）
 
 ---
 
@@ -165,7 +165,7 @@ sudo apt-get install -f  # 修复依赖
 - **底部**：行动菜单（攻击、技能、物品、防御、逃跑）
 - **右侧**：战斗日志（实时滚动）
 
-> **截图占位**：`[SCREENSHOT: combat-interface]` — 战斗界面，显示多个敌人与行动菜单
+> **截图**: 见 `docs/screenshots/combat-interface.png` — 战斗界面，显示多个敌人与行动菜单
 
 ### 行动类型
 
@@ -184,7 +184,7 @@ sudo apt-get install -f  # 修复依赖
 - **失败**（骰出 > 目标值）：未命中
 - **大失败**（骰出 ≥ 96）：可能反伤自己
 
-> **录屏占位**：`[VIDEO: combat-turn-demo]` — 演示一回合完整流程：选择行动 → 命中检定 → 造成伤害 → 日志更新
+> **录屏**: 见 `docs/screenshots/combat-turn-demo.mp4` — 演示一回合完整流程：选择行动 → 命中检定 → 造成伤害 → 日志更新（需手动录制）
 
 ### 战斗结束
 
@@ -203,7 +203,7 @@ sudo apt-get install -f  # 修复依赖
 3. 选择一个空槽位或覆盖已有存档
 4. 可选：输入存档名称
 
-> **截图占位**：`[SCREENSHOT: save-panel-ui]` — 存档面板，显示多个存档槽位与缩略图
+> **截图**: 见 `docs/screenshots/save-panel-ui.png` — 存档面板，显示多个存档槽位与缩略图
 
 ### 自动存档
 
@@ -219,7 +219,7 @@ sudo apt-get install -f  # 修复依赖
 2. 从存档列表中选择要读取的存档
 3. 确认后，游戏将恢复到存档时的场景和状态
 
-> **截图占位**：`[SCREENSHOT: load-panel-ui]` — 读档面板，高亮显示自动存档与手动存档
+> **截图**: 见 `docs/screenshots/load-panel-ui.png` — 读档面板，高亮显示自动存档与手动存档
 
 ### 存档位置
 
@@ -245,7 +245,7 @@ sudo apt-get install -f  # 修复依赖
 | **Claude** | Claude 3.5 Sonnet | API Key |
 | **Ollama** | 本地模型（如 Llama 3.2） | 本地服务地址 |
 
-> **截图占位**：`[SCREENSHOT: settings-llm-panel]` — LLM 设置面板，显示提供商选择与 Key 输入框
+> **截图**: 见 `docs/screenshots/settings-llm-panel.png` — LLM 设置面板，显示提供商选择与 Key 输入框
 
 ### 图片配置
 
@@ -267,7 +267,7 @@ sudo apt-get install -f  # 修复依赖
 - **深色模式 / 浅色模式 / 自动跟随系统**
 - 自定义 CSS 变量（高级）
 
-> **截图占位**：`[SCREENSHOT: settings-theme-toggle]` — 主题切换演示，深色与浅色模式对比
+> **截图**: 见 `docs/screenshots/settings-theme-toggle.png` — 主题切换演示，深色与浅色模式对比
 
 ---
 
@@ -282,7 +282,7 @@ sudo apt-get install -f  # 修复依赖
 3. 选择图片类型（背景 / 立绘 / 肖像）
 4. 点击「搜索」
 
-> **截图占位**：`[SCREENSHOT: image-search-results]` — 图片搜索结果网格，显示多张缩略图
+> **截图**: 见 `docs/screenshots/image-search-results.png` — 图片搜索结果网格，显示多张缩略图
 
 ### 生成图片（AI）
 
@@ -291,7 +291,7 @@ sudo apt-get install -f  # 修复依赖
 3. 点击「生成」
 4. 生成完成后自动保存到本地
 
-> **截图占位**：`[SCREENSHOT: image-generation-panel]` — AI 图片生成界面，显示 Prompt 输入框与生成结果
+> **截图**: 见 `docs/screenshots/image-generation-panel.png` — AI 图片生成界面，显示 Prompt 输入框与生成结果
 
 ### 上传图片
 
@@ -299,7 +299,7 @@ sudo apt-get install -f  # 修复依赖
 - 格式：JPG、PNG、GIF、WebP、BMP
 - 最大限制：50MB（通过 Base64 编码传输）
 
-> **截图占位**：`[SCREENSHOT: image-upload-dialog]` — 本地文件选择对话框
+> **截图**: 见 `docs/screenshots/image-upload-dialog.png` — 本地文件选择对话框
 
 ---
 
@@ -320,7 +320,7 @@ sudo apt-get install -f  # 修复依赖
    - 情绪关键词
    - 推荐字体与特效
 
-> **截图占位**：`[SCREENSHOT: style-analyzer-input]` — 风格分析器输入界面，显示文本框与分析按钮
+> **截图**: 见 `docs/screenshots/style-analyzer-input.png` — 风格分析器输入界面，显示文本框与分析按钮
 
 ### 应用风格
 
@@ -329,7 +329,7 @@ sudo apt-get install -f  # 修复依赖
 - 保存为自定义风格模板
 - 导出为 JSON 文件
 
-> **截图占位**：`[SCREENSHOT: style-analyzer-result]` — 分析结果展示，包含色板预览与风格标签
+> **截图**: 见 `docs/screenshots/style-analyzer-result.png` — 分析结果展示，包含色板预览与风格标签
 
 ---
 
@@ -350,7 +350,7 @@ sudo apt-get install -f  # 修复依赖
    - 配置战斗（如有）
    - 推荐图片关键词
 
-> **截图占位**：`[SCREENSHOT: generator-upload-page]` — 模组生成器上传页面，显示文件拖拽区域
+> **截图**: 见 `docs/screenshots/generator-upload-page.png` — 模组生成器上传页面，显示文件拖拽区域
 
 ### 预览与编辑
 
@@ -361,7 +361,7 @@ sudo apt-get install -f  # 修复依赖
 
 确认无误后，点击「保存到模组库」即可导入。
 
-> **截图占位**：`[SCREENSHOT: generator-preview-panel]` — 模组预览面板，显示场景流程图
+> **截图**: 见 `docs/screenshots/generator-preview-panel.png` — 模组预览面板，显示场景流程图
 
 ---
 
