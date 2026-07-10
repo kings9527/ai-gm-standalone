@@ -53,7 +53,9 @@ export class SQLiteDatabase {
       );
 
       CREATE INDEX IF NOT EXISTS idx_saves_module ON saves(module_id);
+      CREATE INDEX IF NOT EXISTS idx_saves_module_created_at ON saves(module_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_images_type ON images(type);
+      CREATE INDEX IF NOT EXISTS idx_images_type_created_at ON images(type, created_at);
     `);
   }
 
