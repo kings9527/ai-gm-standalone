@@ -3,34 +3,22 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { unflatten } from '../utils/settings-serializer.js';
 
 const router = Router();
 
-/**
- * 获取分类目录
- * @param {string} userDataDir - 用户数据目录
- * @param {string} type - 图片类型: bg | sprite | portrait
- * @returns {string} 分类目录路径
- */
 function getImageDir(userDataDir, type) {
   const validTypes = ['bg', 'sprite', 'portrait', 'upload'];
   const imageType = validTypes.includes(type) ? type : 'bg';
   return path.join(userDataDir, 'images', imageType);
 }
 
-/**
- * 确保目录存在
- */
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-/**
- * 从 URL 下载图片到本地
- * @returns {Promise<string>} 本地文件路径
- */
 async function downloadImage(url, destDir, filename) {
   ensureDir(destDir);
   const localPath = path.join(destDir, filename);
@@ -39,7 +27,6 @@ async function downloadImage(url, destDir, filename) {
 
   return new Promise((resolve, reject) => {
     client.get(url, (response) => {
-      // 处理重定向
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         downloadImage(response.headers.location, destDir, filename)
           .then(resolve)
@@ -77,10 +64,9 @@ router.get('/search', async (req, res, next) => {
     if (!q) return res.status(400).json({ error: 'query required' });
 
     const imageType = type || 'bg';
-    const settings = req.db.getAllSettings();
-    const unsplashKey = settings.UNSPLASH_ACCESS_KEY;
+    const settings = unflatten(req.db.getAllSettings());
+    const unsplashKey = settings.image?.unsplashKey;
 
-    // 如果配置了 Unsplash API Key，使用真实 API
     if (unsplashKey) {
       const perPage = 12;
       const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=${perPage}&orientation=${imageType === 'bg' ? 'landscape' : 'portrait'}`;
@@ -109,7 +95,6 @@ router.get('/search', async (req, res, next) => {
       return res.json({ query: q, type: imageType, results });
     }
 
-    // 无 Unsplash Key 时使用 Picsum Photos 作为 fallback（免费，免 key）
     const results = Array.from({ length: 10 }, (_, i) => {
       const seed = `${q.replace(/\s+/g, '_')}_${i}_${Date.now()}`;
       return {
@@ -123,7 +108,7 @@ router.get('/search', async (req, res, next) => {
       };
     });
 
-    res.json({ query: q, type: imageType, results, fallback: true, note: 'Unsplash API key not configured. Using Picsum fallback. Set UNSPLASH_ACCESS_KEY in settings.' });
+    res.json({ query: q, type: imageType, results, fallback: true, note: 'Unsplash API key not configured. Using Picsum fallback. Set image.unsplashKey in settings.' });
   } catch (err) { next(err); }
 });
 
@@ -144,7 +129,6 @@ router.delete('/:id', (req, res, next) => {
     const image = req.db.getImage(id);
     if (!image) return res.status(404).json({ error: 'Image not found' });
 
-    // 删除本地文件
     if (image.local_path && fs.existsSync(image.local_path)) {
       fs.unlinkSync(image.local_path);
     }
@@ -191,11 +175,11 @@ router.post('/generate', async (req, res, next) => {
     if (!prompt) return res.status(400).json({ error: 'prompt required' });
 
     const imageType = type || 'bg';
-    const settings = req.db.getAllSettings();
+    const settings = unflatten(req.db.getAllSettings());
 
-    const apiKey = settings.OPENAI_API_KEY;
+    const apiKey = settings.llm?.apiKey || settings.image?.dalleKey;
     if (!apiKey) {
-      return res.status(400).json({ error: 'OpenAI API key not configured. Set OPENAI_API_KEY in settings.' });
+      return res.status(400).json({ error: 'OpenAI API key not configured. Set llm.apiKey or image.dalleKey in settings.' });
     }
 
     const size = imageType === 'bg' ? '1792x1024' : '1024x1792';
@@ -215,7 +199,6 @@ router.post('/generate', async (req, res, next) => {
     const imageUrl = data.data?.[0]?.url;
     if (!imageUrl) throw new Error('DALL-E returned no image URL');
 
-    // 下载生成的图片到本地缓存
     const imagesDir = getImageDir(req.userDataDir, imageType);
     const id = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const filename = `${id}.png`;
@@ -246,11 +229,9 @@ router.post('/upload', async (req, res, next) => {
     const imagesDir = getImageDir(req.userDataDir, imageType);
     ensureDir(imagesDir);
 
-    // 解析 base64 数据
     const base64Data = data.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
-    // 确定扩展名
     const ext = path.extname(filename || '') || '.png';
     const id = `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const outFilename = `${id}${ext}`;

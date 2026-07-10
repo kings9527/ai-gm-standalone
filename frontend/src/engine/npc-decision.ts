@@ -49,19 +49,23 @@ export class NPCDecisionEngine {
   npcTemplate: NPC;
 
   constructor(campaign: Campaign, moduleData: Module, npcId: string) {
-    this.campaign = campaign;
+    // BUG-6 Fix: 使用不可变更新，不直接修改传入的 campaign 对象
+    this.campaign = {
+      ...campaign,
+      npcs_state: campaign.npcs_state ? { ...campaign.npcs_state } : {},
+    };
     this.module = moduleData;
     this.npcId = npcId;
-    this.npcState = this._ensureNPCState(campaign, npcId);
+    this.npcState = this._ensureNPCState(npcId);
     this.npcTemplate = moduleData.npcs?.[npcId] || ({} as NPC);
     this._validateTemplate();
   }
 
-  private _ensureNPCState(campaign: Campaign, npcId: string): NPCState {
-    if (!campaign.npcs_state) campaign.npcs_state = {};
-    if (!campaign.npcs_state[npcId]) {
+  private _ensureNPCState(npcId: string): NPCState {
+    if (!this.campaign.npcs_state) this.campaign.npcs_state = {};
+    if (!this.campaign.npcs_state[npcId]) {
       const template = this.module.npcs?.[npcId] || ({} as NPC);
-      campaign.npcs_state[npcId] = {
+      this.campaign.npcs_state[npcId] = {
         id: npcId,
         current_hp: template.hp || template.stats?.HP || 10,
         current_san: template.sanity || 50,
@@ -77,7 +81,7 @@ export class NPCDecisionEngine {
         custom_vars: {},
       };
     }
-    return campaign.npcs_state[npcId];
+    return this.campaign.npcs_state[npcId];
   }
 
   private _validateTemplate() {

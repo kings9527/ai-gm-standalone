@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LLMConfig } from '../types/llm';
-import { electronAPI } from '../api/electron';
 import { encrypt, decrypt, isEncrypted } from '../utils/crypto';
 
 /* ------------------------------------------------------------------ */
@@ -82,7 +81,27 @@ const defaultTheme: ThemeConfig = {
   customVars: {},
 };
 
-const SETTINGS_KEY = 'aigm_settings_v1';
+/* ------------------------------------------------------------------ */
+//  API helpers (direct HTTP to backend — works in both Electron & web dev)
+/* ------------------------------------------------------------------ */
+
+const API_BASE = 'http://localhost:9742';
+
+async function apiPost(endpoint: string, body: any) {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${endpoint} failed: ${res.status}`);
+  return res.json();
+}
+
+async function apiGet(endpoint: string) {
+  const res = await fetch(`${API_BASE}${endpoint}`);
+  if (!res.ok) throw new Error(`API ${endpoint} failed: ${res.status}`);
+  return res.json();
+}
 
 /** Keys that should be encrypted before sending to backend */
 const SENSITIVE_KEYS = ['apiKey', 'unsplashKey', 'dalleKey'];
@@ -90,13 +109,13 @@ const SENSITIVE_KEYS = ['apiKey', 'unsplashKey', 'dalleKey'];
 /**
  * Recursively encrypt sensitive fields in a settings object.
  */
-function encryptSensitive(obj: Record<string, any>): Record<string, any> {
+async function encryptSensitive(obj: Record<string, any>): Promise<Record<string, any>> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.includes(k) && typeof v === 'string' && v && !isEncrypted(v)) {
-      out[k] = encrypt(v);
+      out[k] = await encrypt(v);
     } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out[k] = encryptSensitive(v);
+      out[k] = await encryptSensitive(v);
     } else {
       out[k] = v;
     }
@@ -107,13 +126,13 @@ function encryptSensitive(obj: Record<string, any>): Record<string, any> {
 /**
  * Recursively decrypt sensitive fields in a settings object.
  */
-function decryptSensitive(obj: Record<string, any>): Record<string, any> {
+async function decryptSensitive(obj: Record<string, any>): Promise<Record<string, any>> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.includes(k) && typeof v === 'string' && v && isEncrypted(v)) {
-      out[k] = decrypt(v);
+      out[k] = await decrypt(v);
     } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out[k] = decryptSensitive(v);
+      out[k] = await decryptSensitive(v);
     } else {
       out[k] = v;
     }
@@ -147,7 +166,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ theme: { ...s.theme, ...partial } })),
 
       /**
-       * Save all settings to backend SQLite (via Electron IPC or HTTP fallback).
+       * Save all settings to backend via nested-object batch API.
        * Sensitive fields are encrypted before transmission.
        */
       saveToBackend: async () => {
@@ -158,27 +177,21 @@ export const useSettingsStore = create<SettingsState>()(
           game: { ...state.game },
           theme: { ...state.theme },
         };
-        const encrypted = encryptSensitive(payload as Record<string, any>);
+        const encrypted = await encryptSensitive(payload as Record<string, any>);
         try {
-          await electronAPI.settingsSet(SETTINGS_KEY, JSON.stringify(encrypted));
+          await apiPost('/api/settings', encrypted);
         } catch (err) {
         /* no-op */ }
       },
 
       /**
-       * Load all settings from backend SQLite.
+       * Load all settings from backend nested-object API.
        * Decrypts sensitive fields after retrieval.
        */
       loadFromBackend: async () => {
         try {
-          const result = await electronAPI.settingsGet(SETTINGS_KEY);
-          const raw = result?.value ?? null;
-          if (!raw) {
-            set({ loaded: true });
-            return;
-          }
-          const parsed = JSON.parse(raw);
-          const decrypted = decryptSensitive(parsed) as AppSettings;
+          const data = await apiGet('/api/settings');
+          const decrypted = await decryptSensitive(data) as AppSettings;
           set({
             llm: { ...defaultLLM, ...decrypted.llm },
             llmConfig: { ...defaultLLM, ...decrypted.llm },

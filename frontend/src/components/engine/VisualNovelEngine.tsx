@@ -67,6 +67,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     const isPausedRef = useRef(isPaused);
     const prevSceneIdRef = useRef<string | null>(null);
     const prevCombatActiveRef = useRef(false);
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingAutoSaveRef = useRef(false);
 
     // Sync refs to latest values without triggering effects
     useEffect(() => { vnStateRef.current = vnState; }, [vnState]);
@@ -151,11 +153,9 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     // 关键节点自动存档：场景切换
     useEffect(() => {
       if (prevSceneIdRef.current && prevSceneIdRef.current !== vnState.currentSceneId) {
-        // 场景切换触发自动存档
+        // 场景切换触发自动存档（防抖）
         if (onAutoSave && !isPausedRef.current) {
-          requestAnimationFrame(() => {
-            takeSnapshotAndSave();
-          });
+          debouncedAutoSave();
         }
         onSceneChange?.(vnState.currentSceneId);
       }
@@ -166,11 +166,9 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     // 关键节点自动存档：战斗开始
     useEffect(() => {
       if (combatActive && !prevCombatActiveRef.current) {
-        // 战斗开始触发自动存档
+        // 战斗开始触发自动存档（防抖）
         if (onAutoSave && !isPausedRef.current) {
-          requestAnimationFrame(() => {
-            takeSnapshotAndSave();
-          });
+          debouncedAutoSave();
         }
       }
       prevCombatActiveRef.current = combatActive;
@@ -198,6 +196,34 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         onAutoSave?.(vnStateRef.current, bg);
       }
     }, [onAutoSave]);
+
+    /**
+     * BUG-9 修复：自动存档防抖
+     * 快速切场景时，只保留最后一次存档请求，延迟 800ms 执行。
+     * 避免高频场景切换导致存档泛滥和缩略图生成堆积。
+     */
+    const debouncedAutoSave = useCallback(() => {
+      pendingAutoSaveRef.current = true;
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      autoSaveTimerRef.current = setTimeout(() => {
+        pendingAutoSaveRef.current = false;
+        requestAnimationFrame(() => {
+          takeSnapshotAndSave();
+        });
+      }, 800);
+    }, [takeSnapshotAndSave]);
+
+    // 组件卸载时清理防抖定时器，防止内存泄漏和悬空存档
+    useEffect(() => {
+      return () => {
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = null;
+        }
+      };
+    }, []);
 
     // ESC key handler for menu (only when not paused by external)
     useEffect(() => {

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { unflatten } from '../utils/settings-serializer.js';
 
 const router = Router();
 
@@ -6,22 +7,22 @@ const router = Router();
 router.post('/chat', async (req, res, next) => {
   try {
     const { provider, model, messages, temperature, maxTokens, stream } = req.body;
-    const settings = req.db.getAllSettings();
+    const settings = unflatten(req.db.getAllSettings());
 
     let apiKey;
     let baseUrl;
 
     switch (provider) {
       case 'openai':
-        apiKey = settings.OPENAI_API_KEY;
-        baseUrl = settings.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+        apiKey = settings.llm?.apiKey;
+        baseUrl = settings.llm?.baseUrl || 'https://api.openai.com/v1';
         break;
       case 'claude':
-        apiKey = settings.CLAUDE_API_KEY;
-        baseUrl = 'https://api.anthropic.com/v1';
+        apiKey = settings.llm?.apiKey;
+        baseUrl = settings.llm?.baseUrl || 'https://api.anthropic.com/v1';
         break;
       case 'ollama':
-        baseUrl = settings.OLLAMA_URL || 'http://localhost:11434';
+        baseUrl = settings.llm?.baseUrl || 'http://localhost:11434/v1';
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -32,7 +33,6 @@ router.post('/chat', async (req, res, next) => {
     }
 
     if (stream) {
-      // Stream handled separately
       res.status(400).json({ error: 'Use /stream for streaming' });
       return;
     }
@@ -90,7 +90,6 @@ router.post('/chat', async (req, res, next) => {
 
     const data = await response.json();
 
-    // Normalize response
     let content = '';
     if (provider === 'openai') content = data.choices?.[0]?.message?.content || '';
     else if (provider === 'claude') content = data.content?.[0]?.text || '';
@@ -106,7 +105,7 @@ router.post('/chat', async (req, res, next) => {
 router.post('/stream', async (req, res, next) => {
   try {
     const { provider, model, messages, temperature, maxTokens } = req.body;
-    const settings = req.db.getAllSettings();
+    const settings = unflatten(req.db.getAllSettings());
 
     let apiKey;
     let baseUrl;
@@ -115,13 +114,13 @@ router.post('/stream', async (req, res, next) => {
 
     switch (provider) {
       case 'openai':
-        apiKey = settings.OPENAI_API_KEY;
-        baseUrl = settings.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+        apiKey = settings.llm?.apiKey;
+        baseUrl = settings.llm?.baseUrl || 'https://api.openai.com/v1';
         headers.Authorization = `Bearer ${apiKey}`;
         body = JSON.stringify({ model: model || 'gpt-4o-mini', messages, temperature: temperature ?? 0.7, max_tokens: maxTokens || 2048, stream: true });
         break;
       case 'ollama':
-        baseUrl = settings.OLLAMA_URL || 'http://localhost:11434';
+        baseUrl = settings.llm?.baseUrl || 'http://localhost:11434/v1';
         body = JSON.stringify({ model: model || 'llama3', messages, stream: true, options: { temperature: temperature ?? 0.7 } });
         break;
       default:
