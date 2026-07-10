@@ -47,6 +47,8 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(false);
+  const onCombatUpdateRef = useRef(onCombatUpdate);
+  onCombatUpdateRef.current = onCombatUpdate;
 
   // 初始化战斗
   useEffect(() => {
@@ -60,7 +62,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       initializedRef.current = false;
       setCombatState(null);
     }
-   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
   // AI回合自动执行
@@ -71,7 +73,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     const endedState = checkCombatEnd(combatState);
     if (endedState.phase === 'victory' || endedState.phase === 'defeat' || endedState.phase === 'fled') {
       setCombatState(endedState);
-      onCombatUpdate?.(endedState);
+      onCombatUpdateRef.current?.(endedState);
       const result = endedState.phase === 'victory' ? 'victory' : endedState.phase === 'defeat' ? 'defeat' : 'fled';
       // 延迟通知战斗结束，让玩家看到结果
       aiTimerRef.current = setTimeout(() => {
@@ -84,13 +86,17 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     if (!combatState.isPlayerTurn && combatState.currentTurnEntityId) {
       setIsProcessing(true);
       aiTimerRef.current = setTimeout(() => {
+        let nextState: CombatState | null = null;
         setCombatState((prev) => {
           if (!prev) return prev;
           let newState = executeAIAction(prev, prev.currentTurnEntityId!);
           newState = advanceTurn(newState);
-          onCombatUpdate?.(newState);
+          nextState = newState;
           return newState;
         });
+        if (nextState) {
+          onCombatUpdateRef.current?.(nextState);
+        }
         setIsProcessing(false);
       }, 1200);
     }
@@ -98,7 +104,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     return () => {
       if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
     };
-   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combatState?.currentTurnEntityId, combatState?.isPlayerTurn, combatState?.active]);
 
   // 玩家行动
@@ -155,7 +161,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
         executeAndAdvance(action);
         return;
       }
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [combatState, isProcessing]
   );
@@ -173,7 +179,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       };
 
       executeAndAdvance(action);
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [combatState]
   );
@@ -190,6 +196,9 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
   const executeAndAdvance = useCallback(
     (action: CombatAction) => {
       setIsProcessing(true);
+
+      let nextState: CombatState | null = null;
+
       setCombatState((prev) => {
         if (!prev) return prev;
 
@@ -247,12 +256,20 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
         }
 
         newState = advanceTurn(newState);
-        onCombatUpdate?.(newState);
-        setIsProcessing(false);
+        nextState = newState;
         return newState;
       });
-     
+
+      // 副作用必须在 updater 外部执行，避免 React 状态更新丢失
+      if (nextState) {
+        onCombatUpdateRef.current?.(nextState);
+      }
+
+      // 使用 setTimeout 打破 React 18 自动批处理，确保 isProcessing=true 至少渲染一次
+      // 防止快速点击导致状态竞争和更新丢失
+      setTimeout(() => setIsProcessing(false), 0);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [moduleItems]
   );
 
