@@ -646,7 +646,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
               if (v) {
                 document.documentElement.requestFullscreen?.().catch(() => {});
               } else {
-                document.fullscreenElement && document.exitFullscreen?.().catch(() => {});
+                if (document.fullscreenElement) {
+                  document.exitFullscreen?.().catch(() => {});
+                }
               }
             }}
             label="默认全屏模式"

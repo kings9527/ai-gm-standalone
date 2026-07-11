@@ -11,9 +11,9 @@ const { autoUpdater } = require('electron-updater');
 //   - Auto-updater checks for updates on app startup (production only)
 //   - Falls back to manual check via IPC
 //
-// TODO: Replace with your actual GitHub repository:
+// NOTE: Update the GitHub repository in package.json build.publish config
 //   "publish": { "provider": "github", "owner": "YOUR_ORG", "repo": "YOUR_REPO" }
-// in package.json build configuration.
+//   before enabling auto-updater in production.
 // =============================================================================
 
 function setupAutoUpdater() {
