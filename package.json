@@ -56,7 +56,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "aigm-project",
+      "owner": "kings9527",
       "repo": "ai-gm-standalone",
       "releaseType": "release"
     },

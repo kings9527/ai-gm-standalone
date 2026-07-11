@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [1.0.0] — 2026-07-08
+## [1.0.0] — 2026-07-11
+
+### 🚀 Release Preparation (D6 — 2026-07-11)
+
+- **GitHub Publish 配置修正** — 修正 `electron-builder` publish 配置中的 owner 为实际仓库持有者 `kings9527`，确保自动更新通道正确指向 `github.com/kings9527/ai-gm-standalone`
+- **代码审查与清理** — 修复所有 lint 错误，清理遗留的 TODO 注释和未使用导入
+- **性能优化** — 路由级别代码分割 + 手动 chunk 拆分，减少首屏加载时间
+- **D6 UX 打磨** — 战斗系统键盘快捷键支持、全屏模式切换、音效开关控制
+- **README 最终修正** — 修复损坏的内部链接引用，统一截图路径格式
 
 ### 📝 Documentation (D4 — 2026-07-09)
 
@@ -136,6 +144,11 @@ AI-GM Standalone v1.0.0 is the first stable release of the AI-powered visual nov
 - Real-time GM assistant
 - Shared session state synchronization
 
+- **Bug 修复** — 修复 campaign 字段序列化、LLM provider 验证、settings 序列化、NPC 决策引擎不可变更新、自动存档防抖、数据库复合索引、图片删除确认、战斗状态竞态条件等 11 项问题（详见 D5 日报和 TODO-D4-E2E-TEST.md）
+
 ---
 
-> Last updated: 2026-07-08
+> Last updated: 2026-07-11
+> **Release Status**: v1.0.0 已准备就绪，等待 GitHub Release 发布
+> **Tag**: `v1.0.0`
+> **GitHub**: https://github.com/kings9527/ai-gm-standalone/releases
