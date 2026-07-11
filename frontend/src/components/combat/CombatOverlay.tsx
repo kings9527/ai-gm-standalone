@@ -49,6 +49,11 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
   const initializedRef = useRef(false);
   const onCombatUpdateRef = useRef(onCombatUpdate);
   onCombatUpdateRef.current = onCombatUpdate;
+  const [submenu, setSubmenu] = useState<'skills' | 'items' | null>(null);
+  // 将子菜单状态传递给 ActionMenu 用于键盘快捷键管理
+  const handleSubmenuChange = useCallback((v: 'skills' | 'items' | null) => {
+    setSubmenu(v);
+  }, []);
 
   // 初始化战斗
   useEffect(() => {
@@ -268,6 +273,109 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     [moduleItems]
   );
 
+  // ─── 键盘快捷键 ───────────────────────────────
+  useEffect(() => {
+    if (!isActive || !combatState || !combatState.isPlayerTurn || isProcessing) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 忽略输入框聚焦时的按键
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // 目标选择模式下的快捷键
+      if (combatState.targetSelectionMode) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const aliveEnemies = combatState.enemyIds
+            .map((id) => combatState.entities[id])
+            .filter((en) => en && en.hp > 0);
+          if (aliveEnemies.length > 0) {
+            handleSelectTarget(aliveEnemies[0].id);
+          }
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          handleCancelTargetSelection();
+          return;
+        }
+        const num = parseInt(e.key, 10);
+        if (!isNaN(num) && num >= 1 && num <= 9) {
+          const aliveEnemies = combatState.enemyIds
+            .map((id) => combatState.entities[id])
+            .filter((en) => en && en.hp > 0);
+          const target = aliveEnemies[num - 1];
+          if (target) {
+            e.preventDefault();
+            handleSelectTarget(target.id);
+          }
+        }
+        return;
+      }
+
+      // 主菜单快捷键（1-4）
+      if (e.key === '1') {
+        e.preventDefault();
+        handlePlayerAction('attack');
+        return;
+      }
+      if (e.key === '2') {
+        e.preventDefault();
+        setSubmenu('skills');
+        return;
+      }
+      if (e.key === '3') {
+        e.preventDefault();
+        setSubmenu('items');
+        return;
+      }
+      if (e.key === '4') {
+        e.preventDefault();
+        handlePlayerAction('flee');
+        return;
+      }
+
+      // Escape 关闭子菜单
+      if (e.key === 'Escape') {
+        if (submenu) {
+          e.preventDefault();
+          setSubmenu(null);
+        }
+        return;
+      }
+
+      // 子菜单中的数字选择
+      const num = parseInt(e.key, 10);
+      if (isNaN(num) || num < 1 || num > 9) return;
+
+      if (submenu === 'skills') {
+        const playerEntity = combatState.entities[combatState.playerId];
+        const skills = playerEntity ? getAvailableSkills(playerEntity) : [];
+        const skill = skills[num - 1];
+        if (skill) {
+          e.preventDefault();
+          setSubmenu(null);
+          handlePlayerAction('skill', skill.id);
+        }
+        return;
+      }
+
+      if (submenu === 'items') {
+        const items = playerInventory
+          .map((id) => moduleItems[id])
+          .filter(Boolean);
+        const item = items[num - 1];
+        if (item) {
+          e.preventDefault();
+          setSubmenu(null);
+          handlePlayerAction('item', undefined, item.id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, combatState, isProcessing, handlePlayerAction, handleSelectTarget, handleCancelTargetSelection, submenu, moduleItems, playerInventory]);
+
   if (!isActive || !combatState) return null;
 
   const playerEntity = combatState.entities[combatState.playerId];
@@ -346,6 +454,8 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
             onAction={handlePlayerAction}
             onCancelTargetSelection={handleCancelTargetSelection}
             disabled={isProcessing}
+            externalSubmenu={submenu}
+            onSubmenuChange={handleSubmenuChange}
           />
         )}
 

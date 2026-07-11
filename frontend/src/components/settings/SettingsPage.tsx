@@ -88,7 +88,7 @@ function validateImage(image: { unsplashKey: string; dalleKey: string; defaultSt
   return { valid: errors.length === 0, errors };
 }
 
-function validateGame(game: { typewriterSpeed: number; fontSize: number; autoAdvanceDelay: number; skipUnread: boolean }): ValidationResult {
+function validateGame(game: { typewriterSpeed: number; fontSize: number; autoAdvanceDelay: number; skipUnread: boolean; soundEnabled: boolean; fullscreen: boolean }): ValidationResult {
   const errors: FieldError[] = [];
   if (game.typewriterSpeed < 0 || game.typewriterSpeed > 500) {
     errors.push({ field: 'typewriterSpeed', message: '打字机速度必须在 0 - 500ms 之间' });
@@ -628,6 +628,32 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
             onChange={(v) => setGame({ skipUnread: v })}
             label="允许跳过未读文本"
           />
+        </div>
+      </SectionCard>
+
+      <SectionCard title="音频与显示">
+        <div className="space-y-4">
+          <Toggle
+            checked={game.soundEnabled}
+            onChange={(v) => setGame({ soundEnabled: v })}
+            label="启用音效"
+          />
+          <Toggle
+            checked={game.fullscreen}
+            onChange={(v) => {
+              setGame({ fullscreen: v });
+              // 即时应用全屏设置
+              if (v) {
+                document.documentElement.requestFullscreen?.().catch(() => {});
+              } else {
+                document.fullscreenElement && document.exitFullscreen?.().catch(() => {});
+              }
+            }}
+            label="默认全屏模式"
+          />
+          <p className="text-[11px] text-gray-600">
+            游戏中按 F11 也可快速切换全屏
+          </p>
         </div>
       </SectionCard>
     </div>

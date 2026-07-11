@@ -206,6 +206,22 @@ const PlayPage: React.FC = () => {
     return { snapshot, thumbnail };
   }, [campaign, module]);
 
+  // 监听 F11 全屏快捷键和全屏设置
+  useEffect(() => {
+    const handleFullscreenKey = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        } else {
+          document.exitFullscreen?.().catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('keydown', handleFullscreenKey);
+    return () => window.removeEventListener('keydown', handleFullscreenKey);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);

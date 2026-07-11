@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { CombatActionType, CombatSkill } from '../../types/combat';
 
@@ -10,6 +10,10 @@ interface ActionMenuProps {
   onAction: (type: CombatActionType, skillId?: string, itemId?: string) => void;
   onCancelTargetSelection: () => void;
   disabled?: boolean;
+  /** 子菜单状态变化回调，用于键盘快捷键 */
+  onSubmenuChange?: (submenu: 'skills' | 'items' | null) => void;
+  /** 外部控制的子菜单状态（可选，用于父组件统一管理键盘快捷键） */
+  externalSubmenu?: 'skills' | 'items' | null;
 }
 
 /**
@@ -23,8 +27,20 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   onAction,
   onCancelTargetSelection,
   disabled = false,
+  onSubmenuChange,
+  externalSubmenu,
 }) => {
-  const [submenu, setSubmenu] = useState<'skills' | 'items' | null>(null);
+  const [internalSubmenu, setInternalSubmenu] = useState<'skills' | 'items' | null>(null);
+  const submenu = externalSubmenu !== undefined ? externalSubmenu : internalSubmenu;
+  const setSubmenu = (v: 'skills' | 'items' | null) => {
+    if (externalSubmenu === undefined) setInternalSubmenu(v);
+    onSubmenuChange?.(v);
+  };
+
+  // 子菜单状态变化时通知父组件
+  useEffect(() => {
+    onSubmenuChange?.(submenu);
+  }, [submenu, onSubmenuChange]);
 
   // 目标选择模式下只显示取消按钮
   if (isTargetSelectionMode) {
@@ -60,10 +76,10 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   }
 
   const mainActions = [
-    { type: 'attack' as CombatActionType, label: '⚔ 攻击', color: '#dc2626', desc: '选择目标进行攻击' },
-    { type: 'skill' as CombatActionType, label: '✦ 技能', color: '#a855f7', desc: '使用特殊技能' },
-    { type: 'item' as CombatActionType, label: '🎒 物品', color: '#16a34a', desc: '使用背包物品' },
-    { type: 'flee' as CombatActionType, label: '🏃 逃跑', color: '#6b7280', desc: '尝试逃离战斗' },
+    { type: 'attack' as CombatActionType, label: '⚔ 攻击', color: '#dc2626', desc: '选择目标进行攻击', key: '1' },
+    { type: 'skill' as CombatActionType, label: '✦ 技能', color: '#a855f7', desc: '使用特殊技能', key: '2' },
+    { type: 'item' as CombatActionType, label: '🎒 物品', color: '#16a34a', desc: '使用背包物品', key: '3' },
+    { type: 'flee' as CombatActionType, label: '🏃 逃跑', color: '#6b7280', desc: '尝试逃离战斗', key: '4' },
   ];
 
   const handleMainAction = (type: CombatActionType) => {
@@ -109,7 +125,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
               {skills.length === 0 && (
                 <div className="text-xs text-gray-500 py-2 text-center">无可用的技能</div>
               )}
-              {skills.map((skill) => (
+              {skills.map((skill, idx) => (
                 <motion.button
                   key={skill.id}
                   className="text-left px-3 py-2 rounded-lg border border-gray-700/40 bg-gray-800/60 hover:bg-purple-900/30 hover:border-purple-600/40 transition-colors"
@@ -121,7 +137,10 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-200 font-medium">{skill.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-500 font-mono w-4">{idx + 1}</span>
+                      <span className="text-sm text-gray-200 font-medium">{skill.name}</span>
+                    </div>
                     <div className="flex gap-1.5">
                       {skill.cost.mp !== undefined && skill.cost.mp > 0 && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300">
@@ -164,7 +183,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
               {inventory.length === 0 && (
                 <div className="text-xs text-gray-500 py-2 text-center">背包是空的</div>
               )}
-              {inventory.map((item) => (
+              {inventory.map((item, idx) => (
                 <motion.button
                   key={item.id}
                   className="text-left px-3 py-2 rounded-lg border border-gray-700/40 bg-gray-800/60 hover:bg-green-900/30 hover:border-green-600/40 transition-colors"
@@ -175,7 +194,10 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <span className="text-sm text-gray-200 font-medium">{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 font-mono w-4">{idx + 1}</span>
+                    <span className="text-sm text-gray-200 font-medium">{item.name}</span>
+                  </div>
                   <p className="text-[11px] text-gray-500 mt-0.5">{item.description}</p>
                 </motion.button>
               ))}
@@ -195,7 +217,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
             {mainActions.map((action) => (
               <motion.button
                 key={action.type}
-                className="px-4 py-3 rounded-xl border backdrop-blur-sm transition-colors flex flex-col items-center gap-1 min-w-[72px]"
+                className="px-4 py-3 rounded-xl border backdrop-blur-sm transition-colors flex flex-col items-center gap-1 min-w-[72px] relative"
                 style={{
                   borderColor: `${action.color}40`,
                   backgroundColor: `${action.color}15`,
@@ -206,9 +228,10 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                   backgroundColor: `${action.color}30`,
                 }}
                 whileTap={{ scale: 0.92 }}
-                title={action.desc}
+                title={`${action.desc} [${action.key}]`}
               >
                 <span className="text-sm">{action.label}</span>
+                <span className="text-[10px] text-gray-500 font-mono">[{action.key}]</span>
               </motion.button>
             ))}
           </motion.div>

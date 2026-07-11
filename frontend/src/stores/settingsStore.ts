@@ -22,6 +22,8 @@ export interface GameConfig {
   fontSize: number;             // px
   autoAdvanceDelay: number;     // ms before auto-advancing
   skipUnread: boolean;          // allow skipping unread text
+  soundEnabled: boolean;        // 音效开关
+  fullscreen: boolean;          // 默认全屏模式
 }
 
 export interface ThemeConfig {
@@ -74,6 +76,8 @@ const defaultGame: GameConfig = {
   fontSize: 16,
   autoAdvanceDelay: 0,
   skipUnread: false,
+  soundEnabled: true,
+  fullscreen: false,
 };
 
 const defaultTheme: ThemeConfig = {
