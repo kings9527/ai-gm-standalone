@@ -79,8 +79,6 @@
 | **Linux** | `.AppImage` | 推荐，无需安装 |
 | **Linux** | `.deb` | Debian/Ubuntu 系 |
 
-> **截图**: 见 `docs/screenshots/downloads-page.png` — GitHub Releases 下载页面截图
-
 ### 从源码构建
 
 ```bash
@@ -148,7 +146,7 @@ npm run dist
 3. 按 `ESC` 打开菜单进行存档/读档
 4. 遇到战斗时选择行动，击败敌人
 
-> **录屏**: 见 `docs/screenshots/quickstart-gameplay-demo.mp4` — 2 分钟演示：从首页 → 进入游戏 → 对话推进 → 战斗 → 存档（需手动录制）
+> **截图**: 见 `docs/screenshots/gameplay-main-view.png` — 游戏主界面，背景 + 角色立绘 + 对话文本
 
 ---
 
@@ -164,7 +162,19 @@ npm run dist
 
 ### 战斗界面
 
-> **截图**: 见 `docs/screenshots/showcase-combat.png` — 战斗 HUD，显示敌人、行动菜单、战斗日志
+> **截图**: 见 `docs/screenshots/gameplay-main-view.png` — 战斗场景，背景 + 角色立绘 + 对话层 + 行动菜单
+
+### 模组管理
+
+> **截图**: 见 `docs/screenshots/module-manager-list.png` — 模组列表，展示已创建和导入的模组
+
+### 图片资源
+
+> **截图**: 见 `docs/screenshots/showcase-images.png` — 图片搜索与生成功能，展示资源库
+
+### 设置面板
+
+> **截图**: 见 `docs/screenshots/showcase-settings.png` — 设置面板，包含 LLM、主题、游戏等配置项
 
 ### 模组生成器
 
