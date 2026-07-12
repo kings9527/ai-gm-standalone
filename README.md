@@ -2,7 +2,7 @@
 
 > AI 驱动的视觉小说 RPG 桌面应用 —— 让 AI 成为你的游戏主持人 🎲🤖
 
-[<img src="https://img.shields.io/badge/version-1.0.0-blue">](https://github.com/aigm-project/ai-gm-standalone/releases) [<img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey">](#安装) [<img src="https://img.shields.io/badge/license-MIT-green">](LICENSE)
+[<img src="https://img.shields.io/badge/version-1.0.0-blue">](https://github.com/kings9527/ai-gm-standalone/releases) [<img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey">](#安装) [<img src="https://img.shields.io/badge/license-MIT-green">](LICENSE.txt)
 
 ---
 
@@ -68,7 +68,7 @@
 
 ### 快速下载
 
-访问 [Releases 页面](https://github.com/aigm-project/ai-gm-standalone/releases) 下载对应平台的安装包：
+访问 [Releases 页面](https://github.com/kings9527/ai-gm-standalone/releases) 下载对应平台的安装包：
 
 | 平台 | 安装包 | 说明 |
 |------|--------|------|
@@ -83,7 +83,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/aigm-project/ai-gm-standalone.git
+git clone https://github.com/kings9527/ai-gm-standalone.git
 cd ai-gm-standalone
 
 # 安装依赖
@@ -223,7 +223,7 @@ npm run dist
 
 ## 📄 许可证
 
-MIT License — 详见 [LICENSE](LICENSE) 文件。
+MIT License — 详见 [LICENSE.txt](LICENSE.txt) 文件。
 
 ---
 
