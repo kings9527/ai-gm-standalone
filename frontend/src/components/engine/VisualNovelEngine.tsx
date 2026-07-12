@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import BackgroundLayer from './BackgroundLayer';
 import SpriteLayer from './SpriteLayer';
 import DialogueLayer from './DialogueLayer';
 import EffectLayer from './EffectLayer';
-import { CombatOverlay } from '../combat/CombatOverlay';
 import type { VNState, VNEffect } from '../../types/engine';
 import type { Module, Scene, NPC } from '../../types/module';
 import { useGameStore } from '../../stores/gameStore';
+
+// CombatOverlay is lazy-loaded because combat is not always triggered
+const CombatOverlay = React.lazy(() => import('../combat/CombatOverlay'));
 
 // Module-level cache for html-to-image to avoid repeated dynamic imports
 let htmlToImageModule: typeof import('html-to-image') | null = null;
@@ -393,22 +395,24 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         {/* Layer 4: Effects */}
         <EffectLayer effects={vnState.effects} onEffectEnd={handleEffectEnd} isPaused={isPaused} />
 
-        <CombatOverlay
-          isActive={combatActive}
-          player={campaign?.player || {
-            name: '调查员',
-            stats: {},
-            hp: 12, max_hp: 12,
-            sanity: 60, max_sanity: 60,
-            inventory: [],
-          }}
-          enemies={combatEnemies}
-          ambush={currentScene?.combat?.ambush || false}
-          onCombatEnd={handleCombatEnd}
-          onCombatUpdate={handleCombatUpdate}
-          moduleItems={module.items || {}}
-          playerInventory={campaign?.player?.inventory || []}
-        />
+        <Suspense fallback={null}>
+          <CombatOverlay
+            isActive={combatActive}
+            player={campaign?.player || {
+              name: '调查员',
+              stats: {},
+              hp: 12, max_hp: 12,
+              sanity: 60, max_sanity: 60,
+              inventory: [],
+            }}
+            enemies={combatEnemies}
+            ambush={currentScene?.combat?.ambush || false}
+            onCombatEnd={handleCombatEnd}
+            onCombatUpdate={handleCombatUpdate}
+            moduleItems={module.items || {}}
+            playerInventory={campaign?.player?.inventory || []}
+          />
+        </Suspense>
 
         {/* Debug: Effect test buttons */}
         <div className="absolute top-4 left-4 z-30 flex flex-col gap-2">
