@@ -12,6 +12,22 @@ import {
   checkCombatEnd,
   getAvailableSkills,
 } from '../../engine/combat-system';
+import {
+  sfxAttack,
+  sfxCritical,
+  sfxSkill,
+  sfxHeal,
+  sfxStatus,
+  sfxFlee,
+  sfxFleeSuccess,
+  sfxVictory,
+  sfxDefeat,
+  sfxItem,
+  sfxMiss,
+  sfxFumble,
+  sfxTurnStart,
+  sfxClick,
+} from '../../utils/soundfx';
 import { CombatHUD } from './CombatHUD';
 import { ActionMenu } from './ActionMenu';
 import { CombatLog } from './CombatLog';
@@ -55,6 +71,18 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     setSubmenu(v);
   }, []);
 
+  // 在战斗激活时阻止 Escape 传播到 VN Engine 菜单（目标选择模式下）
+  useEffect(() => {
+    if (!isActive || !combatState || !combatState.targetSelectionMode) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', handleEsc, true); // capture 阶段拦截
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [isActive, combatState?.targetSelectionMode]);
+
   // 初始化战斗
   useEffect(() => {
     if (isActive && !initializedRef.current) {
@@ -79,11 +107,20 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       setCombatState(endedState);
       onCombatUpdateRef.current?.(endedState);
       const result = endedState.phase === 'victory' ? 'victory' : endedState.phase === 'defeat' ? 'defeat' : 'fled';
+      // 播放战斗结束音效
+      if (result === 'victory') sfxVictory();
+      else if (result === 'defeat') sfxDefeat();
+      else if (result === 'fled') sfxFleeSuccess();
       // 延迟通知战斗结束，让玩家看到结果
       aiTimerRef.current = setTimeout(() => {
         onCombatEnd(result, endedState);
       }, 2000);
       return;
+    }
+
+    // 玩家回合开始提示音
+    if (combatState.isPlayerTurn && combatState.phase === 'player_turn') {
+      sfxTurnStart();
     }
 
     // 非玩家回合：AI自动执行
@@ -115,6 +152,8 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
     (type: CombatActionType, skillId?: string, itemId?: string) => {
       if (!combatState || !combatState.isPlayerTurn || isProcessing) return;
 
+      sfxClick(); // 播放按钮点击音效
+
       if (type === 'attack') {
         // 进入目标选择模式
         setCombatState((prev) => {
@@ -125,6 +164,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       }
 
       if (type === 'skill' && skillId) {
+        sfxSkill();
         // 技能需要选择目标（如果是单体）
         const skillDef = getAvailableSkills(combatState.entities[combatState.playerId]).find(
           (s) => s.id === skillId
@@ -147,6 +187,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       }
 
       if (type === 'flee') {
+        sfxFlee();
         const action: CombatAction = {
           type: 'flee',
           sourceId: combatState.playerId,
@@ -156,6 +197,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
       }
 
       if (type === 'item' && itemId) {
+        sfxItem();
         const action: CombatAction = {
           type: 'item',
           sourceId: combatState.playerId,
@@ -172,6 +214,8 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
   const handleSelectTarget = useCallback(
     (targetId: string) => {
       if (!combatState || !combatState.targetSelectionMode) return;
+
+      sfxClick(); // 播放确认音效
 
       const action: CombatAction = {
         type: combatState.selectedSkillId ? 'skill' : 'attack',
@@ -208,8 +252,13 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
         switch (action.type) {
           case 'attack': {
             if (!action.targetId) break;
-            const { state } = executeAttack(newState, action.sourceId, action.targetId);
+            const { state, result } = executeAttack(newState, action.sourceId, action.targetId);
             newState = state;
+            // 根据攻击结果播放对应音效
+            if (result.type === 'critical') sfxCritical();
+            else if (result.type === 'fumble') sfxFumble();
+            else if (result.type === 'miss') sfxMiss();
+            else sfxAttack();
             break;
           }
           case 'skill': {
@@ -217,9 +266,11 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
               // 无需目标的技能
               const { state } = executeSkill(newState, action.sourceId, action.sourceId, action.skillId);
               newState = state;
+              sfxSkill();
             } else if (action.targetId && action.skillId) {
               const { state } = executeSkill(newState, action.sourceId, action.targetId, action.skillId);
               newState = state;
+              sfxSkill();
             }
             break;
           }
@@ -228,6 +279,9 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
             newState = state;
             if (result.type === 'flee_success') {
               newState = { ...newState, phase: 'fled', active: false };
+              sfxFleeSuccess();
+            } else {
+              sfxFlee();
             }
             break;
           }
@@ -250,6 +304,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
                     message: `${player.name} 使用了 ${item.name}，恢复 ${healAmount} 点HP。`,
                   },
                 ];
+                sfxHeal();
               }
             }
             break;
@@ -334,11 +389,13 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
         return;
       }
 
-      // Escape 关闭子菜单
+      // Escape 关闭子菜单，同时阻止事件传播到 VN Engine 的菜单监听器
       if (e.key === 'Escape') {
         if (submenu) {
           e.preventDefault();
+          e.stopPropagation();
           setSubmenu(null);
+          return;
         }
         return;
       }

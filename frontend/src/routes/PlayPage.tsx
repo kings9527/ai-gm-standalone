@@ -15,6 +15,9 @@ import { useSaveStore } from '../stores/saveStore';
 import { GameStateMachine } from '../engine/state-machine';
 import type { Module, Campaign } from '../types/module';
 import { electronAPI } from '../api/electron';
+import { sfxMenuOpen, sfxMenuClose, sfxClick, sfxSave } from '../utils/soundfx';
+
+import { useSettingsStore } from '../stores/settingsStore';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -154,24 +157,28 @@ const PlayPage: React.FC = () => {
   );
 
   const handleOpenSave = useCallback(() => {
+    sfxClick();
     setMenuOpen(false);
     setSavePanelMode('save');
     setSavePanelOpen(true);
   }, []);
 
   const handleOpenLoad = useCallback(() => {
+    sfxClick();
     setMenuOpen(false);
     setSavePanelMode('load');
     setSavePanelOpen(true);
   }, []);
 
   const handleQuit = useCallback(() => {
+    sfxClick();
     resetGameStore();
     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
     navigate('/');
   }, [navigate, resetGameStore]);
 
   const handleResume = useCallback(() => {
+    sfxMenuClose();
     setMenuOpen(false);
     setIsPaused(false);
   }, []);
@@ -179,18 +186,22 @@ const PlayPage: React.FC = () => {
   const handleMenuToggle = useCallback(() => {
     setMenuOpen((prev) => {
       const next = !prev;
+      if (next) sfxMenuOpen();
+      else sfxMenuClose();
       setIsPaused(next);
       return next;
     });
   }, []);
 
   const handleSettings = useCallback(() => {
+    sfxClick();
     setMenuOpen(false);
     setIsPaused(true);
     navigate('/settings', { state: { fromGame: true } });
   }, [navigate]);
 
   const handleExitApplication = useCallback(() => {
+    sfxClick();
     if (typeof electronAPI?.quit === 'function') {
       electronAPI.quit();
     } else {
@@ -205,6 +216,14 @@ const PlayPage: React.FC = () => {
     if (!thumbnail) return null;
     return { snapshot, thumbnail };
   }, [campaign, module]);
+
+  // 游戏启动时应用全屏设置
+  useEffect(() => {
+    const { game } = useSettingsStore.getState();
+    if (game.fullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+  }, []);
 
   // 监听 F11 全屏快捷键和全屏设置
   useEffect(() => {

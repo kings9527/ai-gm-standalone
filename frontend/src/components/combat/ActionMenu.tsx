@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { CombatActionType, CombatSkill } from '../../types/combat';
+import { sfxClick } from '../../utils/soundfx';
 
 interface ActionMenuProps {
   isPlayerTurn: boolean;
@@ -83,6 +84,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   ];
 
   const handleMainAction = (type: CombatActionType) => {
+    sfxClick();
     if (type === 'skill') {
       setSubmenu('skills');
       return;

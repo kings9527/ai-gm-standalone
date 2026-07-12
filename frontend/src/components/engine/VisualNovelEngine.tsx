@@ -7,6 +7,7 @@ import EffectLayer from './EffectLayer';
 import type { VNState, VNEffect } from '../../types/engine';
 import type { Module, Scene, NPC } from '../../types/module';
 import { useGameStore } from '../../stores/gameStore';
+import { sfxMenuOpen, sfxMenuClose, sfxSave, sfxClick } from '../../utils/soundfx';
 
 // CombatOverlay is lazy-loaded because combat is not always triggered
 const CombatOverlay = React.lazy(() => import('../combat/CombatOverlay'));
@@ -231,12 +232,14 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
+          // 战斗激活时让 CombatOverlay 优先处理 Escape
+          if (combatActive) return;
           onMenuToggle?.();
         }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onMenuToggle]);
+    }, [onMenuToggle, combatActive]);
 
     const handleAdvance = useCallback(() => {
       if (currentScene?.exits && currentScene.exits.length > 0) {
@@ -447,7 +450,10 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         {onSave && (
           <motion.button
             className="absolute top-4 right-4 z-30 px-3 py-1.5 rounded bg-gray-900/80 border border-red-800/40 text-red-400 text-sm hover:bg-red-950/40 transition-colors"
-            onClick={onSave}
+            onClick={() => {
+              sfxSave();
+              onSave();
+            }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
