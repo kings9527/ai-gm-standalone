@@ -33,6 +33,7 @@ export const InGameMenu: React.FC<InGameMenuProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isOpen) {
+          e.stopPropagation();
           onClose();
         }
       }

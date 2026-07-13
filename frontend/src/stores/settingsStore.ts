@@ -182,10 +182,7 @@ export const useSettingsStore = create<SettingsState>()(
           theme: { ...state.theme },
         };
         const encrypted = await encryptSensitive(payload as Record<string, any>);
-        try {
-          await apiPost('/api/settings', encrypted);
-        } catch (err) {
-        /* no-op */ }
+        await apiPost('/api/settings', encrypted);
       },
 
       /**

@@ -225,11 +225,22 @@ const PlayPage: React.FC = () => {
     }
   }, []);
 
-  // 监听 F11 全屏快捷键和全屏设置
+  // 监听全屏变化，同步到 settingsStore（解决 P1：双向同步缺失）
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreen = !!document.fullscreenElement;
+      useSettingsStore.getState().setGame({ fullscreen: isFullscreen });
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // 监听 F11 全屏快捷键（仅在 Electron 环境下拦截，避免影响浏览器默认行为）
+  useEffect(() => {
+    const isElectron = typeof electronAPI !== 'undefined' && electronAPI !== null;
     const handleFullscreenKey = (e: KeyboardEvent) => {
       if (e.key === 'F11') {
-        e.preventDefault();
+        if (isElectron) e.preventDefault();
         if (!document.fullscreenElement) {
           document.documentElement.requestFullscreen?.().catch(() => {});
         } else {
