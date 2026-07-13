@@ -194,6 +194,7 @@ npm run dist
 | **开发者指南** | 架构、API、模组格式、扩展战斗技能 | [docs/developer-guide.md](docs/developer-guide.md) |
 | **版本记录** | 变更日志与版本计划 | [docs/changelog.md](docs/changelog.md) |
 | **架构设计** | 原始开发计划与架构图 | [docs/architecture.md](docs/architecture.md) |
+| **Windows 构建指南** | Linux 交叉构建 Windows 安装包流程 | [docs/windows-build-guide.md](docs/windows-build-guide.md) |
 
 ---
 

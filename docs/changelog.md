@@ -8,13 +8,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [1.0.0] — 2026-07-11
 
+### 🛠️ D7 — 文档与构建 (2026-07-13)
+
+- **ESLint 配置修正** — 修复 `preserve-caught-error` 规则冲突，更新 `tsconfig.json` 目标为 ES2022
+- **Windows 构建指南** — 新增 `docs/windows-build-guide.md`，完整记录 Linux 交叉构建 Windows 安装包流程
+
 ### 🚀 Release Preparation (D6 — 2026-07-11)
 
 - **GitHub Publish 配置修正** — 修正 `electron-builder` publish 配置中的 owner 为实际仓库持有者 `kings9527`，确保自动更新通道正确指向 `github.com/kings9527/ai-gm-standalone`
 - **代码审查与清理** — 修复所有 lint 错误，清理遗留的 TODO 注释和未使用导入
 - **性能优化** — 路由级别代码分割 + 手动 chunk 拆分，减少首屏加载时间
-- **D6 UX 打磨** — 战斗系统键盘快捷键支持、全屏模式切换、音效开关控制
+- **D6 UX 打磨** — 战斗系统键盘快捷键支持（1-4 数字键选技能、ESC 菜单、空格确认）、全屏模式切换（F11）、音效开关控制（Web Audio API 合成器）
 - **README 最终修正** — 修复损坏的内部链接引用，统一截图路径格式
+- **截图补全** — `docs/screenshots/` 目录补充 34 张实际运行截图，替换全部占位符
+
+### 🐛 Bug 修复记录 (D4~D6)
+
+**已修复（8 项）：**
+
+| Bug | 描述 | 修复提交 |
+|-----|------|---------|
+| BUG-1 | 存档 API 字段名不一致 (`campaign` vs `campaign_json`) | `2e3519e` |
+| BUG-2 | Settings 前后端结构不匹配（扁平 key-value ↔ 嵌套对象） | `991ea04` |
+| BUG-3 | LLM Chat 缺少 provider 时返回 500 内部错误 | `0f3641c` |
+| BUG-7 | 加密工具使用简单 XOR，安全性不足 → 替换为 AES-256-GCM + PBKDF2 | `f2e587c` |
+| BUG-8 | ImageSelector 搜索参数拼接未编码 → 改为双参数传递 + IPC encodeURIComponent | 原始代码已正确实现 |
+| BUG-9 | VN 引擎自动存档无防抖 → 添加 800ms debounce | `f6310a6` |
+| BUG-10 | Combat `executeAndAdvance` 状态更新竞争 → setTimeout 打破 React 批处理 | `17bda12` |
+| BUG-11 | 数据库 `saves`/`images` 表缺少索引 → 添加复合索引 | `a483963` |
+| UX-1 | 删除图片无二次确认 → 添加确认弹窗 | `db8fb40` |
+
+**部分修复 / 缓解（2 项）：**
+
+| Bug | 描述 | 状态 |
+|-----|------|------|
+| BUG-6 | NPCDecisionEngine 构造函数修改 campaign → 构造函数已改为深拷贝，但 `_ensureNPCState` / `updateState` 仍 mutate 内部状态且不返回调用者，NPC 状态变更无法同步回 Zustand | 需后续重构 |
+| BUG-13 | SettingsPage API Key 正则过于严格 → Ollama 模式下可留空绕过验证，但未按 provider 分别校验格式 | 低优先级 |
+
+**未修复 / 遗留（4 项）：**
+
+| Bug | 描述 | 原因 / 计划 |
+|-----|------|------------|
+| BUG-5 | `GameStateMachine` 直接修改 campaign 对象（`transitionTo`、`performSanityCheck`、`applyEventEffects` 等均 mutate `this._campaign`） | 重构面广，涉及所有状态变更方法；Zustand 不可变更新冲突，可能导致 React 跳过渲染。计划 v1.1.0 重构 |
+| BUG-12 | `handleAdvance` 始终选择 `exits[0]`，无多出口选择 UI | 需新增选择界面组件，v1.1.0 规划 |
+| BUG-15 | `DiceRoller` 正则无法解析复杂表达式（`1d6*2`、`(1d6+3)*2`） | 需引入骰子表达式解析库，v1.1.0 规划 |
+| BUG-16 | AI `executeAIAction` 技能池包含 `desperate_strike`（消耗 SAN），敌人使用会自伤 | 需按实体类型过滤技能池，v1.1.0 规划 |
 
 ### 📝 Documentation (D4 — 2026-07-09)
 
@@ -144,11 +182,11 @@ AI-GM Standalone v1.0.0 is the first stable release of the AI-powered visual nov
 - Real-time GM assistant
 - Shared session state synchronization
 
-- **Bug 修复** — 修复 campaign 字段序列化、LLM provider 验证、settings 序列化、NPC 决策引擎不可变更新、自动存档防抖、数据库复合索引、图片删除确认、战斗状态竞态条件等 11 项问题（详见 D5 日报和 TODO-D4-E2E-TEST.md）
+- **Bug 修复** — 详见上方「Bug 修复记录」表格。D4~D6 期间共识别 16 项问题，其中 8 项已修复、2 项部分缓解、4 项遗留至 v1.1.0 规划。完整测试报告见 `D6-E2E-REGRESSION-REPORT.md` 和 `TODO-D4-E2E-TEST.md`
 
 ---
 
-> Last updated: 2026-07-11
-> **Release Status**: v1.0.0 已准备就绪，等待 GitHub Release 发布
+> Last updated: 2026-07-13
+> **Release Status**: v1.0.0 已发布，GitHub Release 已创建
 > **Tag**: `v1.0.0`
 > **GitHub**: https://github.com/kings9527/ai-gm-standalone/releases

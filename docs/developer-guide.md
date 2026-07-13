@@ -349,15 +349,20 @@ DELETE /api/styles/:id           # 删除风格模板
 ```typescript
 class GameStateMachine {
   module: Module;          // 当前模组
-  campaign: Campaign;      // 战役状态
+  campaign: Campaign;      // 战役状态（内部深拷贝快照）
   currentScene: Scene;     // 当前场景
   
-  transitionTo(sceneId: string): void;  // 场景切换
+  transitionTo(sceneId: string): GameResult;  // 场景切换（注意：内部仍直接 mutate _campaign）
   handleChoice(choiceId: string): void; // 处理玩家选择
   checkEvents(): void;                   // 检查触发事件
   initCombat(enemies: string[]): CombatState; // 初始化战斗
+  
+  /** 获取当前 campaign 状态的深拷贝快照。调用方必须用此更新外部 Store */
+  getCampaignSnapshot(): Campaign;
 }
 ```
+
+> ⚠️ **已知限制（BUG-5）**：`transitionTo`、`performSanityCheck`、`applyEventEffects` 等方法内部仍直接修改 `this._campaign`（如 `this._campaign.scene_history.push(...)`），而非返回新的不可变对象。这与 Zustand 的不可变更新哲学存在冲突，极端情况下 React 可能跳过渲染。当前缓解措施：构造函数对传入的 campaign 做深拷贝，调用方可通过 `getCampaignSnapshot()` 获取最新状态。完整不可变重构计划纳入 v1.1.0。
 
 ### 路由（HashRouter）
 
@@ -763,7 +768,7 @@ cd frontend && npx vite build
   "build": {
     "publish": {
       "provider": "github",
-      "owner": "aigm-project",
+      "owner": "kings9527",
       "repo": "ai-gm-standalone"
     }
   }
@@ -818,11 +823,13 @@ cd backend && npm test
 
 ---
 
-> 本指南最后更新于：2026-07-09
+> 本指南最后更新于：2026-07-13
 >
-> **API 一致性验证记录（D4）**：
+> **API 一致性验证记录（D4~D7）**：
 > - LLM `/stream` 实际返回 `text/plain` 原始流，非 SSE 格式（文档已修正）
 > - `POST /api/modules` Body 字段已补充完整（id/content/style 等）
 > - `llmStream` IPC 签名：preload 暴露单参数 `llmStream(body)`，前端 `electron.ts` 封装为三参数 `(body, onChunk, onEnd)`
-> - Settings 存储时会将 value 强制转为 String
-> - `imageSearch` IPC 仅传递 query 参数，type 在后端默认为 `bg`
+> - Settings 存储时会将 value 强制转为 String；嵌套对象模式通过 `flatten`/`unflatten` 自动转换
+> - `imageSearch` IPC 传递 `(query, type)` 双参数，fallback 使用 `URLSearchParams`
+> - `GameStateMachine` 存在不可变更新限制，详见「前端架构」节
+> - `build.publish.owner` 为 `kings9527`（非 `aigm-project`）
