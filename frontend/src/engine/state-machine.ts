@@ -1,4 +1,5 @@
 import { DiceRoller } from './dice';
+import { IntentParser, type IntentResult } from './intent-parser';
 import type { Module, Campaign, NPCState } from '../types/module';
 
 /**
@@ -27,6 +28,7 @@ export class GameStateMachine {
   currentScene: Module['scenes'][string];
   llmClient: any | null;
   diceRoller: DiceRoller;
+  intentParser: IntentParser;
 
   constructor(module: Module, campaign: Campaign, llmClient: any = null) {
     this.module = module;
@@ -34,6 +36,7 @@ export class GameStateMachine {
     this.currentScene = module.scenes[campaign.current_scene];
     this.llmClient = llmClient;
     this.diceRoller = new DiceRoller();
+    this.intentParser = new IntentParser(llmClient, { enableCache: true, llmConfidenceThreshold: 0.7 });
   }
 
   async processAction(action: GameAction): Promise<GameResult> {
@@ -79,84 +82,31 @@ export class GameStateMachine {
     return this.handleSceneInteraction(intent);
   }
 
-  async parseIntent(input: string, actionType?: string) {
-    if (this.llmClient?.isAvailable() && input?.length > 0) {
-      try {
-        const llmResult = await this._llmParseIntent(input);
-        if (llmResult && llmResult.confidence > 0.7) {
-          return { type: llmResult.type, raw: input, llm_enhanced: true, confidence: llmResult.confidence, target: llmResult.target || null };
-        }
-      } catch (err: any) {
-      /* no-op */ }
-    }
-    return this._keywordParseIntent(input, actionType);
-  }
+  async parseIntent(input: string, actionType?: string): Promise<IntentResult & { type: string; raw: string; llm_enhanced?: boolean; target?: string | null }> {
+    // 使用新的 IntentParser 进行解析
+    const result = await this.intentParser.parse(input);
 
-  private async _llmParseIntent(playerInput: string) {
-    const systemPrompt = `You are a TRPG game intent classifier. Analyze the player's input and classify it into exactly one of the following categories:
-- move: go to a location, enter, exit, walk, follow a path
-- inspect: look at, examine, check, observe, investigate something
-- talk: speak to an NPC, ask, tell, say, greet, dialogue
-- attack: fight, strike, shoot, kill, combat action
-- use: use an item, activate, consume, equip, cast a spell
-- interact: pick up, take, open, close, read, loot, give, hand over
-- flee: run away, escape, retreat, withdraw
-- skill: perform a skill check, dice roll, test, perception, library use
-- unknown: unclear, creative roleplay, or doesn't fit above
-
-Respond ONLY with a JSON object in this exact format:
-{"action": "<category>", "target": "<target entity or null>", "confidence": 0.0-1.0}`;
-
-    const userPrompt = `Player input: "${playerInput}"`;
-
-    const response = await this.llmClient.chat(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      { maxTokens: 128, temperature: 0.1 },
-    );
-
-    if (!response?.content) throw new Error('LLM returned empty response');
-
-    let parsed: any;
-    const content = response.content.trim();
-    const jsonMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-    if (jsonMatch) parsed = JSON.parse(jsonMatch[1].trim());
-    else parsed = JSON.parse(content);
-
-    const actionMap: Record<string, string> = {
-      move: 'move', inspect: 'inspect', examine: 'inspect', talk: 'talk',
-      attack: 'attack', combat: 'attack', use: 'use', interact: 'interact',
-      item: 'interact', flee: 'flee', skill: 'dice_check', unknown: 'unknown',
+    // 将新的 intent 格式映射回 state-machine 内部使用的 type 格式
+    const intentTypeMap: Record<string, string> = {
+      explore: 'move',
+      combat: 'attack',
+      chat: 'talk',
+      event: 'inspect',
+      save: 'interact',
+      settings: 'interact',
     };
+
+    const mappedType = intentTypeMap[result.intent] || actionType || 'inspect';
 
     return {
-      type: actionMap[parsed.action] || parsed.action || 'unknown',
-      target: parsed.target || null,
-      confidence: Math.max(0, Math.min(1, parsed.confidence != null ? parseFloat(parsed.confidence) : 0.5)),
+      type: mappedType,
+      intent: result.intent,
+      raw: input,
+      llm_enhanced: result.confidence >= 0.7,
+      confidence: result.confidence,
+      target: (result.extractedParams?.target as string) || (result.extractedParams?.scene as string) || null,
+      extractedParams: result.extractedParams,
     };
-  }
-
-  private _keywordParseIntent(input: string, actionType?: string) {
-    const keywords: Record<string, string[]> = {
-      move: ['去', '走', '到', '前往', 'enter', 'go to', 'move to', 'move'],
-      talk: ['说', '问', 'talk', 'ask', 'speak', 'tell', 'chat', 'conversation', '对话'],
-      inspect: ['看', '检查', 'inspect', 'check', 'look', 'examine', '查看', '观察'],
-      interact: ['拿', '取', '拾', '读', '打开', '翻', 'search', 'pick', 'take', 'open', 'read', 'touch', 'use', '搜索'],
-      attack: ['攻击', '打', 'attack', 'fight', 'hit', 'strike', 'shoot', 'stab', '射击'],
-      use: ['用', '使用', 'use', 'activate', 'cast', 'invoke'],
-      flee: ['跑', '逃跑', 'flee', 'run', 'escape', 'retreat'],
-      dice_check: ['检定', '骰', 'check', 'roll', 'dice', 'test'],
-    };
-
-    const inputLower = (input || '').toLowerCase();
-    for (const [intent, words] of Object.entries(keywords)) {
-      if (words.some((w) => inputLower.includes(w.toLowerCase()))) {
-        return { type: intent, raw: input };
-      }
-    }
-    return { type: actionType || 'inspect', raw: input };
   }
 
   checkSceneEvents(intent: any): GameResult | null {
