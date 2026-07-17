@@ -25,6 +25,7 @@ export interface VisualNovelEngineHandle {
   getSnapshot: () => VNState;
   takeThumbnail: () => Promise<string | undefined>;
   restoreSnapshot: (snapshot: VNState) => void;
+  displayNarration: (text: string, speaker?: string | null) => void;
 }
 
 interface VisualNovelEngineProps {
@@ -36,6 +37,7 @@ interface VisualNovelEngineProps {
   onSceneChange?: (sceneId: string) => void;
   onCombatEnd?: (result: 'victory' | 'defeat' | 'fled') => void;
   onAutoSave?: (snapshot: VNState, thumbnail: string) => void; // 关键节点自动存档
+  onFreeInput?: (text: string) => void;
 }
 
 /**
@@ -47,7 +49,7 @@ interface VisualNovelEngineProps {
  * Supports snapshot save/restore for save/load system.
  */
 export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovelEngineProps>(
-  ({ module, initialSceneId, isPaused = false, onSave, onMenuToggle, onSceneChange, onCombatEnd, onAutoSave }, ref) => {
+  ({ module, initialSceneId, isPaused = false, onSave, onMenuToggle, onSceneChange, onCombatEnd, onAutoSave, onFreeInput }, ref) => {
     const startScene = initialSceneId || module.start_scene;
     const [vnState, setVnState] = useState<VNState>({
       currentSceneId: startScene,
@@ -364,6 +366,19 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         setCurrentSceneId(snapshot.currentSceneId);
         updateScene(snapshot.currentSceneId);
       },
+      displayNarration: (text: string, speaker?: string | null) => {
+        setVnState((prev) => ({
+          ...prev,
+          dialogue: {
+            speaker: speaker ?? null,
+            text,
+            typewriter: true,
+            typewriterSpeed: 30,
+            speakerColor: '#e2e8f0',
+          },
+          choices: [],
+        }));
+      },
     }));
 
     if (!currentScene) {
@@ -392,6 +407,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           choices={vnState.choices}
           onAdvance={handleAdvance}
           onChoice={handleChoice}
+          onFreeInput={onFreeInput}
           isPaused={isPaused}
         />
 

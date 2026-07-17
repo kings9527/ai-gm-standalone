@@ -7,12 +7,14 @@ interface DialogueLayerProps {
   choices: VNChoice[];
   onAdvance: () => void;
   onChoice: (choiceId: string) => void;
+  onFreeInput?: (text: string) => void;
   isPaused?: boolean;
 }
 
 /**
  * DialogueLayer
  * Renders the dialogue box with typewriter effect and choice buttons.
+ * Supports free input mode with textarea (Enter to send, Shift+Enter for newline).
  * Supports pause/resume for in-game menu overlay.
  * Uses CSS variables for dynamic theming (--agm-dialogue-bg, --agm-accent, --agm-text).
  */
@@ -21,21 +23,38 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   choices,
   onAdvance,
   onChoice,
+  onFreeInput,
   isPaused = false,
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
+  const [inputMode, setInputMode] = useState<'choice' | 'free'>('choice');
+  const [freeText, setFreeText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typewriterRef = useRef<number | null>(null);
   const indexRef = useRef(0);
   const isPausedRef = useRef(isPaused);
 
-  // Sync pause ref without re-triggering effect
+  // 当对话变化时，重置为选项模式
+  useEffect(() => {
+    setInputMode('choice');
+    setFreeText('');
+  }, [dialogue?.text]);
+
+  // 同步暂停状态，避免重触发效果
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
-  // Read CSS variables for dynamic theming
+  // 自由输入模式：自动聚焦 textarea
+  useEffect(() => {
+    if (inputMode === 'free' && textareaRef.current && !isPaused) {
+      textareaRef.current.focus();
+    }
+  }, [inputMode, isPaused]);
+
+  // 读取 CSS 变量用于动态主题
   const getCSSVar = (name: string, fallback: string) => {
     if (typeof window === 'undefined') return fallback;
     const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -46,7 +65,23 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   const textColor = getCSSVar('--agm-text', '#e2e8f0');
   const dialogueBg = getCSSVar('--agm-dialogue-bg', 'rgba(10,10,10,0.9)');
 
-  // Typewriter effect with pause/resume support and progress restore
+  // 处理自由输入提交
+  const handleFreeSubmit = () => {
+    const text = freeText.trim();
+    if (!text || !onFreeInput) return;
+    onFreeInput(text);
+    setFreeText('');
+  };
+
+  // textarea 键盘事件：Enter 发送，Shift+Enter 换行
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleFreeSubmit();
+    }
+  };
+
+  // 打字机效果，支持暂停/恢复和进度恢复
   useEffect(() => {
     if (!dialogue || !dialogue.typewriter) {
       setDisplayedText(dialogue?.text || '');
@@ -92,10 +127,10 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
     };
   }, [dialogue?.text, dialogue?.typewriter, dialogue?.typewriterSpeed, dialogue?.typewriterProgress]);
 
-  // Click to skip typewriter or advance
+  // 点击跳过打字机或推进
   const handleClick = () => {
     if (isTyping) {
-      // Skip to end
+      // 跳过到结尾
       if (typewriterRef.current) clearTimeout(typewriterRef.current);
       setDisplayedText(dialogue?.text || '');
       setIsTyping(false);
@@ -166,50 +201,155 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
           )}
         </div>
 
-        {/* Choices */}
+        {/* Choices or Free Input */}
         <AnimatePresence>
-          {showChoices && choices.length > 0 && (
+          {showChoices && (
             <motion.div
-              className="flex flex-col gap-2 mt-4 mx-4"
+              className="mt-4 mx-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, staggerChildren: 0.1 }}
+              transition={{ duration: 0.3 }}
             >
-              {choices.map((choice) => (
-                <motion.button
-                  key={choice.id}
-                  className={`w-full text-left px-5 py-3 rounded-lg border transition-all duration-200 ${
-                    choice.disabled
-                      ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/50'
-                      : 'hover:translate-x-2'
-                  }`}
-                  disabled={choice.disabled}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onChoice(choice.id);
-                  }}
-                  style={choice.disabled ? undefined : {
-                    borderColor: `${accentColor}40`,
-                    backgroundColor: 'rgba(10,10,10,0.8)',
-                  }}
-                  whileHover={!choice.disabled ? { scale: 1.02 } : {}}
-                  whileTap={!choice.disabled ? { scale: 0.98 } : {}}
-                  onMouseEnter={(e) => {
-                    if (!choice.disabled) {
+              {/* Mode Switch */}
+              {onFreeInput && (
+                <div className="flex justify-center mb-3">
+                  <motion.button
+                    className="px-3 py-1 rounded-full text-xs border transition-colors flex items-center gap-1.5"
+                    style={{
+                      borderColor: `${accentColor}40`,
+                      backgroundColor: 'rgba(10,10,10,0.8)',
+                      color: `${accentColor}cc`,
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInputMode((prev) => (prev === 'choice' ? 'free' : 'choice'));
+                      setFreeText('');
+                    }}
+                    onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = `${accentColor}15`;
                       e.currentTarget.style.borderColor = `${accentColor}60`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!choice.disabled) {
+                    }}
+                    onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.8)';
                       e.currentTarget.style.borderColor = `${accentColor}40`;
-                    }
-                  }}
+                    }}
+                  >
+                    <span>{inputMode === 'choice' ? '✎ 自由输入' : '☰ 选项模式'}</span>
+                  </motion.button>
+                </div>
+              )}
+
+              {/* Choice Mode */}
+              {inputMode === 'choice' && choices.length > 0 && (
+                <motion.div
+                  className="flex flex-col gap-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, staggerChildren: 0.1 }}
                 >
-                  <span style={{ color: textColor }}>{choice.text}</span>
-                </motion.button>
-              ))}
+                  {choices.map((choice) => (
+                    <motion.button
+                      key={choice.id}
+                      className={`w-full text-left px-5 py-3 rounded-lg border transition-all duration-200 ${
+                        choice.disabled
+                          ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/50'
+                          : 'hover:translate-x-2'
+                      }`}
+                      disabled={choice.disabled}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChoice(choice.id);
+                      }}
+                      style={choice.disabled ? undefined : {
+                        borderColor: `${accentColor}40`,
+                        backgroundColor: 'rgba(10,10,10,0.8)',
+                      }}
+                      whileHover={!choice.disabled ? { scale: 1.02 } : {}}
+                      whileTap={!choice.disabled ? { scale: 0.98 } : {}}
+                      onMouseEnter={(e) => {
+                        if (!choice.disabled) {
+                          e.currentTarget.style.backgroundColor = `${accentColor}15`;
+                          e.currentTarget.style.borderColor = `${accentColor}60`;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!choice.disabled) {
+                          e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.8)';
+                          e.currentTarget.style.borderColor = `${accentColor}40`;
+                        }
+                      }}
+                    >
+                      <span style={{ color: textColor }}>{choice.text}</span>
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+
+              {/* Free Input Mode */}
+              {inputMode === 'free' && onFreeInput && (
+                <motion.div
+                  className="flex flex-col gap-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <textarea
+                    ref={textareaRef}
+                    value={freeText}
+                    onChange={(e) => setFreeText(e.target.value)}
+                    onKeyDown={handleTextareaKeyDown}
+                    placeholder="输入你想做的事情...（Enter 发送，Shift+Enter 换行）"
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-lg border resize-none text-sm leading-relaxed outline-none focus:ring-2 focus:ring-opacity-20 transition-all"
+                    style={{
+                      borderColor: `${accentColor}40`,
+                      backgroundColor: 'rgba(10,10,10,0.85)',
+                      color: textColor,
+                      boxShadow: 'none',
+                      caretColor: accentColor,
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = `${accentColor}80`;
+                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.95)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = `${accentColor}40`;
+                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.85)';
+                    }}
+                  />
+                  <div className="flex justify-end">
+                    <motion.button
+                      className="px-4 py-2 rounded-lg text-sm font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={!freeText.trim()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFreeSubmit();
+                      }}
+                      style={{
+                        borderColor: `${accentColor}60`,
+                        backgroundColor: `${accentColor}20`,
+                        color: accentColor,
+                      }}
+                      whileHover={freeText.trim() ? { scale: 1.03 } : {}}
+                      whileTap={freeText.trim() ? { scale: 0.97 } : {}}
+                      onMouseEnter={(e) => {
+                        if (freeText.trim()) {
+                          e.currentTarget.style.backgroundColor = `${accentColor}35`;
+                          e.currentTarget.style.borderColor = `${accentColor}80`;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = `${accentColor}20`;
+                        e.currentTarget.style.borderColor = `${accentColor}60`;
+                      }}
+                    >
+                      发送 ↵
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

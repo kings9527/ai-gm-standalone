@@ -217,6 +217,51 @@ const PlayPage: React.FC = () => {
     return { snapshot, thumbnail };
   }, [campaign, module]);
 
+  // 处理自由输入：通过 GameStateMachine 处理玩家输入并显示 AI 响应
+  const handleFreeInput = useCallback(
+    async (text: string) => {
+      const sm = useGameStore.getState().stateMachine;
+      if (!sm || !module) return;
+
+      // 先显示玩家输入作为对话
+      vnRef.current?.displayNarration(`> ${text}`, '你');
+
+      try {
+        const result = await sm.processAction({
+          action_type: 'free_input',
+          player_input: text,
+        });
+
+        if (result.narration) {
+          const npcId = (result as any).npc_id as string | undefined;
+          const speaker = npcId ? module.npcs?.[npcId]?.name || null : null;
+          vnRef.current?.displayNarration(result.narration, speaker);
+        }
+
+        // 如果 result 包含可用动作，转换为选项显示
+        if (result.available_actions && result.available_actions.length > 0) {
+          const newChoices = result.available_actions.map((action: any, idx: number) => ({
+            id: `action_${idx}_${action.type}`,
+            text: action.label || action.type,
+            disabled: false,
+          }));
+          // 通过更新 VN 状态添加选项（需要访问 vnRef 的 snapshot 再 restore）
+          const snapshot = vnRef.current?.getSnapshot();
+          if (snapshot) {
+            vnRef.current?.restoreSnapshot({
+              ...snapshot,
+              choices: newChoices,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('自由输入处理失败:', err);
+        vnRef.current?.displayNarration('【系统】处理输入时出错，请重试。', null);
+      }
+    },
+    [module]
+  );
+
   // 游戏启动时应用全屏设置
   useEffect(() => {
     const { game } = useSettingsStore.getState();
@@ -306,6 +351,7 @@ const PlayPage: React.FC = () => {
         onMenuToggle={handleMenuToggle}
         onSceneChange={handleSceneChange}
         onAutoSave={handleAutoSave}
+        onFreeInput={handleFreeInput}
       />
 
       <InGameMenu
