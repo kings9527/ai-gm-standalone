@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import InputHistoryPanel from '../vn/InputHistoryPanel';
+import { useGameStore } from '../../stores/gameStore';
 import type { VNDialogue, VNChoice } from '../../types/engine';
 
 interface DialogueLayerProps {
@@ -66,6 +68,9 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   const accentColor = getCSSVar('--agm-accent', '#8b0000');
   const textColor = getCSSVar('--agm-text', '#e2e8f0');
   const dialogueBg = getCSSVar('--agm-dialogue-bg', 'rgba(10,10,10,0.9)');
+
+  // Phase 1-F: 从 gameStore 读取输入历史，用于快捷输入面板
+  const inputHistory = useGameStore((state) => state.inputHistory);
 
   // 处理自由输入提交
   const handleFreeSubmit = () => {
@@ -303,6 +308,15 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
+                  {/* Phase 1-F: 快捷输入历史面板 */}
+                  <InputHistoryPanel
+                    history={inputHistory}
+                    onSelect={(text) => setFreeText(text)}
+                    visible={inputMode === 'free'}
+                    accentColor={accentColor}
+                    textColor={textColor}
+                    maxDisplay={8}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={freeText}

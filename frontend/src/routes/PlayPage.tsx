@@ -41,6 +41,7 @@ const PlayPage: React.FC = () => {
     setStateMachine,
     reset: resetGameStore,
     restoreFromSave,
+    addInputHistory,
   } = useGameStore();
 
   const [loadedFromSave, setLoadedFromSave] = useState(false);
@@ -250,6 +251,9 @@ const PlayPage: React.FC = () => {
       // 先显示玩家输入作为对话
       vnRef.current?.displayNarration(`> ${text}`, '你');
 
+      // Phase 1-F: 保存玩家输入到历史（限制20条，去重）
+      addInputHistory(text);
+
       // 获取 LLM 配置并解析意图
       const { llm } = useSettingsStore.getState();
       const llmClient = new LLMClient(llm);
@@ -312,12 +316,24 @@ const PlayPage: React.FC = () => {
       // Phase 1-D: 闲聊模式 — 当意图为 chat 或 confidence < 0.6 时，直接调用 LLM 生成叙事回复
       if (intentResult.intent === 'chat' || intentResult.confidence < 0.6) {
         try {
+          // Phase 1-F: 构建带历史上下文的 messages
+          const { inputHistory } = useGameStore.getState();
+          const recentHistory = inputHistory.slice(-10); // 最近10条作为上下文
+
+          const historyContext = recentHistory.length > 0
+            ? `以下是玩家最近的输入历史（供你参考上下文，但不要直接回复历史内容）：\n${recentHistory.map((h, i) => `${i + 1}. ${h}`).join('\n')}\n\n`
+            : '';
+
           const messages = [
             {
               role: 'system' as const,
               content:
                 '你是AI-GM，一个TRPG游戏的叙事型AI主持人。根据玩家的自由输入，生成沉浸式的、符合游戏世界观的叙事回复。保持角色扮演风格，回复简洁（1-3句话），中文回答。',
             },
+            // Phase 1-F: 在历史非空时，以 assistant 角色注入历史上下文提示
+            ...(recentHistory.length > 0
+              ? [{ role: 'assistant' as const, content: historyContext }]
+              : []),
             { role: 'user' as const, content: text },
           ];
 
@@ -386,7 +402,7 @@ const PlayPage: React.FC = () => {
         vnRef.current?.displayNarration('【系统】处理输入时出错，请重试。', null);
       }
     },
-    [module, handleOpenSave, handleSettings]
+    [module, handleOpenSave, handleSettings, addInputHistory]
   );
 
   // 游戏启动时应用全屏设置

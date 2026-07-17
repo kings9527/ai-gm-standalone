@@ -108,7 +108,12 @@ export const useGameStore = create<GameState>((set) => ({
   addInputHistory: (text) =>
     set((state) => {
       if (!text || text.trim() === '') return state;
-      const newHistory = [...state.inputHistory, text.trim()];
+      const trimmed = text.trim();
+      // Phase 1-F: 限制保存最近 20 条，去重（如果最后一条相同则跳过）
+      if (state.inputHistory.length > 0 && state.inputHistory[state.inputHistory.length - 1] === trimmed) {
+        return state;
+      }
+      const newHistory = [...state.inputHistory, trimmed].slice(-20);
       const updatedCampaign = state.campaign
         ? { ...state.campaign, inputHistory: newHistory }
         : null;
