@@ -332,7 +332,7 @@ const ModuleManagerPage: React.FC = () => {
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-800/40 bg-gray-900/30 shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/40 bg-gray-900/30 shrink-0">
         <div className="flex items-center gap-3">
           <Package className="w-5 h-5 text-red-400 shrink-0" />
           <h1 className="text-lg font-bold text-red-400">模组管理</h1>
@@ -353,7 +353,7 @@ const ModuleManagerPage: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="px-4 sm:px-6 py-3 flex items-center gap-3 border-b border-gray-800/20 flex-wrap shrink-0">
+      <div className="px-6 py-3 flex items-center gap-3 border-b border-gray-800/20 flex-wrap shrink-0">
         {/* Search */}
         <div className="relative flex-1 min-w-[180px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -465,7 +465,7 @@ const ModuleManagerPage: React.FC = () => {
       </div>
 
       {/* Module List */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         {filteredModules.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500 gap-3">
             <Package className="w-12 h-12 opacity-20" />

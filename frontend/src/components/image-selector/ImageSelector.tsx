@@ -212,8 +212,17 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
   const content = (
     <div className="w-full h-full flex flex-col bg-gray-950 text-gray-100">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800/60">
         <div className="flex items-center gap-2">
+          {!modal && (
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); window.location.hash = '#/'; }}
+              className="text-gray-500 hover:text-gray-300 transition-colors mr-1"
+            >
+              <ChevronLeft size={18} />
+            </a>
+          )}
           <ImageIcon size={18} className="text-red-400" />
           <span className="text-sm font-semibold text-gray-200">{title}</span>
         </div>
@@ -233,7 +242,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
           <button
             key={tab.key}
             onClick={() => { setActiveTab(tab.key); setError(null); }}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+            className={`flex items-center gap-1.5 px-6 py-2.5 text-xs font-medium transition-colors border-b-2 ${
               activeTab === tab.key
                 ? 'border-red-500 text-red-400 bg-red-950/20'
                 : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800/30'
@@ -252,7 +261,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-4 py-2 bg-red-950/30 border-b border-red-800/30 flex items-center gap-2 text-xs text-red-400"
+            className="px-6 py-2 bg-red-950/30 border-b border-red-800/30 flex items-center gap-2 text-xs text-red-400"
           >
             <AlertCircle size={14} />
             {error}
@@ -274,7 +283,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
-              className="w-full h-full flex flex-col p-4 overflow-y-auto"
+              className="w-full h-full flex flex-col p-6 overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-gray-500">
@@ -376,7 +385,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
-              className="w-full h-full flex flex-col p-4 overflow-y-auto"
+              className="w-full h-full flex flex-col p-6 overflow-y-auto"
             >
               {/* 搜索栏 */}
               <div className="flex gap-2 mb-4">
@@ -481,7 +490,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
-              className="w-full h-full flex flex-col p-4 overflow-y-auto"
+              className="w-full h-full flex flex-col p-6 overflow-y-auto"
             >
               <div className="space-y-3 mb-4">
                 <div className="flex items-center gap-2">
@@ -538,7 +547,7 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.15 }}
-              className="w-full h-full flex flex-col p-4 overflow-y-auto"
+              className="w-full h-full flex flex-col p-6 overflow-y-auto"
             >
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const { autoUpdater } = require('electron-updater');
@@ -102,6 +102,58 @@ function createWindow() {
     show: false,
   });
 
+  // 中文菜单
+  const template = [
+    {
+      label: '文件',
+      submenu: [
+        { label: '新建模组', accelerator: 'CmdOrCtrl+N', click: () => mainWindow.webContents.send('aigm:menu:new-module') },
+        { label: '导入模组', accelerator: 'CmdOrCtrl+O', click: () => mainWindow.webContents.send('aigm:menu:import-module') },
+        { type: 'separator' },
+        { label: '退出', accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q', click: () => app.quit() },
+      ],
+    },
+    {
+      label: '编辑',
+      submenu: [
+        { label: '撤销', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
+        { label: '重做', accelerator: 'Shift+CmdOrCtrl+Z', role: 'redo' },
+        { type: 'separator' },
+        { label: '剪切', accelerator: 'CmdOrCtrl+X', role: 'cut' },
+        { label: '复制', accelerator: 'CmdOrCtrl+C', role: 'copy' },
+        { label: '粘贴', accelerator: 'CmdOrCtrl+V', role: 'paste' },
+      ],
+    },
+    {
+      label: '视图',
+      submenu: [
+        { label: '刷新', accelerator: 'CmdOrCtrl+R', click: () => mainWindow.webContents.reload() },
+        { label: '开发者工具', accelerator: 'F12', click: () => mainWindow.webContents.toggleDevTools() },
+        { type: 'separator' },
+        { label: '放大', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
+        { label: '缩小', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
+        { label: '重置缩放', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
+        { type: 'separator' },
+        { label: '全屏', accelerator: 'F11', click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) },
+      ],
+    },
+    {
+      label: '帮助',
+      submenu: [
+        { label: '用户手册', click: () => mainWindow.webContents.send('aigm:menu:docs') },
+        { label: '关于', click: () => dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: '关于 AI-GM Standalone',
+          message: `AI-GM Standalone v${app.getVersion()}`,
+          detail: '一个 AI 驱动的游戏主持人引擎。',
+          buttons: ['确定'],
+        })},
+      ],
+    },
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+
   // Load frontend
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -124,8 +176,18 @@ function startBackend() {
     ? path.join(__dirname, '../backend/src/index.js')
     : path.join(process.resourcesPath, 'backend/src/index.js');
 
-  backendProcess = spawn('node', [backendPath], {
-    env: { ...process.env, PORT: String(BACKEND_PORT), NODE_ENV: isDev ? 'development' : 'production', AIGM_USER_DATA: app.getPath('userData') },
+  // 使用 Electron 自带 Node 运行时，避免系统 Node ABI 不匹配
+  const nodeExec = process.execPath;
+  const env = {
+    ...process.env,
+    PORT: String(BACKEND_PORT),
+    NODE_ENV: isDev ? 'development' : 'production',
+    AIGM_USER_DATA: app.getPath('userData'),
+    ELECTRON_RUN_AS_NODE: '1',
+  };
+
+  backendProcess = spawn(nodeExec, [backendPath], {
+    env,
     stdio: 'pipe',
   });
 

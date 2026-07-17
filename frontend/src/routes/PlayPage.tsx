@@ -21,6 +21,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { IntentParser, type IntentResult } from '../engine/intent-parser';
 import { LLMClient } from '../llm/client';
 import { ActionHandler } from '../engine/action-handler';
+import { ImageBridge } from '../engine/image-bridge';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -301,6 +302,20 @@ const PlayPage: React.FC = () => {
               ...snapshot,
               currentSceneId: actionResult.sceneChange.to,
             });
+          }
+
+          // Phase 1-G: 图片联动桥接 — explore 意图下自动获取背景图
+          if (intentResult.intent === 'explore') {
+            const imageBridge = new ImageBridge();
+            const imgResult = await imageBridge.bridge(text, intentResult);
+            if (imgResult && vnRef.current) {
+              const currentSnapshot = vnRef.current.getSnapshot();
+              vnRef.current.restoreSnapshot({
+                ...currentSnapshot,
+                bg: imgResult.imageUrl,
+                bgTransition: 'fade',
+              });
+            }
           }
           return;
         }

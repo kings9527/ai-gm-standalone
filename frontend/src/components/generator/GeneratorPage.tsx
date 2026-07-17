@@ -225,7 +225,7 @@ export const GeneratorPage: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col bg-black text-gray-100 overflow-hidden">
       {/* 顶部导航 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 bg-gray-950/80">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800/50 bg-gray-950/80">
         <div className="flex items-center gap-3">
           <a
             href="#/"
