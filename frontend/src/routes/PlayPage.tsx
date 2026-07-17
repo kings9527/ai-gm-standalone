@@ -18,8 +18,9 @@ import { electronAPI } from '../api/electron';
 import { sfxMenuOpen, sfxMenuClose, sfxClick, sfxSave } from '../utils/soundfx';
 
 import { useSettingsStore } from '../stores/settingsStore';
-import { IntentParser } from '../engine/intent-parser';
+import { IntentParser, type IntentResult } from '../engine/intent-parser';
 import { LLMClient } from '../llm/client';
+import { ActionHandler } from '../engine/action-handler';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -101,10 +102,28 @@ const PlayPage: React.FC = () => {
 
   const handleSceneChange = useCallback(
     (sceneId: string) => {
-      if (!campaign || !module) return;
-      setCampaign({ ...campaign, current_scene: sceneId, scene_history: [...campaign.scene_history, sceneId] });
+      const currentCampaign = useGameStore.getState().campaign;
+      const currentModule = useGameStore.getState().module;
+      const sm = useGameStore.getState().stateMachine;
+      if (!currentCampaign || !currentModule || !sm) return;
+
+      // 避免重复添加场景历史
+      const newHistory = currentCampaign.scene_history.includes(sceneId)
+        ? currentCampaign.scene_history
+        : [...currentCampaign.scene_history, sceneId];
+
+      const updatedCampaign = {
+        ...currentCampaign,
+        current_scene: sceneId,
+        scene_history: newHistory,
+      };
+
+      setCampaign(updatedCampaign);
+      // 同步更新 stateMachine，确保后续状态操作一致
+      sm.campaign = updatedCampaign;
+      sm.currentScene = currentModule.scenes[sceneId];
     },
-    [campaign, module, setCampaign]
+    [setCampaign]
   );
 
   const handleAutoSave = useCallback(
@@ -220,7 +239,8 @@ const PlayPage: React.FC = () => {
     return { snapshot, thumbnail };
   }, [campaign, module]);
 
-  // 处理自由输入：通过 GameStateMachine 处理玩家输入并显示 AI 响应
+  // 处理自由输入：通过 GameStateMachine / ActionHandler 处理玩家输入并显示 AI 响应
+  // Phase 1-E: 当意图为高置信度（>=0.6）非 'chat' 时，触发行动模式
   // Phase 1-D: 当意图为 chat 或 confidence < 0.6 时，进入闲聊模式，直接调用 LLM streaming
   const handleFreeInput = useCallback(
     async (text: string) => {
@@ -235,12 +255,58 @@ const PlayPage: React.FC = () => {
       const llmClient = new LLMClient(llm);
       const parser = new IntentParser(llmClient);
 
-      let intentResult: { intent: string; confidence: number; extractedParams: Record<string, unknown> };
+      let intentResult: IntentResult;
       try {
         intentResult = await parser.parse(text);
       } catch (err) {
         console.error('意图解析失败:', err);
         intentResult = { intent: 'chat', confidence: 0, extractedParams: {} };
+      }
+
+      // Phase 1-E: 高置信度非 chat 意图 → 行动模式
+      if (intentResult.confidence >= 0.6 && intentResult.intent !== 'chat') {
+        const actionHandler = new ActionHandler(sm);
+        const actionResult = await actionHandler.dispatch(intentResult, text);
+
+        // 显示系统反馈叙事
+        if (actionResult.narration) {
+          vnRef.current?.displayNarration(actionResult.narration, null);
+        }
+
+        // 根据行动模式触发对应系统
+        if (actionResult.uiAction === 'save') {
+          handleOpenSave();
+          return;
+        }
+        if (actionResult.uiAction === 'settings') {
+          handleSettings();
+          return;
+        }
+
+        // 战斗启动：手动触发 CombatOverlay
+        if (actionResult.combatStart) {
+          vnRef.current?.triggerCombat(actionResult.combatStart.enemies);
+          return;
+        }
+
+        // 场景切换：通过 VN 引擎切换（触发 onSceneChange 同步更新 gameStore + stateMachine）
+        if (actionResult.sceneChange) {
+          const snapshot = vnRef.current?.getSnapshot();
+          if (snapshot) {
+            vnRef.current?.restoreSnapshot({
+              ...snapshot,
+              currentSceneId: actionResult.sceneChange.to,
+            });
+          }
+          return;
+        }
+
+        // 事件触发：narration 已显示，无需额外操作
+        if (actionResult.eventTrigger) {
+          return;
+        }
+
+        return;
       }
 
       // Phase 1-D: 闲聊模式 — 当意图为 chat 或 confidence < 0.6 时，直接调用 LLM 生成叙事回复
@@ -285,7 +351,8 @@ const PlayPage: React.FC = () => {
         return;
       }
 
-      // 非闲聊模式：走 stateMachine 流程
+      // 兜底：非 chat 但 confidence < 0.6 已在上层处理，此处不应到达
+      // 若到达，回退到 stateMachine 默认流程
       try {
         const result = await sm.processAction({
           action_type: 'free_input',
@@ -319,7 +386,7 @@ const PlayPage: React.FC = () => {
         vnRef.current?.displayNarration('【系统】处理输入时出错，请重试。', null);
       }
     },
-    [module]
+    [module, handleOpenSave, handleSettings]
   );
 
   // 游戏启动时应用全屏设置

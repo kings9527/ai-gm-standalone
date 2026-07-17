@@ -29,6 +29,7 @@ export interface VisualNovelEngineHandle {
   startChatStream: (speaker?: string | null) => void;
   appendChatStream: (chunk: string) => void;
   endChatStream: () => void;
+  triggerCombat: (enemies: string[]) => void;
 }
 
 interface VisualNovelEngineProps {
@@ -412,6 +413,14 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       },
       endChatStream: () => {
         setVnState((prev) => ({ ...prev, isChatStreaming: false }));
+      },
+      // Phase 1-E: 手动触发战斗（自由输入 combat 意图）
+      triggerCombat: (enemies: string[]) => {
+        const enemyNPCs = enemies
+          .map((eid) => module.npcs?.[eid])
+          .filter(Boolean) as NPC[];
+        setCombatEnemies(enemyNPCs);
+        setCombatActive(true);
       },
     }));
 
