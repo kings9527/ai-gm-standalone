@@ -176,7 +176,7 @@ export class ImageBridge {
       }
       return null;
     } catch (err) {
-      console.warn('[ImageBridge] imageSearch failed:', err);
+      // Image search failed, return null silently
       return null;
     }
   }
@@ -199,7 +199,7 @@ export class ImageBridge {
       }
       return null;
     } catch (err) {
-      console.warn('[ImageBridge] imageGenerate failed:', err);
+      // Image generation failed, return null silently
       return null;
     }
   }
