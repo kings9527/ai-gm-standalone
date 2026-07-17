@@ -12,6 +12,11 @@ interface GameState {
   isTransitioning: boolean;
   currentSceneId: string | null;
 
+  // Phase 1-B: 输入系统状态
+  inputMode: 'choice' | 'free';
+  freeInputText: string;
+  inputHistory: string[]; // 从 campaign 派生或同步，UI 快速读取用
+
   // Actions
   setCampaign: (campaign: Campaign) => void;
   setModule: (module: Module) => void;
@@ -25,6 +30,11 @@ interface GameState {
   setIsTransitioning: (transitioning: boolean) => void;
   setCurrentSceneId: (sceneId: string) => void;
   reset: () => void;
+
+  // Phase 1-B: 输入系统 Actions
+  setInputMode: (mode: 'choice' | 'free') => void;
+  setFreeInputText: (text: string) => void;
+  addInputHistory: (text: string) => void;
 
   // Restore from save
   restoreFromSave: (save: GameSave) => void;
@@ -40,7 +50,12 @@ export const useGameStore = create<GameState>((set) => ({
   isTransitioning: false,
   currentSceneId: null,
 
-  setCampaign: (campaign) => set({ campaign, isPlaying: true }),
+  // Phase 1-B: 输入系统默认值
+  inputMode: 'choice',
+  freeInputText: '',
+  inputHistory: [],
+
+  setCampaign: (campaign) => set({ campaign, isPlaying: true, inputHistory: campaign.inputHistory ?? [] }),
 
   setModule: (module) => set({ module }),
 
@@ -87,6 +102,19 @@ export const useGameStore = create<GameState>((set) => ({
   setIsTransitioning: (transitioning) => set({ isTransitioning: transitioning }),
   setCurrentSceneId: (sceneId) => set({ currentSceneId: sceneId }),
 
+  // Phase 1-B: 输入系统 Actions
+  setInputMode: (mode) => set({ inputMode: mode }),
+  setFreeInputText: (text) => set({ freeInputText: text }),
+  addInputHistory: (text) =>
+    set((state) => {
+      if (!text || text.trim() === '') return state;
+      const newHistory = [...state.inputHistory, text.trim()];
+      const updatedCampaign = state.campaign
+        ? { ...state.campaign, inputHistory: newHistory }
+        : null;
+      return { inputHistory: newHistory, campaign: updatedCampaign };
+    }),
+
   reset: () =>
     set({
       campaign: null,
@@ -96,6 +124,9 @@ export const useGameStore = create<GameState>((set) => ({
       isPlaying: false,
       isTransitioning: false,
       currentSceneId: null,
+      inputMode: 'choice',
+      freeInputText: '',
+      inputHistory: [],
     }),
 
   restoreFromSave: (save) =>
@@ -104,6 +135,10 @@ export const useGameStore = create<GameState>((set) => ({
       module: save.module,
       isPlaying: true,
       currentSceneId: save.campaign.current_scene,
+      // Phase 1-B: 兼容旧存档，无 inputHistory 时默认空数组
+      inputHistory: save.campaign.inputHistory ?? [],
+      inputMode: 'choice',
+      freeInputText: '',
     }),
 
   setPlayingAndScene: (sceneId) =>

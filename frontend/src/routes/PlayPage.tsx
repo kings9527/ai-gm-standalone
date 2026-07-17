@@ -89,6 +89,7 @@ const PlayPage: React.FC = () => {
       combat_state: null,
       flags: {},
       turn: 0,
+      inputHistory: [], // Phase 1-B: 初始化空输入历史
     };
 
     setCampaign(initialCampaign);

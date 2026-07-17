@@ -153,6 +153,7 @@ export interface Campaign {
   combat_state?: CombatState | null;
   flags: Record<string, boolean>;
   turn: number;
+  inputHistory?: string[]; // 玩家自由输入历史（Phase 1-B 新增）
 }
 
 export interface Player {
