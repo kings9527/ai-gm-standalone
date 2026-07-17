@@ -9,6 +9,7 @@ interface DialogueLayerProps {
   onChoice: (choiceId: string) => void;
   onFreeInput?: (text: string) => void;
   isPaused?: boolean;
+  isStreaming?: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   onChoice,
   onFreeInput,
   isPaused = false,
+  isStreaming = false,
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -190,8 +192,14 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
             )}
           </div>
 
+          {isStreaming && (
+            <div className="mt-3 text-right text-xs animate-pulse" style={{ color: `${accentColor}99` }}>
+              AI-GM 正在输入...
+            </div>
+          )}
+
           {/* Advance hint */}
-          {!isTyping && choices.length === 0 && (
+          {!isTyping && choices.length === 0 && !isStreaming && (
             <div
               className="mt-3 text-right text-xs animate-bounce"
               style={{ color: `${accentColor}99` }}
@@ -203,7 +211,7 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
 
         {/* Choices or Free Input */}
         <AnimatePresence>
-          {showChoices && (
+          {showChoices && !isStreaming && (
             <motion.div
               className="mt-4 mx-4"
               initial={{ opacity: 0, y: 20 }}

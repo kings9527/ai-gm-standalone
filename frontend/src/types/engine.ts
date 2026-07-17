@@ -8,6 +8,7 @@ export interface VNState {
   effects: VNEffect[];
   isTransitioning: boolean;
   isPaused?: boolean; // 引擎暂停状态
+  isChatStreaming?: boolean; // Phase 1-D: 闲聊模式 streaming 状态
 }
 
 export interface VNSprite {

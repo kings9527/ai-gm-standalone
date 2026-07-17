@@ -26,6 +26,9 @@ export interface VisualNovelEngineHandle {
   takeThumbnail: () => Promise<string | undefined>;
   restoreSnapshot: (snapshot: VNState) => void;
   displayNarration: (text: string, speaker?: string | null) => void;
+  startChatStream: (speaker?: string | null) => void;
+  appendChatStream: (chunk: string) => void;
+  endChatStream: () => void;
 }
 
 interface VisualNovelEngineProps {
@@ -60,6 +63,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       choices: [],
       effects: [],
       isTransitioning: false,
+      isChatStreaming: false,
     });
 
     const [currentScene, setCurrentScene] = useState<Scene | null>(null);
@@ -377,7 +381,37 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
             speakerColor: '#e2e8f0',
           },
           choices: [],
+          isChatStreaming: false,
         }));
+      },
+      // Phase 1-D: 闲聊模式 streaming 支持
+      startChatStream: (speaker?: string | null) => {
+        setVnState((prev) => ({
+          ...prev,
+          dialogue: {
+            speaker: speaker ?? null,
+            text: '',
+            typewriter: false,
+            typewriterSpeed: 30,
+            speakerColor: '#e2e8f0',
+          },
+          choices: [],
+          isChatStreaming: true,
+        }));
+      },
+      appendChatStream: (chunk: string) => {
+        setVnState((prev) => ({
+          ...prev,
+          dialogue: prev.dialogue
+            ? {
+                ...prev.dialogue,
+                text: prev.dialogue.text + chunk,
+              }
+            : null,
+        }));
+      },
+      endChatStream: () => {
+        setVnState((prev) => ({ ...prev, isChatStreaming: false }));
       },
     }));
 
@@ -409,6 +443,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           onChoice={handleChoice}
           onFreeInput={onFreeInput}
           isPaused={isPaused}
+          isStreaming={vnState.isChatStreaming}
         />
 
         {/* Layer 4: Effects */}

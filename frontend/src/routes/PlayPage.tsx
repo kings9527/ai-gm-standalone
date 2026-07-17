@@ -18,6 +18,8 @@ import { electronAPI } from '../api/electron';
 import { sfxMenuOpen, sfxMenuClose, sfxClick, sfxSave } from '../utils/soundfx';
 
 import { useSettingsStore } from '../stores/settingsStore';
+import { IntentParser } from '../engine/intent-parser';
+import { LLMClient } from '../llm/client';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -219,6 +221,7 @@ const PlayPage: React.FC = () => {
   }, [campaign, module]);
 
   // 处理自由输入：通过 GameStateMachine 处理玩家输入并显示 AI 响应
+  // Phase 1-D: 当意图为 chat 或 confidence < 0.6 时，进入闲聊模式，直接调用 LLM streaming
   const handleFreeInput = useCallback(
     async (text: string) => {
       const sm = useGameStore.getState().stateMachine;
@@ -227,6 +230,62 @@ const PlayPage: React.FC = () => {
       // 先显示玩家输入作为对话
       vnRef.current?.displayNarration(`> ${text}`, '你');
 
+      // 获取 LLM 配置并解析意图
+      const { llm } = useSettingsStore.getState();
+      const llmClient = new LLMClient(llm);
+      const parser = new IntentParser(llmClient);
+
+      let intentResult: { intent: string; confidence: number; extractedParams: Record<string, unknown> };
+      try {
+        intentResult = await parser.parse(text);
+      } catch (err) {
+        console.error('意图解析失败:', err);
+        intentResult = { intent: 'chat', confidence: 0, extractedParams: {} };
+      }
+
+      // Phase 1-D: 闲聊模式 — 当意图为 chat 或 confidence < 0.6 时，直接调用 LLM 生成叙事回复
+      if (intentResult.intent === 'chat' || intentResult.confidence < 0.6) {
+        try {
+          const messages = [
+            {
+              role: 'system' as const,
+              content:
+                '你是AI-GM，一个TRPG游戏的叙事型AI主持人。根据玩家的自由输入，生成沉浸式的、符合游戏世界观的叙事回复。保持角色扮演风格，回复简洁（1-3句话），中文回答。',
+            },
+            { role: 'user' as const, content: text },
+          ];
+
+          // 开始 streaming 对话
+          vnRef.current?.startChatStream('AI-GM');
+
+          const stream = llmClient.streamChat(messages, { maxTokens: 256, temperature: 0.7 });
+          let buffer = '';
+
+          // 收集所有 streaming 内容
+          for await (const chunk of stream) {
+            buffer += chunk;
+          }
+
+          // 逐字打字机效果显示
+          const chars = Array.from(buffer);
+          let idx = 0;
+          const typeInterval = setInterval(() => {
+            if (idx < chars.length) {
+              vnRef.current?.appendChatStream(chars[idx]);
+              idx++;
+            } else {
+              clearInterval(typeInterval);
+              vnRef.current?.endChatStream();
+            }
+          }, 30);
+        } catch (err) {
+          console.error('Chat streaming failed:', err);
+          vnRef.current?.displayNarration('【系统】AI-GM 连接失败，请检查 LLM 配置。', '系统');
+        }
+        return;
+      }
+
+      // 非闲聊模式：走 stateMachine 流程
       try {
         const result = await sm.processAction({
           action_type: 'free_input',
