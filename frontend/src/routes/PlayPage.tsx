@@ -50,6 +50,7 @@ const PlayPage: React.FC = () => {
 
   const vnRef = useRef<VisualNovelEngineHandle>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const combatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load module on mount
   useEffect(() => {
@@ -98,7 +99,9 @@ const PlayPage: React.FC = () => {
     };
 
     setCampaign(initialCampaign);
-    const sm = new GameStateMachine(module, initialCampaign, null);
+    const { llm } = useSettingsStore.getState();
+    const llmClient = new LLMClient(llm);
+    const sm = new GameStateMachine(module, initialCampaign, llmClient);
     setStateMachine(sm);
   }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
 
@@ -164,7 +167,9 @@ const PlayPage: React.FC = () => {
         setLoadedFromSave(true);
         setLoadedSceneId(restoredCampaign.current_scene);
 
-        const sm = new GameStateMachine(restoredModule, restoredCampaign, null);
+        const { llm } = useSettingsStore.getState();
+        const llmClient = new LLMClient(llm);
+        const sm = new GameStateMachine(restoredModule, restoredCampaign, llmClient);
         setStateMachine(sm);
 
         if (save.vnSnapshot && vnRef.current) {
@@ -249,6 +254,12 @@ const PlayPage: React.FC = () => {
       const sm = useGameStore.getState().stateMachine;
       if (!sm || !module) return;
 
+      // 清除待触发的战斗定时器，防止自由输入与战斗触发状态冲突
+      if (combatTimerRef.current) {
+        clearTimeout(combatTimerRef.current);
+        combatTimerRef.current = null;
+      }
+
       // 先显示玩家输入作为对话
       vnRef.current?.displayNarration(`> ${text}`, '你');
 
@@ -270,7 +281,7 @@ const PlayPage: React.FC = () => {
 
       // Phase 1-E: 高置信度非 chat 意图 → 行动模式
       if (intentResult.confidence >= 0.6 && intentResult.intent !== 'chat') {
-        const actionHandler = new ActionHandler(sm);
+        const actionHandler = new ActionHandler(sm, llmClient);
         const actionResult = await actionHandler.dispatch(intentResult, text);
 
         // 显示系统反馈叙事
@@ -279,8 +290,9 @@ const PlayPage: React.FC = () => {
         }
 
         // 根据行动模式触发对应系统
+        // Phase 2-D: save 自然语言触发已由 ActionHandler 直接完成存档
+        // narration 已在上方显示，无需打开面板
         if (actionResult.uiAction === 'save') {
-          handleOpenSave();
           return;
         }
         if (actionResult.uiAction === 'settings') {
@@ -288,9 +300,14 @@ const PlayPage: React.FC = () => {
           return;
         }
 
-        // 战斗启动：手动触发 CombatOverlay
+        // Phase 2-B: 战斗系统自然语言触发 — 先显示 LLM 生成的战斗开场描述，再延迟触发 CombatOverlay
         if (actionResult.combatStart) {
-          vnRef.current?.triggerCombat(actionResult.combatStart.enemies);
+          const textLength = (actionResult.narration || '').length;
+          // 打字机速度 30ms/字符 + 1.5s 阅读缓冲，最少 2.5s
+          const delay = Math.max(2500, textLength * 30 + 1500);
+          combatTimerRef.current = setTimeout(() => {
+            vnRef.current?.triggerCombat(actionResult.combatStart!.enemies);
+          }, delay);
           return;
         }
 
@@ -458,6 +475,7 @@ const PlayPage: React.FC = () => {
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+      if (combatTimerRef.current) clearTimeout(combatTimerRef.current);
     };
   }, []);
 

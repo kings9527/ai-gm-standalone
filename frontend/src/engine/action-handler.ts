@@ -1,5 +1,7 @@
 import { GameStateMachine } from './state-machine';
 import { type IntentResult, type GameIntent } from './intent-parser';
+import { useSaveStore } from '../stores/saveStore';
+import type { LLMClient } from '../llm/client';
 
 export type ActionMode = GameIntent | 'chat' | 'unknown';
 
@@ -47,9 +49,11 @@ export interface ActionDispatchResult {
  */
 export class ActionHandler {
   private stateMachine: GameStateMachine;
+  private llmClient: LLMClient | null;
 
-  constructor(stateMachine: GameStateMachine) {
+  constructor(stateMachine: GameStateMachine, llmClient?: LLMClient) {
     this.stateMachine = stateMachine;
+    this.llmClient = llmClient || null;
   }
 
   /**
@@ -72,7 +76,7 @@ export class ActionHandler {
       case 'event':
         return this._handleEvent(playerInput, extractedParams);
       case 'save':
-        return this._handleSave(extractedParams);
+        return this._handleSave(playerInput, extractedParams);
       case 'settings':
         return this._handleSettings(extractedParams);
       case 'explore':
@@ -148,14 +152,110 @@ export class ActionHandler {
 
   // ─── Save ───────────────────────────────────────────────
 
-  private _handleSave(params: Record<string, unknown>): ActionDispatchResult {
-    return {
-      mode: 'save',
-      handled: true,
-      narration: '【系统】正在打开存档面板...',
-      uiAction: 'save',
-      extractedParams: params,
-    };
+  private async _handleSave(
+    playerInput: string,
+    params: Record<string, unknown>
+  ): Promise<ActionDispatchResult> {
+    const campaign = this.stateMachine.campaign;
+    const module = this.stateMachine.module;
+
+    if (!campaign || !module) {
+      return {
+        mode: 'save',
+        handled: true,
+        narration: '【系统】无法存档：游戏状态未就绪。',
+        extractedParams: params,
+      };
+    }
+
+    // Phase 2-D: 使用 LLM 生成存档点描述
+    let saveDescription = '';
+    if (this.llmClient?.isAvailable()) {
+      try {
+        const sceneName = module.scenes[campaign.current_scene]?.title || campaign.current_scene;
+        const descResponse = await this.llmClient.chat(
+          [
+            {
+              role: 'system',
+              content:
+                '你是AI-GM，负责为玩家的存档生成简短、沉浸式的描述（1-2句话）。描述当前场景和状态，让玩家一看就能回忆这个存档点。只输出描述文本，不要加引号或其他格式。',
+            },
+            {
+              role: 'user',
+              content: `玩家正在"${sceneName}"场景，输入了"${playerInput}"。请为这个存档点生成一段简短描述。`,
+            },
+          ],
+          { maxTokens: 64, temperature: 0.7 }
+        );
+        saveDescription = descResponse.content?.trim() || '';
+      } catch (err) {
+        // LLM 失败时回退到默认描述
+        saveDescription = '';
+      }
+    }
+
+    const saveStore = useSaveStore.getState();
+    const saves = saveStore.saves;
+
+    // Phase 2-D: 支持覆盖存档和新建存档
+    const normalizedInput = playerInput.toLowerCase();
+    const isOverride =
+      normalizedInput.includes('覆盖') || params.override === true || normalizedInput.includes('替换');
+    const targetSlot = typeof params.slotNumber === 'number' ? params.slotNumber : undefined;
+
+    let slotNumber: number;
+    if (targetSlot !== undefined) {
+      slotNumber = targetSlot;
+    } else if (isOverride) {
+      // 找第一个已有存档的槽位（排除快速存档槽 0）
+      const existingSlot = saves.find((s) => s.slotNumber > 0 && s.save !== null);
+      slotNumber = existingSlot?.slotNumber ?? 1;
+    } else {
+      // 找第一个空槽位（排除快速存档槽 0）
+      const emptySlot = saves.find((s) => s.slotNumber > 0 && s.save === null);
+      if (emptySlot) {
+        slotNumber = emptySlot.slotNumber;
+      } else {
+        // 全满，覆盖最早的存档（槽 1）
+        slotNumber = 1;
+      }
+    }
+
+    const existingSave = saves.find((s) => s.slotNumber === slotNumber)?.save;
+    const isOverwrite = !!existingSave;
+
+    // 生成存档名称（优先使用 LLM 描述）
+    const sceneName = module.scenes[campaign.current_scene]?.title || campaign.current_scene;
+    const slotName =
+      saveDescription || `${sceneName} - ${new Date().toLocaleString('zh-CN')}`;
+
+    try {
+      // Phase 2-D: 直接调用 saveStore.createSave 执行存档
+      // thumbnail 和 vnSnapshot 继承已有存档或为空，后续可由 PlayPage 获取最新状态补充
+      await saveStore.createSave({
+        slotNumber,
+        name: slotName,
+        campaign,
+        module,
+        thumbnail: existingSave?.thumbnail || undefined,
+        vnSnapshot: existingSave?.vnSnapshot || undefined,
+      });
+
+      const actionDesc = isOverwrite ? '覆盖存档' : '新建存档';
+      return {
+        mode: 'save',
+        handled: true,
+        narration: `【系统】${actionDesc} #${slotNumber}：${slotName}`,
+        extractedParams: { ...params, slotNumber, isOverwrite },
+      };
+    } catch (err: any) {
+      return {
+        mode: 'save',
+        handled: true,
+        narration: `【系统】存档失败：${err.message || '未知错误'}`,
+        extractedParams: params,
+      };
+    }
   }
 
   // ─── Settings ───────────────────────────────────────────
