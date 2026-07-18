@@ -3,6 +3,167 @@ import { type IntentResult, type GameIntent } from './intent-parser';
 import { useSaveStore } from '../stores/saveStore';
 import type { LLMClient } from '../llm/client';
 
+/** 设置命令解析结果 */
+export interface SettingsCommand {
+  /** 操作类型: open=打开面板, adjust=直接调整 */
+  action: 'open' | 'adjust';
+  /** 目标设置项 */
+  target?: 'soundEnabled' | 'fontSize' | 'typewriterSpeed' | 'fullscreen' | 'autoAdvanceDelay' | 'skipUnread' | 'themeMode';
+  /** 调整方向或具体值 */
+  value?: boolean | number | string;
+  /** 调整方向 (用于无具体数值时) */
+  direction?: 'increase' | 'decrease' | 'toggle';
+  /** 目标 tab */
+  tab?: 'llm' | 'image' | 'game' | 'theme';
+}
+
+/**
+ * 从玩家输入解析设置命令
+ * 支持语音指令式输入如："把背景音乐关小"、"字体调大"、"开启全屏"
+ */
+function parseSettingsCommand(input: string): SettingsCommand {
+  const normalized = input.toLowerCase().trim();
+
+  // ── 1. 打开设置面板 ──
+  const openPatterns = [
+    /打开\s*(?:设置|配置|选项|偏好|面板)/,
+    /(?:显示|调出)\s*(?:设置|配置|选项)/,
+    /settings?/,
+    /options?/,
+    /config/,
+    /偏好设置/,
+    /系统设置/,
+  ];
+  for (const p of openPatterns) {
+    if (p.test(normalized)) {
+      // 检查是否同时包含具体调整指令
+      const adjustCmd = extractAdjustCommand(normalized);
+      if (adjustCmd.target) {
+        return { action: 'adjust', ...adjustCmd };
+      }
+      return { action: 'open' };
+    }
+  }
+
+  // ── 2. 直接调整指令 ──
+  const adjustCmd = extractAdjustCommand(normalized);
+  if (adjustCmd.target) {
+    return { action: 'adjust', ...adjustCmd };
+  }
+
+  // 默认打开面板
+  return { action: 'open' };
+}
+
+/** 提取调整命令（不含 open 判断） */
+function extractAdjustCommand(input: string): Omit<SettingsCommand, 'action'> {
+  // ── 音效 / 声音 ──
+  if (/\b(?:音效|声音|音乐|背景音乐|bgm|sound|music|volume)\b/.test(input)) {
+    if (/\b(?:关|关闭|关掉|禁|停用|mute|off|disable)\b/.test(input)) {
+      return { target: 'soundEnabled', value: false, direction: 'toggle' };
+    }
+    if (/\b(?:开|打开|启用|开启|on|enable)\b/.test(input)) {
+      return { target: 'soundEnabled', value: true, direction: 'toggle' };
+    }
+    // 音量大小调整（数值）
+    const volMatch = input.match(/(\d+)\s*%?/);
+    if (volMatch) {
+      return { target: 'soundEnabled', value: Number(volMatch[1]) > 0, direction: 'toggle' };
+    }
+    return { target: 'soundEnabled', tab: 'game', direction: 'toggle' };
+  }
+
+  // ── 字体大小 ──
+  if (/\b(?:字体|字大小|字号|文字大小|font[\s_-]?size)\b/.test(input)) {
+    const numMatch = input.match(/(\d+)/);
+    if (numMatch) {
+      return { target: 'fontSize', value: Math.min(32, Math.max(10, Number(numMatch[1]))), direction: 'toggle' };
+    }
+    if (/\b(?:大|增大|加大|放大|大一点|up|increase|bigger|larger)\b/.test(input)) {
+      return { target: 'fontSize', direction: 'increase' };
+    }
+    if (/\b(?:小|减小|缩小|放小|小一点|down|decrease|smaller)\b/.test(input)) {
+      return { target: 'fontSize', direction: 'decrease' };
+    }
+    return { target: 'fontSize', tab: 'game', direction: 'toggle' };
+  }
+
+  // ── 打字机速度 ──
+  if (/\b(?:打字机|显示速度|文本速度|typewriter|text[\s_-]?speed|typing)\b/.test(input)) {
+    const numMatch = input.match(/(\d+)/);
+    if (numMatch) {
+      return { target: 'typewriterSpeed', value: Math.min(500, Math.max(0, Number(numMatch[1]))), direction: 'toggle' };
+    }
+    if (/\b(?:快|加快|快一点|up|faster|increase)\b/.test(input)) {
+      return { target: 'typewriterSpeed', direction: 'decrease' }; // 速度值越小越快
+    }
+    if (/\b(?:慢|减慢|慢一点|down|slower|decrease)\b/.test(input)) {
+      return { target: 'typewriterSpeed', direction: 'increase' }; // 速度值越大越慢
+    }
+    return { target: 'typewriterSpeed', tab: 'game', direction: 'toggle' };
+  }
+
+  // ── 全屏 ──
+  if (/\b(?:全屏|fullscreen|full[\s_-]?screen)\b/.test(input)) {
+    if (/\b(?:关|关闭|关掉|退出|off|disable|exit)\b/.test(input)) {
+      return { target: 'fullscreen', value: false, direction: 'toggle' };
+    }
+    if (/\b(?:开|打开|启用|开启|on|enable|enter)\b/.test(input)) {
+      return { target: 'fullscreen', value: true, direction: 'toggle' };
+    }
+    return { target: 'fullscreen', direction: 'toggle', tab: 'game' };
+  }
+
+  // ── 自动前进 ──
+  if (/\b(?:自动|自动前进|auto|auto[\s_-]?advance)\b/.test(input)) {
+    if (/\b(?:关|关闭|关掉|禁|停用|off|disable)\b/.test(input)) {
+      return { target: 'autoAdvanceDelay', value: 0, direction: 'toggle' };
+    }
+    const numMatch = input.match(/(\d+)/);
+    if (numMatch) {
+      return { target: 'autoAdvanceDelay', value: Math.min(10000, Math.max(0, Number(numMatch[1]))), direction: 'toggle' };
+    }
+    return { target: 'autoAdvanceDelay', direction: 'toggle', tab: 'game' };
+  }
+
+  // ── 跳过未读 ──
+  if (/\b(?:跳过|skip)\b/.test(input)) {
+    if (/\b(?:关|关闭|关掉|禁|停用|off|disable)\b/.test(input)) {
+      return { target: 'skipUnread', value: false, direction: 'toggle' };
+    }
+    if (/\b(?:开|打开|启用|开启|on|enable)\b/.test(input)) {
+      return { target: 'skipUnread', value: true, direction: 'toggle' };
+    }
+    return { target: 'skipUnread', direction: 'toggle', tab: 'game' };
+  }
+
+  // ── 主题 / 外观 ──
+  if (/\b(?:主题|外观|theme|颜色|color|模式|mode)\b/.test(input)) {
+    if (/\b(?:深色|暗色|dark|黑)\b/.test(input)) {
+      return { target: 'themeMode', value: 'dark', direction: 'toggle', tab: 'theme' };
+    }
+    if (/\b(?:浅色|亮色|light|白)\b/.test(input)) {
+      return { target: 'themeMode', value: 'light', direction: 'toggle', tab: 'theme' };
+    }
+    if (/\b(?:跟随系统|自动|auto|system)\b/.test(input)) {
+      return { target: 'themeMode', value: 'auto', direction: 'toggle', tab: 'theme' };
+    }
+    return { target: 'themeMode', direction: 'toggle', tab: 'theme' };
+  }
+
+  // ── 画质 / 图片 ──
+  if (/\b(?:画质|图像|图片|画质|image|graphic|quality|picture)\b/.test(input)) {
+    return { tab: 'image', direction: 'toggle' };
+  }
+
+  // ── LLM / AI ──
+  if (/\b(?:ai|llm|模型|model|api|密钥|key)\b/.test(input)) {
+    return { tab: 'llm', direction: 'toggle' };
+  }
+
+  return {};
+}
+
 export type ActionMode = GameIntent | 'chat' | 'unknown';
 
 export interface ActionDispatchResult {
@@ -12,6 +173,9 @@ export interface ActionDispatchResult {
   handled: boolean;
   /** 给玩家的反馈文本 */
   narration?: string;
+  /** 设置命令解析结果（Phase 2-E: 自然语言设置触发） */
+  settingsCommand?: SettingsCommand;
+
   /** 需要触发的 UI 操作 */
   uiAction?: 'save' | 'settings';
   /** 战斗启动数据（用于外部触发 CombatOverlay） */
@@ -78,7 +242,7 @@ export class ActionHandler {
       case 'save':
         return this._handleSave(playerInput, extractedParams);
       case 'settings':
-        return this._handleSettings(extractedParams);
+        return this._handleSettings(playerInput, extractedParams);
       case 'explore':
         return this._handleExplore(playerInput, extractedParams);
       default:
@@ -260,13 +424,46 @@ export class ActionHandler {
 
   // ─── Settings ───────────────────────────────────────────
 
-  private _handleSettings(params: Record<string, unknown>): ActionDispatchResult {
+  private _handleSettings(
+    input: string,
+    params: Record<string, unknown>
+  ): ActionDispatchResult {
+    // Phase 2-E: 解析自然语言设置命令
+    const cmd = parseSettingsCommand(input);
+
+    // 构建反馈文案
+    let narration = '【系统】正在打开设置面板...';
+    if (cmd.action === 'adjust' && cmd.target) {
+      const targetNames: Record<string, string> = {
+        soundEnabled: '音效',
+        fontSize: '字体大小',
+        typewriterSpeed: '打字机速度',
+        fullscreen: '全屏模式',
+        autoAdvanceDelay: '自动前进延迟',
+        skipUnread: '跳过未读文本',
+        themeMode: '主题模式',
+      };
+      const name = targetNames[cmd.target] || cmd.target;
+      if (cmd.value !== undefined && typeof cmd.value === 'boolean') {
+        narration = `【系统】已${cmd.value ? '开启' : '关闭'}${name}。`;
+      } else if (cmd.direction === 'increase') {
+        narration = `【系统】已增大${name}。`;
+      } else if (cmd.direction === 'decrease') {
+        narration = `【系统】已减小${name}。`;
+      } else if (cmd.value !== undefined) {
+        narration = `【系统】已将${name}调整为 ${cmd.value}。`;
+      } else {
+        narration = `【系统】正在调整${name}...`;
+      }
+    }
+
     return {
       mode: 'settings',
       handled: true,
-      narration: '【系统】正在打开设置面板...',
+      narration,
       uiAction: 'settings',
-      extractedParams: params,
+      settingsCommand: cmd,
+      extractedParams: { ...params, settingsCommand: cmd },
     };
   }
 

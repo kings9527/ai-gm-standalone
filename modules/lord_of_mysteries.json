@@ -1,0 +1,231 @@
+{
+  "name": "诡秘之主：廷根往事",
+  "version": "1.0.0",
+  "author": "AI-GM",
+  "description": "基于《诡秘之主》世界观的视觉小说模组。玩家扮演一位刚刚服下'占卜家'魔药的非凡者，在廷根市调查神秘事件。",
+  "world_setting": {
+    "title": "廷根市 · 1349年",
+    "background": "蒸汽与机械轰鸣的时代，神秘与非凡隐匿于暗处。你是廷根市值夜者小队的新成员，刚刚通过'扮演法'掌握了序列9'占卜家'的能力。最近，廷根市出现了多起与'密修会'有关的神秘事件，你需要与队长邓恩·史密斯、老尼尔、伦纳德等人一起调查真相。",
+    "themes": ["蒸汽朋克", "克苏鲁", "神秘学", "魔药体系"],
+    "power_system": {
+      "name": "22条途径",
+      "description": "这个世界存在22条非凡途径，每条途径有从序列9到序列0的10个等级。你目前处于'占卜家'途径的序列9。",
+      "player_path": "占卜家",
+      "player_sequence": 9,
+      "abilities": ["灵视", "占卜", "仪式魔法"]
+    }
+  },
+  "scenes": [
+    {
+      "id": "blackthorn_security",
+      "name": "黑荆棘安保公司",
+      "description": "值夜者小队的总部，外表是一家普通的安保公司，地下却藏着通往查尼斯门的通道。墙上挂着罗塞尔大帝的肖像，角落里堆放着神秘学书籍。",
+      "bg": "dark_victorian_office",
+      "npcs": ["dunn_smith", "old_neil", "leonard_mitchell"],
+      "exits": [
+        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "离开黑荆棘安保公司，前往廷根市区" },
+        { "direction": "地下档案室", "target_scene": "archives", "description": "通过隐藏的楼梯前往地下档案室" }
+      ],
+      "events": ["morning_briefing"]
+    },
+    {
+      "id": "tingen_streets",
+      "name": "廷根市区",
+      "description": "煤气路灯照亮着雾气弥漫的街道，马车哒哒地驶过石板路。远处传来工厂的汽笛声，报刊亭里贩卖着《贝克兰德日报》。你能感受到这座城市表面平静下涌动的暗流。",
+      "bg": "foggy_victorian_street",
+      "npcs": ["newspaper_seller"],
+      "exits": [
+        { "direction": "黑荆棘安保公司", "target_scene": "blackthorn_security", "description": "返回值夜者总部" },
+        { "direction": "占卜俱乐部", "target_scene": "divination_club", "description": "前往威尔·昂赛汀的占卜俱乐部" },
+        { "direction": "码头区", "target_scene": "dock_district", "description": "前往码头区调查密修会线索" }
+      ],
+      "events": ["street_encounter"]
+    },
+    {
+      "id": "divination_club",
+      "name": "威尔·昂赛汀的占卜俱乐部",
+      "description": "一间装饰着水晶球和塔罗牌的小屋，空气中弥漫着薰衣草的香气。威尔·昂赛汀——一位自称'命运之轮'的老者——在这里教授占卜技巧。墙上挂着巨大的命运之轮图案。",
+      "bg": "mystical_divination_room",
+      "npcs": ["will_auceptin"],
+      "exits": [
+        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "离开占卜俱乐部" }
+      ],
+      "events": ["divination_lesson", "tarot_reading"]
+    },
+    {
+      "id": "dock_district",
+      "name": "廷根码头区",
+      "description": "咸腥的海风混合着煤烟的味道。破旧的仓库排列在码头边，走私者和密修会的成员可能藏匿于此。你发现一些可疑的符号——是密修会的标记。",
+      "bg": "dark_dock_warehouse",
+      "npcs": [],
+      "exits": [
+        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "返回市区" },
+        { "direction": "废弃仓库", "target_scene": "abandoned_warehouse", "description": "调查标记所在的废弃仓库" }
+      ],
+      "events": ["find_cult_symbols", "ambush"]
+    },
+    {
+      "id": "abandoned_warehouse",
+      "name": "废弃仓库",
+      "description": "昏暗的仓库里堆满了发霉的货物。墙上的密修会符号发出微弱的荧光，地上画着未完成的仪式法阵。你能感受到某种邪恶的力量在附近徘徊。",
+      "bg": "ritual_warehouse",
+      "npcs": ["cultist"],
+      "exits": [
+        { "direction": "码头区", "target_scene": "dock_district", "description": "逃离仓库" }
+      ],
+      "events": ["ritual_interrupted", "combat_cultist"]
+    }
+  ],
+  "npcs": [
+    {
+      "id": "dunn_smith",
+      "name": "邓恩·史密斯",
+      "title": "值夜者队长",
+      "description": "一位沉稳可靠的中年男子，'不眠者'途径序列7。他的眼睛深邃，仿佛能看透人心。总是把保护廷根市民的安全放在第一位。",
+      "sprite": "middle_aged_man_uniform",
+      "dialogue_style": "沉稳、关怀、偶尔幽默",
+      "personality": ["责任感强", "保护欲", "经验丰富"],
+      "knowledge": ["密修会情报", "查尼斯门", "魔药配方"]
+    },
+    {
+      "id": "old_neil",
+      "name": "老尼尔",
+      "title": "资深值夜者",
+      "description": "头发花白的老者，'窥秘人'途径。他对神秘学知识如数家珍，经常在地下室做各种奇怪的实验。喜欢讲冷笑话。",
+      "sprite": "elderly_scholar",
+      "dialogue_style": "博学、幽默、偶尔神经质",
+      "personality": ["好奇心旺盛", "知识渊博", "不拘小节"],
+      "knowledge": ["仪式魔法", "神秘学历史", "古代文字"]
+    },
+    {
+      "id": "leonard_mitchell",
+      "name": "伦纳德·米切尔",
+      "title": "值夜者队员",
+      "description": "年轻帅气的值夜者，'收尸人'途径。总是带着一把左轮手枪，自称'诗人'。他的体内寄生着一位古老的强者——帕列斯·索罗亚斯德。",
+      "sprite": "young_poet_gunslinger",
+      "dialogue_style": "浪漫、自信、带诗意",
+      "personality": ["自信", "浪漫", "秘密主义者"],
+      "knowledge": ["魔药配方", "古神知识"]
+    },
+    {
+      "id": "will_auceptin",
+      "name": "威尔·昂赛汀",
+      "title": "命运之轮",
+      "description": "一位看似普通的老者，实则是一位高序列强者。他经营着占卜俱乐部，以'命运之轮'为代号。总是带着神秘的微笑。",
+      "sprite": "mysterious_old_man",
+      "dialogue_style": "神秘、隐喻、引导式",
+      "personality": ["神秘", "智慧", "观察者"],
+      "knowledge": ["命运途径", "塔罗会", "高序列秘密"]
+    },
+    {
+      "id": "cultist",
+      "name": "密修会成员",
+      "title": "邪教徒",
+      "description": "身穿黑袍的邪教徒，脸上戴着刻有诡异符号的面具。他们正在进行某种邪恶的仪式。",
+      "sprite": "hooded_cultist",
+      "dialogue_style": "疯狂、邪恶、低语",
+      "personality": ["狂热", "残忍", "疯狂"],
+      "knowledge": ["邪神仪式", "诅咒"]
+    }
+  ],
+  "events": [
+    {
+      "id": "morning_briefing",
+      "name": "晨间简报",
+      "trigger": "进入黑荆棘安保公司",
+      "description": "邓恩队长召集所有人进行晨间简报。最近廷根市出现了多起与密修会有关的失踪案件，需要调查。",
+      "dialogue": [
+        { "speaker": "邓恩·史密斯", "text": "各位，最近廷根市不太平。码头区发现了密修会的标记，已经有三个人失踪了。" },
+        { "speaker": "老尼尔", "text": "密修会？那些崇拜邪神的疯子？我研究过他们的仪式，需要特定的星象才能进行大规模召唤。" },
+        { "speaker": "伦纳德·米切尔", "text": "让我去吧，我的'收尸人'能力正好克制那些不死生物。不过...我需要一些帮手。" },
+        { "speaker": "邓恩·史密斯", "text": "新来的，你来协助伦纳德。记住，遇到危险优先保护自己。灵视不要开太久，会损耗精神。" }
+      ],
+      "choices": [
+        { "text": "我明白了，队长。我会小心的。", "effect": { "trust_dunn": +10 } },
+        { "text": "密修会的标记是什么样的？我想先了解一下。", "effect": { "knowledge_cult": +5 }, "next_event": "learn_cult_symbols" }
+      ]
+    },
+    {
+      "id": "divination_lesson",
+      "name": "占卜课程",
+      "trigger": "与威尔·昂赛汀对话",
+      "description": "威尔教你如何使用占卜家的能力进行更精确的占卜。",
+      "dialogue": [
+        { "speaker": "威尔·昂赛汀", "text": "年轻人，你身上的气息告诉我，你刚刚踏上'占卜家'的道路。让我教你一些真正的技巧。" },
+        { "speaker": "威尔·昂赛汀", "text": "记住，占卜不是预测未来，而是解读命运的线索。水晶球、塔罗牌、灵摆——都是工具，重要的是你的心。" }
+      ],
+      "choices": [
+        { "text": "请教我塔罗牌的真正用法。", "effect": { "divination_skill": +10 } },
+        { "text": "我想学习灵视的高级用法。", "effect": { "spirit_vision": +5 } }
+      ]
+    },
+    {
+      "id": "tarot_reading",
+      "name": "塔罗占卜",
+      "trigger": "请求威尔占卜",
+      "description": "威尔为你进行一次塔罗占卜，揭示未来的线索。",
+      "dialogue": [
+        { "speaker": "威尔·昂赛汀", "text": "抽三张牌吧，让我们看看命运之轮为你准备了什么。" },
+        { "speaker": "威尔·昂赛汀", "text": "...有趣。'愚者'正位，代表新的开始；'命运之轮'逆位，暗示危险临近；'死神'正位...意味着重大的转变。" },
+        { "speaker": "威尔·昂赛汀", "text": "小心码头区，那里的阴影比想象中更深。" }
+      ],
+      "choices": [
+        { "text": "码头区...我正好要去那里调查。", "effect": { "clue_dock": true }, "unlock_scene": "dock_district" }
+      ]
+    },
+    {
+      "id": "find_cult_symbols",
+      "name": "发现密修会标记",
+      "trigger": "在码头区调查",
+      "description": "你在码头区的墙壁上发现了密修会的标记——一个扭曲的五角星，中央是一只睁开的眼睛。",
+      "dialogue": [
+        { "text": "（你开启灵视，看到标记周围缠绕着黑色的雾气——这是邪恶力量的残留）" },
+        { "text": "标记还很新鲜，密修会的人可能就在附近。" }
+      ],
+      "choices": [
+        { "text": "追踪标记，找到他们的藏身之处。", "effect": { "cult_trail": true }, "unlock_scene": "abandoned_warehouse" },
+        { "text": "先回去报告队长，不要打草惊蛇。", "effect": { "caution": +5 } }
+      ]
+    },
+    {
+      "id": "combat_cultist",
+      "name": "遭遇密修会成员",
+      "trigger": "进入废弃仓库",
+      "description": "密修会成员发现了你的 intrusion！他们正在准备某种仪式，你必须阻止他们。",
+      "dialogue": [
+        { "speaker": "密修会成员", "text": "又一个送死的值夜者...正好，仪式需要祭品。" },
+        { "text": "（邪教徒举起匕首，口中念诵着听不懂的咒语，仓库里的温度骤降）" }
+      ],
+      "combat": {
+        "enemies": [
+          { "name": "密修会成员", "hp": 80, "attack": 15, "defense": 5, "skills": ["暗影匕首", "恐惧术"] }
+        ],
+        "win_event": "ritual_stopped",
+        "lose_event": "captured"
+      }
+    }
+  ],
+  "player": {
+    "name": "新值夜者",
+    "title": "序列9 占卜家",
+    "description": "刚刚加入值夜者小队的新人，掌握了'占卜家'的基础能力。你对这个世界充满好奇，也渴望变得更强。",
+    "stats": {
+      "hp": 100,
+      "max_hp": 100,
+      "spirit": 50,
+      "max_spirit": 50,
+      "sequence": 9,
+      "path": "占卜家"
+    },
+    "skills": [
+      { "name": "灵视", "description": "看到普通人看不到的灵体和非凡痕迹，消耗精神力", "cost": 5 },
+      { "name": "占卜", "description": "通过水晶球或塔罗牌预测短期内的吉凶", "cost": 3 },
+      { "name": "仪式魔法", "description": "布置简单的防护仪式或净化仪式", "cost": 10 }
+    ],
+    "inventory": [
+      { "name": "水晶球", "type": "tool", "description": "占卜用的工具" },
+      { "name": "塔罗牌", "type": "tool", "description": "威尔送的塔罗牌" },
+      { "name": "魔药（占卜家）", "type": "consumable", "description": "序列9占卜家魔药，已经完全消化" }
+    ]
+  }
+}

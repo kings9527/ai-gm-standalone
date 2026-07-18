@@ -13,7 +13,9 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertCircle,
+  X,
 } from 'lucide-react';
+import type { SettingsCommand } from '../../engine/action-handler';
 import type { LLMConfig } from '../../types/llm';
 import { useToast } from '../ui/ToastProvider';
 import {
@@ -241,9 +243,20 @@ const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label
 
 interface SettingsPageProps {
   fromGame?: boolean;
+  /** Phase 2-E: 以模态框方式显示 */
+  isModal?: boolean;
+  /** 模态框关闭回调 */
+  onClose?: () => void;
+  /** Phase 2-E: 外部传入的设置命令（自然语言触发） */
+  externalCommand?: SettingsCommand | null;
 }
 
-const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
+const SettingsPage: React.FC<SettingsPageProps> = ({
+  fromGame = false,
+  isModal = false,
+  onClose,
+  externalCommand,
+}) => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>('llm');
@@ -289,7 +302,90 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }, []);
 
-  // Load settings on mount
+  // Phase 2-E: 处理外部设置命令（自然语言直接调整）
+  useEffect(() => {
+    if (!externalCommand) return;
+
+    const { action, target, value, direction, tab } = externalCommand;
+
+    if (tab) {
+      setActiveTab(tab);
+    }
+
+    if (action === 'adjust' && target) {
+      const state = useSettingsStore.getState();
+      let confirmMsg = '';
+
+      switch (target) {
+        case 'soundEnabled': {
+          const newVal = typeof value === 'boolean' ? value : !state.game.soundEnabled;
+          setGame({ soundEnabled: newVal });
+          confirmMsg = `音效已${newVal ? '开启' : '关闭'}`;
+          break;
+        }
+        case 'fontSize': {
+          let newVal = state.game.fontSize;
+          if (direction === 'increase') newVal = Math.min(32, newVal + 2);
+          else if (direction === 'decrease') newVal = Math.max(10, newVal - 2);
+          else if (typeof value === 'number') newVal = value;
+          setGame({ fontSize: newVal });
+          confirmMsg = `字体大小已调整为 ${newVal}px`;
+          break;
+        }
+        case 'typewriterSpeed': {
+          let newVal = state.game.typewriterSpeed;
+          // 注意：值越小越快，方向与直觉相反
+          if (direction === 'increase') newVal = Math.min(500, newVal + 10);
+          else if (direction === 'decrease') newVal = Math.max(0, newVal - 10);
+          else if (typeof value === 'number') newVal = value;
+          setGame({ typewriterSpeed: newVal });
+          confirmMsg = `打字机速度已调整为 ${newVal}ms`;
+          break;
+        }
+        case 'fullscreen': {
+          const newVal = typeof value === 'boolean' ? value : !state.game.fullscreen;
+          setGame({ fullscreen: newVal });
+          if (newVal) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+          } else {
+            if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+          }
+          confirmMsg = `全屏模式已${newVal ? '开启' : '关闭'}`;
+          break;
+        }
+        case 'autoAdvanceDelay': {
+          let newVal = state.game.autoAdvanceDelay;
+          if (typeof value === 'number') newVal = value;
+          else if (direction === 'increase') newVal = Math.min(5000, newVal + 500);
+          else if (direction === 'decrease') newVal = Math.max(0, newVal - 500);
+          setGame({ autoAdvanceDelay: newVal });
+          confirmMsg = `自动前进延迟已调整为 ${newVal}ms`;
+          break;
+        }
+        case 'skipUnread': {
+          const newVal = typeof value === 'boolean' ? value : !state.game.skipUnread;
+          setGame({ skipUnread: newVal });
+          confirmMsg = `跳过未读文本已${newVal ? '开启' : '关闭'}`;
+          break;
+        }
+        case 'themeMode': {
+          const newMode = (value as 'dark' | 'light' | 'auto') || (state.theme.mode === 'dark' ? 'light' : 'dark');
+          setTheme({ mode: newMode });
+          confirmMsg = `主题已切换为${newMode === 'dark' ? '深色' : newMode === 'light' ? '浅色' : '跟随系统'}`;
+          break;
+        }
+      }
+
+      if (confirmMsg) {
+        showToast(confirmMsg, 'success');
+        // 短暂显示后自动保存到后端
+        const timer = setTimeout(() => {
+          state.saveToBackend().catch(() => {});
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [externalCommand, setGame, setTheme, showToast]);
   useEffect(() => {
     loadFromBackend();
      
@@ -717,19 +813,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ fromGame = false }) => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-950 text-gray-200 overflow-hidden">
+    <div className={`w-full h-full flex flex-col bg-gray-950 text-gray-200 overflow-hidden ${isModal ? 'rounded-xl' : ''}`}>
       {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-800/60 px-6 py-3 shrink-0">
         <div className="flex items-center gap-3">
           <motion.button
-            onClick={() => navigate(fromGame ? '/play' : '/')}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <ChevronLeft size={16} />
-            {fromGame ? '返回游戏' : '返回'}
-          </motion.button>
+        onClick={isModal ? onClose : () => navigate(fromGame ? '/play' : '/')}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+      >
+        {isModal ? <X size={16} /> : <ChevronLeft size={16} />}
+        {isModal ? '关闭' : fromGame ? '返回游戏' : '返回'}
+      </motion.button>
           <h1 className="text-base font-bold text-red-400 tracking-wide">设置</h1>
           {!loaded && <span className="text-[11px] text-gray-600">加载中...</span>}
         </div>

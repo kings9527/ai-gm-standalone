@@ -18,9 +18,10 @@ import { electronAPI } from '../api/electron';
 import { sfxMenuOpen, sfxMenuClose, sfxClick, sfxSave } from '../utils/soundfx';
 
 import { useSettingsStore } from '../stores/settingsStore';
+import SettingsPage from '../components/settings/SettingsPage';
 import { IntentParser, type IntentResult } from '../engine/intent-parser';
 import { LLMClient } from '../llm/client';
-import { ActionHandler } from '../engine/action-handler';
+import { ActionHandler, type SettingsCommand } from '../engine/action-handler';
 import { ImageBridge } from '../engine/image-bridge';
 
 const PlayPage: React.FC = () => {
@@ -32,6 +33,8 @@ const PlayPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [savePanelMode, setSavePanelMode] = useState<'save' | 'load'>('save');
   const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [settingsCommand, setSettingsCommand] = useState<SettingsCommand | null>(null);
   const [isPaused, setIsPaused] = useState(false);
 
   const {
@@ -226,8 +229,15 @@ const PlayPage: React.FC = () => {
     sfxClick();
     setMenuOpen(false);
     setIsPaused(true);
-    navigate('/settings', { state: { fromGame: true } });
-  }, [navigate]);
+    setSettingsCommand(null);
+    setSettingsModalOpen(true);
+  }, []);
+
+  const handleCloseSettingsModal = useCallback(() => {
+    setSettingsModalOpen(false);
+    setSettingsCommand(null);
+    setIsPaused(false);
+  }, []);
 
   const handleExitApplication = useCallback(() => {
     sfxClick();
@@ -295,8 +305,11 @@ const PlayPage: React.FC = () => {
         if (actionResult.uiAction === 'save') {
           return;
         }
+        // Phase 2-E: 设置面板自然语言触发
         if (actionResult.uiAction === 'settings') {
-          handleSettings();
+          setSettingsCommand(actionResult.settingsCommand || { action: 'open' });
+          setSettingsModalOpen(true);
+          setIsPaused(true);
           return;
         }
 
@@ -555,6 +568,19 @@ const PlayPage: React.FC = () => {
         onSnapshotRequest={handleManualSave}
         onSaveComplete={() => {}}
       />
+      {/* Phase 2-E: 设置面板模态框 */}
+      {settingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-4xl h-[85vh] mx-4">
+            <SettingsPage
+              isModal
+              fromGame
+              onClose={handleCloseSettingsModal}
+              externalCommand={settingsCommand}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
