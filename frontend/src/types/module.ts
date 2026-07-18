@@ -98,6 +98,10 @@ export interface NPC {
   sprites: Record<string, string>; // expression -> image URL
   secrets?: { keyword: string; reveal_text: string }[];
   dialogue?: Record<string, string>;
+  /** Phase 2-F: NPC 对话树 — 结构化多分支对话 */
+  dialogue_tree?: DialogueTree;
+  /** Phase 2-F: NPC 动态响应模板 — 根据 personality 和场景生成不同回应 */
+  dynamic_response?: DynamicResponseConfig;
 }
 
 export interface Item {
@@ -156,6 +160,133 @@ export interface EndingConfig {
   description: string;
   conditions?: Condition;
 }
+
+// ───────────────────────────────────────────
+// Phase 2-F: NPC 自由对话系统类型定义
+// ───────────────────────────────────────────
+
+/** 对话树节点 — 支持条件分支和玩家输入匹配 */
+export interface DialogueTreeNode {
+  id: string;
+  /** NPC 在此节点的台词 */
+  text: string;
+  /** 进入此节点的条件（可选） */
+  condition?: DialogueCondition;
+  /** 玩家可能的回应分支 */
+  branches?: DialogueBranch[];
+  /** 到达此节点时触发的动作 */
+  action?: DialogueNodeAction;
+}
+
+/** 对话节点进入条件 */
+export interface DialogueCondition {
+  /** 最低信任值（默认 0） */
+  min_trust?: number;
+  /** 最高恐惧值（默认 100） */
+  max_fear?: number;
+  /** 要求的态度状态 */
+  attitude?: string;
+  /** 要求的全局标记 */
+  flags?: string[];
+  /** 要求已揭示的秘密 */
+  secrets_revealed?: string[];
+}
+
+/** 对话分支 — 匹配玩家输入或选择 */
+export interface DialogueBranch {
+  id: string;
+  /** 分支显示文本（用于选项模式） */
+  label: string;
+  /** 匹配模式：keywords = 关键词匹配，regex = 正则匹配，any = 任意输入 */
+  match_type: 'keywords' | 'regex' | 'any' | 'choice';
+  /** 匹配关键词列表（keywords 模式下） */
+  keywords?: string[];
+  /** 正则表达式（regex 模式下） */
+  pattern?: string;
+  /** 匹配后跳转的节点 ID */
+  next_node?: string;
+  /** 匹配后的即时回复文本（覆盖节点文本） */
+  response_text?: string;
+  /** 分支触发的效果 */
+  effects?: DialogueEffect[];
+}
+
+/** 对话节点动作 */
+export interface DialogueNodeAction {
+  type: 'set_flag' | 'change_attitude' | 'reveal_secret' | 'trigger_event' | 'none';
+  /** set_flag: 标记名称 */
+  flag_name?: string;
+  /** change_attitude: 目标态度 */
+  target_attitude?: string;
+  /** reveal_secret: 秘密关键词 */
+  secret_keyword?: string;
+  /** trigger_event: 事件 ID */
+  event_id?: string;
+}
+
+/** 对话效果 */
+export interface DialogueEffect {
+  type: 'trust_delta' | 'fear_delta' | 'suspicion_delta' | 'sanity_delta';
+  value: number;
+}
+
+/** 对话树 — 根节点 ID + 节点映射 */
+export interface DialogueTree {
+  /** 起始节点 ID */
+  root_node: string;
+  /** 所有节点映射 */
+  nodes: Record<string, DialogueTreeNode>;
+  /** 默认回复（无匹配分支时） */
+  fallback_text?: string;
+}
+
+/** 动态响应配置 — 基于 personality 和场景生成回应 */
+export interface DynamicResponseConfig {
+  /** 基础性格标签（如：cautious, aggressive, kind, mysterious） */
+  personality_tags: string[];
+  /** 主动发起对话的触发器 */
+  initiative_triggers: InitiativeTrigger[];
+  /** 响应模板库 */
+  response_templates: ResponseTemplate[];
+  /** 默认情绪基调 */
+  default_emotion: string;
+}
+
+/** NPC 主动发起对话的触发器 */
+export interface InitiativeTrigger {
+  id: string;
+  /** 触发场景 ID 或 'any' */
+  scene_id: string;
+  /** 触发条件描述 */
+  condition: string;
+  /** 触发时 NPC 台词 */
+  dialogue: string;
+  /** 台词情绪 */
+  emotion: string;
+  /** 优先级（越高越优先） */
+  priority: number;
+  /** 只能触发一次 */
+  once_only?: boolean;
+}
+
+/** 响应模板 — 匹配特定意图或上下文 */
+export interface ResponseTemplate {
+  id: string;
+  /** 匹配的意图类型 */
+  intent_match: string[];
+  /** 匹配关键词 */
+  keywords?: string[];
+  /** 回复模板（支持占位符：{npc_name}, {player_name}, {topic}） */
+  templates: string[];
+  /** 回复情绪 */
+  emotion: string;
+  /** 信任值变化 */
+  trust_delta?: number;
+  /** 恐惧值变化 */
+  fear_delta?: number;
+}
+
+// ───────────────────────────────────────────
 
 export interface Campaign {
   id: string;

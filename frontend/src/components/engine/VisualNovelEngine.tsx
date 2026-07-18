@@ -30,6 +30,10 @@ export interface VisualNovelEngineHandle {
   appendChatStream: (chunk: string) => void;
   endChatStream: () => void;
   triggerCombat: (enemies: string[]) => void;
+  /** Phase 2-F: 显示 NPC 对话 */
+  displayNPCDialogue: (text: string, speaker: string, emotion: string, initiative?: boolean) => void;
+  /** Phase 2-F: 结束 NPC 对话状态 */
+  clearNPCDialogueState: () => void;
 }
 
 interface VisualNovelEngineProps {
@@ -70,6 +74,12 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     const [currentScene, setCurrentScene] = useState<Scene | null>(null);
     const [combatActive, setCombatActive] = useState(false);
     const [combatEnemies, setCombatEnemies] = useState<NPC[]>([]);
+    /** Phase 2-F: NPC 对话状态 */
+    const [npcDialogueState, setNpcDialogueState] = useState<{
+      active: boolean;
+      emotion: string;
+      initiative: boolean;
+    }>({ active: false, emotion: '', initiative: false });
 
     const { updateScene, setCurrentSceneId, campaign, setCombatState } = useGameStore();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -414,13 +424,33 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       endChatStream: () => {
         setVnState((prev) => ({ ...prev, isChatStreaming: false }));
       },
-      // Phase 1-E: 手动触发战斗（自由输入 combat 意图）
+      // Phase 2-F: 手动触发战斗（自由输入 combat 意图）
       triggerCombat: (enemies: string[]) => {
         const enemyNPCs = enemies
           .map((eid) => module.npcs?.[eid])
           .filter(Boolean) as NPC[];
         setCombatEnemies(enemyNPCs);
         setCombatActive(true);
+      },
+      // Phase 2-F: 显示 NPC 对话
+      displayNPCDialogue: (text: string, speaker: string, emotion: string, initiative = false) => {
+        setVnState((prev) => ({
+          ...prev,
+          dialogue: {
+            speaker,
+            text,
+            typewriter: true,
+            typewriterSpeed: 30,
+            speakerColor: '#e2e8f0',
+          },
+          choices: [],
+          isChatStreaming: false,
+        }));
+        setNpcDialogueState({ active: true, emotion, initiative });
+      },
+      // Phase 2-F: 清除 NPC 对话状态
+      clearNPCDialogueState: () => {
+        setNpcDialogueState({ active: false, emotion: '', initiative: false });
       },
     }));
 
@@ -453,6 +483,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           onFreeInput={onFreeInput}
           isPaused={isPaused}
           isStreaming={vnState.isChatStreaming}
+          npcInitiative={npcDialogueState.initiative}
+          npcEmotion={npcDialogueState.emotion}
         />
 
         {/* Layer 4: Effects */}

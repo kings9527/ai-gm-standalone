@@ -12,6 +12,10 @@ interface DialogueLayerProps {
   onFreeInput?: (text: string) => void;
   isPaused?: boolean;
   isStreaming?: boolean;
+  /** Phase 2-F: NPC 主动对话标记 — 触发时显示特殊高亮 */
+  npcInitiative?: boolean;
+  /** Phase 2-F: NPC 情绪标签 — 控制对话框样式 */
+  npcEmotion?: string;
 }
 
 /**
@@ -29,6 +33,8 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   onFreeInput,
   isPaused = false,
   isStreaming = false,
+  npcInitiative = false,
+  npcEmotion,
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -163,16 +169,21 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
           className="rounded-xl p-6 mx-4 backdrop-blur-sm border transition-colors"
           style={{
             background: dialogueBg,
-            borderColor: `${accentColor}30`,
-            boxShadow: `0 0 40px ${accentColor}15`,
+            borderColor: npcInitiative ? accentColor : `${accentColor}30`,
+            boxShadow: npcInitiative
+              ? `0 0 40px ${accentColor}30, 0 0 80px ${accentColor}15, inset 0 0 20px ${accentColor}10`
+              : `0 0 40px ${accentColor}15`,
           }}
         >
           {/* Speaker Name */}
           {dialogue.speaker && (
             <div className="mb-2 flex items-center gap-2">
               <div
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ backgroundColor: accentColor }}
+                className={`w-2 h-2 rounded-full animate-pulse ${npcInitiative ? 'ring-2 ring-offset-1 ring-offset-black' : ''}`}
+                style={{
+                  backgroundColor: accentColor,
+                  boxShadow: npcInitiative ? `0 0 12px ${accentColor}` : undefined,
+                }}
               />
               <span
                 className="font-bold text-sm tracking-wider uppercase"
@@ -180,6 +191,30 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
               >
                 {dialogue.speaker}
               </span>
+              {/* Phase 2-F: 情绪标签 */}
+              {npcEmotion && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full border opacity-70"
+                  style={{
+                    borderColor: `${accentColor}40`,
+                    color: `${accentColor}cc`,
+                  }}
+                >
+                  {npcEmotion}
+                </span>
+              )}
+              {/* Phase 2-F: NPC 主动发起标记 */}
+              {npcInitiative && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full animate-pulse"
+                  style={{
+                    backgroundColor: `${accentColor}30`,
+                    color: accentColor,
+                  }}
+                >
+                  ⚡ 主动
+                </span>
+              )}
             </div>
           )}
 

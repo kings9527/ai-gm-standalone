@@ -23,6 +23,7 @@ import { IntentParser, type IntentResult } from '../engine/intent-parser';
 import { LLMClient } from '../llm/client';
 import { ActionHandler, type SettingsCommand } from '../engine/action-handler';
 import { ImageBridge } from '../engine/image-bridge';
+import { NPCDialogueSystem } from '../engine/npc-system';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +55,8 @@ const PlayPage: React.FC = () => {
   const vnRef = useRef<VisualNovelEngineHandle>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const combatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Phase 2-F: NPC 对话系统实例 */
+  const npcDialogueRef = useRef<NPCDialogueSystem | null>(null);
 
   // Load module on mount
   useEffect(() => {
@@ -106,6 +109,9 @@ const PlayPage: React.FC = () => {
     const llmClient = new LLMClient(llm);
     const sm = new GameStateMachine(module, initialCampaign, llmClient);
     setStateMachine(sm);
+
+    // Phase 2-F: 初始化 NPC 对话系统
+    npcDialogueRef.current = new NPCDialogueSystem(initialCampaign, module);
   }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
 
   const handleSceneChange = useCallback(
@@ -130,6 +136,24 @@ const PlayPage: React.FC = () => {
       // 同步更新 stateMachine，确保后续状态操作一致
       sm.campaign = updatedCampaign;
       sm.currentScene = currentModule.scenes[sceneId];
+
+      // Phase 2-F: 检查 NPC 主动发起对话
+      if (npcDialogueRef.current) {
+        // 更新对话系统内的 campaign 引用
+        npcDialogueRef.current = new NPCDialogueSystem(updatedCampaign, currentModule);
+        const initiative = npcDialogueRef.current.checkNPCInitiative(sceneId);
+        if (initiative.triggered && initiative.npcId) {
+          const npc = currentModule.npcs?.[initiative.npcId];
+          if (npc && vnRef.current) {
+            vnRef.current.displayNPCDialogue(
+              initiative.text || '',
+              npc.name,
+              initiative.emotion || 'alert',
+              true, // initiative = true
+            );
+          }
+        }
+      }
     },
     [setCampaign]
   );
@@ -178,6 +202,9 @@ const PlayPage: React.FC = () => {
         if (save.vnSnapshot && vnRef.current) {
           vnRef.current.restoreSnapshot(save.vnSnapshot);
         }
+
+        // Phase 2-F: 重置 NPC 对话状态
+        npcDialogueRef.current = new NPCDialogueSystem(restoredCampaign, restoredModule);
 
         setLoading(false);
       } catch (err: any) {
@@ -272,6 +299,44 @@ const PlayPage: React.FC = () => {
 
       // 先显示玩家输入作为对话
       vnRef.current?.displayNarration(`> ${text}`, '你');
+
+      // Phase 2-F: 优先检查 NPC 对话系统 — 如果玩家输入涉及场景中的 NPC，先尝试 NPC 回应
+      const currentSceneId = useGameStore.getState().currentSceneId;
+      if (npcDialogueRef.current && currentSceneId) {
+        const { llm } = useSettingsStore.getState();
+        const llmClient = new LLMClient(llm);
+        const npcResult = await npcDialogueRef.current.processPlayerInput(
+          text,
+          currentSceneId,
+          llmClient,
+        );
+
+        if (npcResult) {
+          // NPC 匹配成功，显示 NPC 对话
+          const npc = module.npcs?.[npcResult.npcId];
+          if (npc && vnRef.current) {
+            vnRef.current.displayNPCDialogue(
+              npcResult.result.text,
+              npc.name,
+              npcResult.result.emotion,
+              false, // 不是主动发起
+            );
+
+            // 应用对话效果到 campaign 状态
+            npcDialogueRef.current.applyDialogueEffects(npcResult.npcId, npcResult.result);
+
+            // 如果对话结束，清除 NPC 对话状态
+            if (npcResult.result.endDialogue) {
+              npcDialogueRef.current.endDialogue(npcResult.npcId);
+              // 延迟清除视觉状态
+              setTimeout(() => {
+                vnRef.current?.clearNPCDialogueState();
+              }, 2000);
+            }
+          }
+          return; // NPC 处理完毕，不再进入 AI-GM 流程
+        }
+      }
 
       // Phase 1-F: 保存玩家输入到历史（限制20条，去重）
       addInputHistory(text);
