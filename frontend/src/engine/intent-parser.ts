@@ -252,8 +252,67 @@ Rules:
       'strike': ['combat'],
       'shoot': ['combat'],
       'cast': ['combat'],
-      'defend': ['combat'],
-      'dodge': ['combat'],
+      // Phase 2-B: 增强 combat 意图识别 — 更多中文战斗关键词
+      '拔出': ['combat'],
+      '拔剑': ['combat'],
+      '拔刀': ['combat'],
+      '准备战斗': ['combat'],
+      '迎战': ['combat'],
+      '开战': ['combat'],
+      '揍': ['combat'],
+      '砍': ['combat'],
+      '刺': ['combat'],
+      '射': ['combat'],
+      '扔': ['combat'],
+      '召唤': ['combat'],
+      '念咒': ['combat'],
+      '吟唱': ['combat'],
+      '进入战斗': ['combat'],
+      '开打': ['combat'],
+      '决斗': ['combat'],
+      '单挑': ['combat'],
+      '群殴': ['combat'],
+      '围攻': ['combat'],
+      '消灭': ['combat'],
+      '击退': ['combat'],
+      '击败': ['combat'],
+      '解决': ['combat'],
+      '清理': ['combat'],
+      '歼灭': ['combat'],
+      '武器': ['combat'],
+      '剑': ['combat'],
+      '枪': ['combat'],
+      '弓': ['combat'],
+      '法杖': ['combat'],
+      '匕首': ['combat'],
+      'axe': ['combat'],
+      'sword': ['combat'],
+      'gun': ['combat'],
+      'bow': ['combat'],
+      'staff': ['combat'],
+      'dagger': ['combat'],
+      'weapon': ['combat'],
+      'shield': ['combat'],
+      'armor': ['combat'],
+      'spell': ['combat'],
+      'magic': ['combat'],
+      'fireball': ['combat'],
+      'lightning': ['combat'],
+      'heal': ['combat'],
+      'buff': ['combat'],
+      'debuff': ['combat'],
+      'slash': ['combat'],
+      'stab': ['combat'],
+      'throw': ['combat'],
+      'summon': ['combat'],
+      'chant': ['combat'],
+      'duel': ['combat'],
+      'engage': ['combat'],
+      'assault': ['combat'],
+      'slay': ['combat'],
+      'vanquish': ['combat'],
+      'eliminate': ['combat'],
+      'exterminate': ['combat'],
       // explore
       '去': ['explore'],
       '走': ['explore'],
@@ -399,6 +458,34 @@ Rules:
           for (const m of matches) {
             const item = m[1] || m[2];
             if (item) return item.trim();
+          }
+          return null;
+        },
+      },
+      {
+        paramName: 'weapon',
+        patterns: [
+          /(?:用|使用|拔出|拿起|挥动|举起)(?:我的|那把|这把|这把|那把|这个|那个)?\s*(剑|刀|枪|弓|法杖|匕首|斧头|棍棒|锤子|盾牌|魔杖|鞭子|拳套|手里剑|飞镖|弩|长矛|戟|三叉戟|镰刀|链锯|火炮|手枪|步枪|冲锋枪|霰弹枪|狙击枪|火箭筒|手雷|炸弹|地雷|陷阱|毒药|暗器|符咒|卷轴|水晶|宝石|戒指|项链|手镯|耳环|头饰|护甲|披风|靴子|手套|腰带|护腕|护腿|护肩|头盔|面具|眼镜|耳环|纹身|印记|烙印|纹身|刺青|伤疤|胎记|痣|疣|瘤|癌|病毒|细菌|真菌|寄生虫|昆虫|蜘蛛|蝎子|蛇|蜥蜴|鳄鱼|龟|鳖|蛙|蟾蜍|蝾螈|鲵|鱼|鲨|鲸|豚|海豹|海狮|海象|海牛|海獭|海狸|海狸|海狸|海狸|海狸|海狸|海狸|海狸|海狸|海狸)/,
+          /\b(?:with|using|wield|draw|equip)\s+(?:my|the|a|an)?\s*(sword|blade|knife|dagger|axe|spear|lance|halberd|trident|scythe|whip|mace|hammer|club|staff|wand|rod|bow|crossbow|gun|pistol|rifle|shotgun|sniper|cannon|rocket|grenade|bomb|mine|trap|poison|dart|shuriken|kunai|chakram|boomerang|slingshot|catapult|ballista|trebuchet| battering ram|siege tower|ladder|rope|hook|grappling|claw|fang|talon|hoof|horn|antler|tusk|claw|paw|wing|fin|tail|scale|shell|carapace|exoskeleton|fur|feather|hide|leather|skin|meat|bone|blood|organ|tissue|cell|gene|dna|rna|protein|enzyme|hormone|neurotransmitter|antibody|antigen|vaccine|serum|toxin|venom|spore|seed|pollen|egg|sperm|embryo|fetus|larva|pupa|cocoon|chrysalis|egg|nest|den|burrow|hive|colony|swarm|flock|herd|pack|pride|troop|troupe|pod|school|shoal|colony|hive|swarm|army|legion|horde|host|crowd|mob|throng|mass|multitude|myriad|legion|host|crowd|mob|throng|mass|multitude|myriad)\b/i,
+        ],
+        extract: (matches) => {
+          for (const m of matches) {
+            const weapon = m[1];
+            if (weapon) return weapon.trim();
+          }
+          return null;
+        },
+      },
+      {
+        paramName: 'enemyType',
+        patterns: [
+          /(?:敌人|怪物|对手|目标|邪教徒|密修会|怪兽|魔兽|恶魔|魔鬼|幽灵|鬼魂|僵尸|骷髅|吸血鬼|狼人|巨人|龙|蛇|蜘蛛|蝎子|蝙蝠|乌鸦|秃鹫|老鹰|猎鹰|猫头鹰|夜莺|乌鸦|喜鹊|麻雀|燕子|鸽子|海鸥|天鹅|孔雀|鹦鹉|八哥|画眉|黄莺|杜鹃|布谷|啄木鸟|翠鸟|蜂鸟|鸵鸟|企鹅|鸭子|鹅|鸡|火鸡|鹌鹑|鸽子|燕子|麻雀|喜鹊|乌鸦|老鹰|猫头鹰|夜莺|杜鹃|布谷|啄木鸟|翠鸟|蜂鸟|鸵鸟|企鹅|鸭子|鹅|鸡|火鸡|鹌鹑)/,
+          /\b(?:enemy|monster|foe|opponent|target|cultist|demon|devil|ghost|spirit|zombie|skeleton|vampire|werewolf|giant|dragon|snake|spider|scorpion|bat|raven|vulture|eagle|falcon|owl|nightingale|crow|magpie|sparrow|swallow|pigeon|seagull|swan|peacock|parrot|myna|thrush|warbler|cuckoo|woodpecker|kingfisher|hummingbird|ostrich|penguin|duck|goose|chicken|turkey|quail|pigeon|swallow|sparrow|magpie|crow|eagle|owl|nightingale|cuckoo|woodpecker|kingfisher|hummingbird|ostrich|penguin|duck|goose|chicken|turkey|quail)\b/i,
+        ],
+        extract: (matches) => {
+          for (const m of matches) {
+            const enemy = m[1] || m[0];
+            if (enemy) return enemy.trim();
           }
           return null;
         },

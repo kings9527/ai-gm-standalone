@@ -256,28 +256,63 @@ export class ActionHandler {
     input: string,
     params: Record<string, unknown>
   ): Promise<ActionDispatchResult> {
+    // Phase 2-B: 战斗前显示 LLM 生成的战斗开场描述
+    let combatNarration = '';
+    const target = (params.target as string) || (params.enemy as string) || '敌人';
+
+    if (this.llmClient?.isAvailable()) {
+      try {
+        const weapon = (params.weapon as string) || '';
+        const enemyType = (params.enemyType as string) || target;
+        const sceneName = this.stateMachine.module?.scenes[this.stateMachine.campaign?.current_scene || '']?.title || '此处';
+
+        const prompt = `你是一位TRPG游戏的AI-GM。玩家刚刚决定进入战斗。
+场景：${sceneName}
+玩家行动：${input}
+目标敌人：${enemyType}
+${weapon ? `玩家武器：${weapon}` : ''}
+
+请生成一段简短、紧张、沉浸式的战斗开场描述（2-3句话）。描述氛围、敌人的姿态、以及战斗一触即发的紧张感。不要输出任何系统提示或格式标记，只输出纯描述文本。`;
+
+        const response = await this.llmClient.chat(
+          [
+            { role: 'system', content: '你是AI-GM，负责生成战斗开场描述。只输出描述文本，不要加引号或格式标记。' },
+            { role: 'user', content: prompt },
+          ],
+          { maxTokens: 128, temperature: 0.8 }
+        );
+        combatNarration = response.content?.trim() || '';
+      } catch {
+        // LLM 失败时回退到默认描述
+        combatNarration = '';
+      }
+    }
+
     // 调用 stateMachine 的战斗初始化逻辑，复用现有 combat 系统
-    const result = await this.stateMachine.handleCombatInitiation({ target: params.target }, input);
+    const result = await this.stateMachine.handleCombatInitiation({ target }, input);
 
     if (result.type === 'combat_start') {
+      // Phase 2-B: 优先使用 LLM 生成的战斗开场描述，回退到 stateMachine 返回的 narration
+      const finalNarration = combatNarration || result.narration || `你拔出武器，准备与 ${target} 战斗！`;
+
       return {
         mode: 'combat',
         handled: true,
-        narration: result.narration,
+        narration: finalNarration,
         combatStart: {
           enemies: result.enemies as string[],
           target: result.target as string,
-          narration: result.narration as string,
+          narration: finalNarration,
         },
         extractedParams: params,
       };
     }
 
-    // 场景不支持战斗：返回提示文本，仍标记为已处理
+    // 场景不支持战斗：返回提示文本
     return {
       mode: 'combat',
       handled: true,
-      narration: result.narration || '这里没有敌人。你的攻击只是打在了空气里。',
+      narration: combatNarration || result.narration || '这里没有敌人。你的攻击只是打在了空气里。',
       extractedParams: params,
     };
   }
