@@ -1,5 +1,7 @@
 import { DiceRoller } from './dice';
 import { IntentParser, type IntentResult } from './intent-parser';
+import { EventSystem } from './event-system';
+import { SceneLoader } from './scene-loader';
 import type { Module, Campaign, NPCState } from '../types/module';
 
 /**
@@ -29,6 +31,8 @@ export class GameStateMachine {
   llmClient: any | null;
   diceRoller: DiceRoller;
   intentParser: IntentParser;
+  eventSystem: EventSystem;
+  sceneLoader: SceneLoader;
 
   constructor(module: Module, campaign: Campaign, llmClient: any = null) {
     this.module = module;
@@ -37,6 +41,8 @@ export class GameStateMachine {
     this.llmClient = llmClient;
     this.diceRoller = new DiceRoller();
     this.intentParser = new IntentParser(llmClient, { enableCache: true, llmConfidenceThreshold: 0.7 });
+    this.eventSystem = new EventSystem(module, campaign, this.currentScene);
+    this.sceneLoader = new SceneLoader(module);
   }
 
   async processAction(action: GameAction): Promise<GameResult> {
@@ -47,8 +53,30 @@ export class GameStateMachine {
 
     const intent = await this.parseIntent(player_input || '', action_type);
 
-    const eventResult = this.checkSceneEvents(intent);
-    if (eventResult) return eventResult;
+    const eventResult = this.eventSystem.checkEvents(intent, player_input || '');
+    if (eventResult.triggered) {
+      // 应用事件解锁的场景更新
+      if (eventResult.unlocked) {
+        const { scene: updatedScene, changes } = this.sceneLoader.applySceneUnlocks(
+          this.currentScene,
+          this.campaign,
+          eventResult.unlocked
+        );
+        this.currentScene = updatedScene;
+        // 同步更新 module 中的场景引用
+        this.module = this.sceneLoader.updateSceneInModule(this.currentScene.id, updatedScene);
+        if (changes.length > 0) {
+          eventResult.narration = `${eventResult.narration}\n\n【发现】${changes.join('；')}`;
+        }
+      }
+      return {
+        type: 'event',
+        event_id: eventResult.eventId,
+        scene: this.currentScene.id,
+        narration: eventResult.narration || '发生了一些事情...',
+        available_actions: this.getAvailableActions(),
+      };
+    }
 
     if (intent.type === 'move') {
       const matchedExit = this.findMatchingExit(action.action_data?.direction as string, player_input || '');
@@ -585,16 +613,23 @@ export class GameStateMachine {
   }
 
   async transitionTo(sceneId: string, _metadata: any = {}): Promise<GameResult> {
-    const scene = this.module.scenes[sceneId];
+    const loaded = this.sceneLoader.loadScene(sceneId, this.campaign);
+    const scene = loaded.scene;
     if (!scene) throw new Error(`Scene not found: ${sceneId}`);
 
     if (this.currentScene?.combat?.enabled && !scene.combat?.enabled) {
-      this.campaign.combat_state = null;
+      this.campaign = { ...this.campaign, combat_state: null };
     }
 
-    this.campaign.scene_history.push(sceneId);
-    this.campaign.current_scene = sceneId;
+    this.campaign = {
+      ...this.campaign,
+      scene_history: [...this.campaign.scene_history, sceneId],
+      current_scene: sceneId,
+    };
     this.currentScene = scene;
+
+    // 重新初始化 EventSystem 为新场景
+    this.eventSystem = new EventSystem(this.module, this.campaign, this.currentScene);
 
     if (scene.ending) {
       return {

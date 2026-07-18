@@ -47,6 +47,8 @@ export interface Scene {
   combat?: CombatConfig;
   ending?: EndingConfig;
   events?: string[];
+  /** Phase 2-C: 隐藏事件列表，需特定自然语言输入触发 */
+  hidden_events?: Event[];
 }
 
 export interface SpritePlacement {
@@ -124,8 +126,21 @@ export interface Event {
     time?: string;
     chance?: number;
     condition?: Condition;
+    /** Phase 2-C: 自然语言关键词匹配。玩家输入包含任一关键词时触发 */
+    keywords?: string[];
+    /** Phase 2-C: 自然语言匹配模式。'exact'=精确匹配, 'contains'=包含匹配, 'fuzzy'=模糊匹配 */
+    match_mode?: 'exact' | 'contains' | 'fuzzy';
+    /** Phase 2-C: 最小匹配关键词数量（默认1） */
+    min_match_count?: number;
   };
   effect?: Record<string, unknown>;
+  /** Phase 2-C: 事件完成后解锁的场景内容 */
+  unlocks?: {
+    exits?: Exit[];
+    npcs?: string[];
+    items?: string[];
+    interactables?: string[];
+  };
   repeatable?: boolean;
   sanity_check?: { target: number; failure: string };
 }
