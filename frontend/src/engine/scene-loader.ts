@@ -16,6 +16,10 @@ export interface LoadedScene {
   hasHiddenEvents: boolean;
   /** 未触发 hidden_events 的提示信息（可选） */
   hiddenHints?: string[];
+  /** Phase 2-G: 是否包含可搜索区域 */
+  hasSearchableAreas: boolean;
+  /** Phase 2-G: 可搜索区域的提示信息 */
+  searchHints?: string[];
 }
 
 export class SceneLoader {
@@ -38,15 +42,21 @@ export class SceneLoader {
     // 检查已触发的 hidden_events，过滤掉已触发的
     const hiddenEvents = this.getAvailableHiddenEvents(scene, campaign);
 
+    // Phase 2-G: 过滤掉已发现的 once_only 可搜索区域
+    const searchableAreas = this.getAvailableSearchableAreas(scene, campaign);
+
     const loadedScene: Scene = {
       ...scene,
       hidden_events: hiddenEvents,
+      searchable_areas: searchableAreas,
     };
 
     return {
       scene: loadedScene,
       hasHiddenEvents: hiddenEvents.length > 0,
       hiddenHints: hiddenEvents.map((e) => e.description.substring(0, 50) + '...').filter(Boolean),
+      hasSearchableAreas: searchableAreas.length > 0,
+      searchHints: searchableAreas.map((a) => a.name).filter(Boolean),
     };
   }
 
@@ -67,6 +77,27 @@ export class SceneLoader {
       // 检查前置条件
       if (event.trigger?.condition && !this.evaluateCondition(event.trigger.condition, campaign)) {
         return false;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * 获取场景中未发现的 searchable_areas（过滤掉已发现的 once_only 区域）
+   * Phase 2-G
+   */
+  private getAvailableSearchableAreas(scene: Scene, campaign: Campaign) {
+    if (!scene.searchable_areas || scene.searchable_areas.length === 0) {
+      return [];
+    }
+
+    return scene.searchable_areas.filter((area) => {
+      // 如果只能发现一次且已发现，则过滤掉
+      if (area.once_only) {
+        const discoveredKey = `discovered_area:${scene.id}:${area.id}`;
+        if (campaign.global_vars[discoveredKey]) {
+          return false;
+        }
       }
       return true;
     });

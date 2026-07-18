@@ -49,6 +49,31 @@ export interface Scene {
   events?: string[];
   /** Phase 2-C: 隐藏事件列表，需特定自然语言输入触发 */
   hidden_events?: Event[];
+  /** Phase 2-G: 可搜索区域列表，玩家输入'搜索'、'查看'等时触发 */
+  searchable_areas?: SearchableArea[];
+}
+
+/** Phase 2-G: 可搜索区域定义 */
+export interface SearchableArea {
+  id: string;
+  /** 区域名称（用于匹配玩家输入） */
+  name: string;
+  /** 区域描述（用于LLM生成上下文） */
+  description: string;
+  /** 发现概率 (0-1) */
+  discovery_chance: number;
+  /** 匹配关键词列表 */
+  keywords: string[];
+  /** 发现后获得的物品ID列表 */
+  items?: string[];
+  /** 发现后获得的线索/信息 */
+  clues?: string[];
+  /** 发现后解锁的可互动物品ID */
+  unlocks_interactables?: string[];
+  /** 发现后的背景图搜索查询词（用于ImageBridge） */
+  bg_query?: string;
+  /** 是否只能发现一次 */
+  once_only?: boolean;
 }
 
 export interface SpritePlacement {

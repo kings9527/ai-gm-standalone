@@ -24,6 +24,7 @@ import { LLMClient } from '../llm/client';
 import { ActionHandler, type SettingsCommand } from '../engine/action-handler';
 import { ImageBridge } from '../engine/image-bridge';
 import { NPCDialogueSystem } from '../engine/npc-system';
+import { ExploreSystem } from '../engine/explore-system';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -413,6 +414,79 @@ const PlayPage: React.FC = () => {
             }
           }
           return;
+        }
+
+        // Phase 2-G: 探索意图下，如果无场景切换，尝试 searchable_areas 搜索
+        if (intentResult.intent === 'explore' && !actionResult.sceneChange) {
+          const exploreSystem = new ExploreSystem();
+          const currentSceneId = useGameStore.getState().currentSceneId;
+          const currentScene = currentSceneId ? module.scenes[currentSceneId] : null;
+          const currentCampaign = useGameStore.getState().campaign;
+
+          if (currentScene && currentCampaign) {
+            const exploreResult = await exploreSystem.search(
+              text,
+              currentScene,
+              currentCampaign,
+              llmClient,
+            );
+
+            // 显示发现描述（覆盖 ActionHandler 的默认叙事）
+            if (exploreResult.description) {
+              vnRef.current?.displayNarration(exploreResult.description, null);
+            }
+
+            // ImageBridge 联动：发现新区域时切换背景图
+            if (exploreResult.newBgUrl && vnRef.current) {
+              const snapshot = vnRef.current.getSnapshot();
+              vnRef.current.restoreSnapshot({
+                ...snapshot,
+                bg: exploreResult.newBgUrl,
+                bgTransition: 'fade',
+              });
+            }
+
+            // 如果有解锁互动物品，更新场景和 stateMachine
+            if (
+              exploreResult.unlockedInteractables &&
+              exploreResult.unlockedInteractables.length > 0
+            ) {
+              const updatedInteractables = [
+                ...(currentScene.interactables || []),
+                ...exploreResult.unlockedInteractables,
+              ];
+              const updatedScene = { ...currentScene, interactables: updatedInteractables };
+              // 更新 stateMachine 当前场景引用
+              sm.currentScene = updatedScene;
+              // 更新 module 中的场景数据
+              sm.module = {
+                ...sm.module,
+                scenes: { ...sm.module.scenes, [currentScene.id]: updatedScene },
+              };
+            }
+
+            // 显示获得物品提示
+            if (exploreResult.items && exploreResult.items.length > 0) {
+              const itemNames = exploreResult.items
+                .map((id) => module.items?.[id]?.name || id)
+                .join('、');
+              setTimeout(() => {
+                vnRef.current?.displayNarration(`【获得物品】${itemNames} 已加入背包。`, '系统');
+              }, 500);
+            }
+
+            // 显示线索提示
+            if (exploreResult.clues && exploreResult.clues.length > 0) {
+              setTimeout(() => {
+                vnRef.current?.displayNarration(
+                  `【线索】${exploreResult.clues!.join('；')}`,
+                  '系统',
+                );
+              }, 800);
+            }
+
+            return;
+          }
         }
 
         // 事件触发：narration 已显示，无需额外操作

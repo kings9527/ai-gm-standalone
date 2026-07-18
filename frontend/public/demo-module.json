@@ -60,6 +60,30 @@
       ],
       "exits": [
         { "target": "scene_2", "label": "前进", "description": "走向走廊深处" }
+      ],
+      "searchable_areas": [
+        {
+          "id": "reception_desk",
+          "name": "接待台",
+          "description": "积满灰尘的接待台抽屉里藏着一些旧文件",
+          "discovery_chance": 0.8,
+          "keywords": ["接待台", "前台", " desk", "drawer", "抽屉"],
+          "items": ["item_1"],
+          "clues": ["医院在关闭前接收了大量精神科病人"],
+          "bg_query": "abandoned hospital reception desk dark creepy",
+          "once_only": true
+        },
+        {
+          "id": "corner_pile",
+          "name": "角落堆积物",
+          "description": "角落堆满了破旧的医疗设备和散落的文件",
+          "discovery_chance": 0.6,
+          "keywords": ["角落", "堆积", "pile", "corner", "杂物"],
+          "unlocks_interactables": ["item_1"],
+          "clues": ["实验记录显示地下室有异常活动"],
+          "bg_query": "abandoned hospital corner medical equipment",
+          "once_only": true
+        }
       ]
     },
     "scene_2": {
