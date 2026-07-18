@@ -73,8 +73,7 @@ export async function encrypt(text: string): Promise<string> {
     const cipherB64 = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
 
     return `${VERSION_PREFIX}${saltB64}:${ivB64}:${cipherB64}`;
-  } catch (err) {
-    console.error('[crypto] Encryption failed:', err);
+  } catch (_err) {
     return '';
   }
 }
@@ -107,8 +106,7 @@ export async function decrypt(cipher: string): Promise<string> {
     );
 
     return new TextDecoder().decode(decrypted);
-  } catch (err) {
-    console.error('[crypto] Decryption failed:', err);
+  } catch (_err) {
     return '';
   }
 }

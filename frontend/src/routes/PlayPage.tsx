@@ -351,7 +351,7 @@ const PlayPage: React.FC = () => {
       try {
         intentResult = await parser.parse(text);
       } catch (err) {
-        console.error('意图解析失败:', err);
+        // 解析失败时回退到 chat 意图
         intentResult = { intent: 'chat', confidence: 0, extractedParams: {} };
       }
 
@@ -545,7 +545,6 @@ const PlayPage: React.FC = () => {
             }
           }, 30);
         } catch (err) {
-          console.error('Chat streaming failed:', err);
           vnRef.current?.displayNarration('【系统】AI-GM 连接失败，请检查 LLM 配置。', '系统');
         }
         return;
@@ -581,8 +580,7 @@ const PlayPage: React.FC = () => {
             });
           }
         }
-      } catch (err: any) {
-        console.error('自由输入处理失败:', err);
+      } catch (_err) {
         vnRef.current?.displayNarration('【系统】处理输入时出错，请重试。', null);
       }
     },
