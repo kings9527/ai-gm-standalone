@@ -2,6 +2,7 @@ import { DiceRoller } from './dice';
 import { IntentParser, type IntentResult } from './intent-parser';
 import { EventSystem } from './event-system';
 import { SceneLoader } from './scene-loader';
+import { StoryEngine } from './story-engine';
 import type { Module, Campaign, NPCState } from '../types/module';
 
 /**
@@ -21,6 +22,16 @@ export interface GameResult {
   scene?: string | Record<string, unknown>;
   narration?: string;
   available_actions?: Array<{ type: string; target?: string; label: string }>;
+  /** Phase 3-C: StoryEngine 动态生成的剧情标记 */
+  storyProgression?: {
+    isMajorPlotPoint: boolean;
+    npcDialogue?: { npcId: string; text: string; emotion?: string };
+    bgHint?: string;
+  };
+  /** Phase 3-C: 全局变量更新 */
+  globalVarUpdates?: Record<string, unknown>;
+  /** Phase 3-C: NPC 状态更新 */
+  npcStateUpdates?: Record<string, Partial<NPCState>>;
   [key: string]: unknown;
 }
 
@@ -33,6 +44,8 @@ export class GameStateMachine {
   intentParser: IntentParser;
   eventSystem: EventSystem;
   sceneLoader: SceneLoader;
+  /** Phase 3-C: LLM 驱动的剧情引擎 */
+  storyEngine: StoryEngine;
 
   constructor(module: Module, campaign: Campaign, llmClient: any = null) {
     this.module = module;
@@ -43,6 +56,7 @@ export class GameStateMachine {
     this.intentParser = new IntentParser(llmClient, { enableCache: true, llmConfidenceThreshold: 0.7 });
     this.eventSystem = new EventSystem(module, campaign, this.currentScene);
     this.sceneLoader = new SceneLoader(module);
+    this.storyEngine = new StoryEngine(module, llmClient);
   }
 
   async processAction(action: GameAction): Promise<GameResult> {
@@ -105,6 +119,15 @@ export class GameStateMachine {
 
     if (intent.type === 'attack') {
       return await this.handleCombatInitiation(intent, player_input || '');
+    }
+
+    // Phase 3-C: 当基础意图都不匹配时，尝试 LLM 驱动的剧情推进
+    if (this.llmClient?.isAvailable()) {
+      const storyResult = await this.handleStoryProgression(
+        player_input || '',
+        chat_history || '',
+      );
+      if (storyResult) return storyResult;
     }
 
     return this.handleSceneInteraction(intent);
@@ -562,6 +585,103 @@ export class GameStateMachine {
     };
   }
 
+  /**
+   * Phase 3-C: LLM 驱动的剧情推进。
+   * 当固定事件和基础意图都不匹配时，由 StoryEngine 动态生成剧情走向。
+   */
+  async handleStoryProgression(playerInput: string, _chatHistory: string): Promise<GameResult | null> {
+    if (!this.llmClient?.isAvailable()) return null;
+
+    try {
+      const result = await this.storyEngine.progress({
+        scene: this.currentScene,
+        campaign: this.campaign,
+        module: this.module,
+        playerInput,
+        inputHistory: this.campaign.inputHistory || [],
+        recentEvents: this.extractRecentEvents(),
+      });
+
+      // 应用全局变量更新（不可变更新）
+      if (result.globalVarUpdates && Object.keys(result.globalVarUpdates).length > 0) {
+        this.campaign = {
+          ...this.campaign,
+          global_vars: { ...this.campaign.global_vars, ...result.globalVarUpdates },
+        };
+      }
+
+      // 应用 NPC 状态更新（不可变更新）
+      if (result.npcStateUpdates && Object.keys(result.npcStateUpdates).length > 0) {
+        const updatedNpcs = { ...this.campaign.npcs_state };
+        for (const [npcId, updates] of Object.entries(result.npcStateUpdates)) {
+          updatedNpcs[npcId] = { ...updatedNpcs[npcId], ...updates };
+        }
+        this.campaign = { ...this.campaign, npcs_state: updatedNpcs };
+      }
+
+      // 如果有场景切换建议，执行场景切换
+      if (result.sceneChange && result.sceneChange.targetSceneId) {
+        const targetScene = this.module.scenes[result.sceneChange.targetSceneId];
+        if (targetScene) {
+          // 先返回 narrative result，PlayPage 会检测到 sceneChange 并调用 handleSceneChange
+          return {
+            type: 'story_progression_scene_change',
+            scene: this.currentScene.id,
+            narration: result.narration,
+            sceneChange: {
+              to: result.sceneChange.targetSceneId,
+              from: this.currentScene.id,
+            },
+            storyProgression: {
+              isMajorPlotPoint: result.isMajorPlotPoint,
+              npcDialogue: result.npcDialogue,
+              bgHint: result.bgHint,
+            },
+            available_actions: result.suggestedActions,
+            globalVarUpdates: result.globalVarUpdates,
+            npcStateUpdates: result.npcStateUpdates,
+          };
+        }
+      }
+
+      // 纯叙事推进（无场景切换）
+      return {
+        type: 'story_progression',
+        scene: this.currentScene.id,
+        narration: result.narration,
+        storyProgression: {
+          isMajorPlotPoint: result.isMajorPlotPoint,
+          npcDialogue: result.npcDialogue,
+          bgHint: result.bgHint,
+        },
+        available_actions: result.suggestedActions.length > 0
+          ? result.suggestedActions
+          : this.getAvailableActions(),
+        globalVarUpdates: result.globalVarUpdates,
+        npcStateUpdates: result.npcStateUpdates,
+      };
+    } catch (err) {
+      console.warn('[GameStateMachine] Story progression failed:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Phase 3-C: 提取最近触发的事件记录作为剧情上下文。
+   */
+  private extractRecentEvents(): string[] {
+    const events: string[] = [];
+    if (!this.campaign.global_vars) return events;
+    for (const [key, value] of Object.entries(this.campaign.global_vars)) {
+      if (key.startsWith('event_triggered:') && value) {
+        const eventId = key.replace('event_triggered:', '');
+        const event = this.module.events?.[eventId];
+        if (event) events.push(event.description || eventId);
+      }
+    }
+    return events.slice(-5);
+  }
+
   handleSceneInteraction(intent: any): GameResult {
     const result: GameResult = {
       type: 'interaction',
@@ -631,6 +751,29 @@ export class GameStateMachine {
     // 重新初始化 EventSystem 为新场景
     this.eventSystem = new EventSystem(this.module, this.campaign, this.currentScene);
 
+    // Phase 3-C: 尝试生成动态场景描述
+    let dynamicNarration: string | null = null;
+    if (this.llmClient?.isAvailable()) {
+      try {
+        const narration = await this.storyEngine.narrateScene({
+          scene,
+          campaign: this.campaign,
+          module: this.module,
+          inputHistory: this.campaign.inputHistory || [],
+          recentEvents: this.extractRecentEvents(),
+        });
+        if (narration.description && narration.description !== scene.description) {
+          dynamicNarration = narration.description;
+          // 如果动态描述附带氛围文本，追加
+          if (narration.atmosphere) {
+            dynamicNarration += `\n\n${narration.atmosphere}`;
+          }
+        }
+      } catch (err) {
+        /* no-op: fallback to static description */
+      }
+    }
+
     if (scene.ending) {
       return {
         type: 'ending',
@@ -661,7 +804,9 @@ export class GameStateMachine {
       from: this.campaign.scene_history[this.campaign.scene_history.length - 2] || null,
       to: sceneId,
       scene: { id: scene.id, title: scene.title, description: scene.description, npcs_present: scene.npcs || [], interactables: scene.interactables || [] },
-      narration: `你来到了${scene.title}。${scene.description}`,
+      narration: dynamicNarration
+        ? `你来到了${scene.title}。\n\n${dynamicNarration}`
+        : `你来到了${scene.title}。${scene.description}`,
       available_actions: this.getAvailableActions(),
     };
   }

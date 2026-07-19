@@ -27,6 +27,7 @@ import { ImageBridge } from '../engine/image-bridge';
 import { NPCDialogueSystem } from '../engine/npc-system';
 import { ExploreSystem } from '../engine/explore-system';
 import { LLMOptionGenerator } from '../llm/llm-option-generator';
+import { StoryEngine } from '../engine/story-engine';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -611,6 +612,88 @@ const PlayPage: React.FC = () => {
           player_input: text,
         });
 
+        // Phase 3-C: 处理 LLM 驱动的剧情推进结果
+        if (result.type === 'story_progression' || result.type === 'story_progression_scene_change') {
+          // 显示叙事
+          if (result.narration) {
+            vnRef.current?.displayNarration(result.narration, null);
+          }
+
+          // Phase 3-C: 显示 NPC 对话（如果 StoryEngine 生成了）
+          const sp = (result as any).storyProgression;
+          if (sp?.npcDialogue) {
+            const npc = module.npcs?.[sp.npcDialogue.npcId];
+            if (npc && vnRef.current) {
+              setTimeout(() => {
+                vnRef.current?.displayNPCDialogue(
+                  sp.npcDialogue.text,
+                  npc.name,
+                  sp.npcDialogue.emotion || 'neutral',
+                  false,
+                );
+              }, 500);
+            }
+          }
+
+          // Phase 3-C: 应用全局变量更新到 store
+          const gvu = (result as any).globalVarUpdates;
+          if (gvu && Object.keys(gvu).length > 0) {
+            const currentCampaign = useGameStore.getState().campaign;
+            if (currentCampaign) {
+              setCampaign({
+                ...currentCampaign,
+                global_vars: { ...currentCampaign.global_vars, ...gvu },
+              });
+              // 同步到 stateMachine
+              sm.campaign = {
+                ...sm.campaign,
+                global_vars: { ...sm.campaign.global_vars, ...gvu },
+              };
+            }
+          }
+
+          // Phase 3-C: 应用 NPC 状态更新到 store
+          const nsu = (result as any).npcStateUpdates;
+          if (nsu && Object.keys(nsu).length > 0) {
+            const currentCampaign = useGameStore.getState().campaign;
+            if (currentCampaign) {
+              const updatedNpcs = { ...currentCampaign.npcs_state };
+              for (const [npcId, updates] of Object.entries(nsu)) {
+                const base = updatedNpcs[npcId] || {};
+                updatedNpcs[npcId] = Object.assign({}, base, updates as Record<string, unknown>);
+              }
+              setCampaign({ ...currentCampaign, npcs_state: updatedNpcs });
+              sm.campaign = { ...sm.campaign, npcs_state: updatedNpcs };
+            }
+          }
+
+          // Phase 3-C: 处理场景切换建议
+          if (result.type === 'story_progression_scene_change') {
+            const sc = (result as any).sceneChange;
+            if (sc?.to) {
+              setTimeout(() => {
+                handleSceneChange(sc.to);
+              }, 1500);
+            }
+          }
+
+          // Phase 3-C: 更新建议动作到 VN 选项
+          if (result.available_actions && result.available_actions.length > 0) {
+            const newChoices = result.available_actions.map((action: any, idx: number) => ({
+              id: `story_${idx}_${action.type}`,
+              text: action.label || action.type,
+              disabled: false,
+            }));
+            const snapshot = vnRef.current?.getSnapshot();
+            if (snapshot) {
+              vnRef.current?.restoreSnapshot({ ...snapshot, choices: newChoices });
+            }
+          }
+
+          return;
+        }
+
+        // 原有兜底逻辑
         if (result.narration) {
           const npcId = (result as any).npc_id as string | undefined;
           const speaker = npcId ? module.npcs?.[npcId]?.name || null : null;
@@ -666,7 +749,7 @@ const PlayPage: React.FC = () => {
   useEffect(() => {
     if (!module || loading || !currentSceneId) return;
     generateAndUpdateChoices();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [currentSceneId, inputHistory.length, module, loading]);
 
   // 游戏启动时应用全屏设置
