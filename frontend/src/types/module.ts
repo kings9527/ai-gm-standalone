@@ -352,6 +352,40 @@ export interface NPCState {
   turns_in_scene: number;
   is_alive: boolean;
   custom_vars: Record<string, unknown>;
+  /** Phase 3-B: NPC 记忆 — 记录与玩家/其他 NPC 的关键事件 */
+  memory?: NPCMemoryEntry[];
+  /** Phase 3-B: NPC 关系网 — 对其他 NPC 的态度 */
+  relationships?: Record<string, NPCRelationship>;
+}
+
+/** Phase 3-B: NPC 记忆条目 */
+export interface NPCMemoryEntry {
+  /** 游戏回合数 */
+  turn: number;
+  /** 场景 ID */
+  scene_id: string;
+  /** 事件类型 */
+  type: 'player_talk' | 'player_attack' | 'player_help' | 'player_threat' | 'npc_interaction' | 'observation' | 'combat';
+  /** 事件描述 */
+  description: string;
+  /** 对 NPC 态度的影响值 (-100 ~ 100) */
+  impact: number;
+  /** 相关 NPC ID（如果是 NPC 互动） */
+  related_npc_id?: string;
+}
+
+/** Phase 3-B: NPC 关系 */
+export interface NPCRelationship {
+  /** 目标 NPC ID */
+  npc_id: string;
+  /** 态度 */
+  attitude: 'hostile' | 'neutral' | 'friendly' | 'afraid';
+  /** 信任值 0-100 */
+  trust: number;
+  /** 最后互动回合 */
+  last_interaction_turn: number;
+  /** 关系标签（如"同事"、"敌人"） */
+  tag?: string;
 }
 
 export interface CombatState {

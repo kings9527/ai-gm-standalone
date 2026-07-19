@@ -79,6 +79,8 @@ export class NPCDecisionEngine {
         turns_in_scene: 0,
         is_alive: true,
         custom_vars: {},
+        memory: [],
+        relationships: {},
       };
     }
     return this.campaign.npcs_state[npcId];
