@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { CSSProperties } from 'react';
 import type { Campaign, Module, GameSave, NPCDialogueHistoryEntry, QuestLog } from '../types/module';
 import type { CombatState } from '../types/combat';
 import type { GameStateMachine } from '../engine/state-machine';
@@ -26,10 +27,10 @@ interface GameState {
 
   // Phase 3-E: 情绪/氛围引擎状态
   atmosphere: string | null;
-  atmosphereOverlay: React.CSSProperties;
+  atmosphereOverlay: CSSProperties;
   atmosphereFilter: string;
   setAtmosphere: (atmosphere: string | null) => void;
-  setAtmosphereOverlay: (overlay: React.CSSProperties) => void;
+  setAtmosphereOverlay: (overlay: CSSProperties) => void;
   setAtmosphereFilter: (filter: string) => void;
   setCampaign: (campaign: Campaign) => void;
   setModule: (module: Module) => void;

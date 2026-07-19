@@ -109,7 +109,7 @@ export class StoryEngine {
       this.setCache(cacheKey, parsed);
       return parsed;
     } catch (err) {
-      console.warn('[StoryEngine] LLM call failed, using fallback:', err);
+      console.error('[StoryEngine] LLM call failed, using fallback:', err);
       return this.fallbackProgression(context);
     }
   }
@@ -137,7 +137,7 @@ export class StoryEngine {
       }
       return parsed;
     } catch (err) {
-      console.warn('[StoryEngine] Scene narration failed:', err);
+      console.error('[StoryEngine] Scene narration failed:', err);
       return { description: context.scene.description };
     }
   }
@@ -167,7 +167,7 @@ export class StoryEngine {
       const parsed = this.parseNPCDialogue(response.content);
       return parsed || { text: response.content.trim(), emotion: npc.dynamic_response?.default_emotion || 'neutral' };
     } catch (err) {
-      console.warn('[StoryEngine] NPC dialogue generation failed:', err);
+      console.error('[StoryEngine] NPC dialogue generation failed:', err);
       return null;
     }
   }

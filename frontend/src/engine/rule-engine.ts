@@ -737,8 +737,7 @@ export class NaturalRuleEngine {
 
   private _log(...args: unknown[]): void {
     if (this.config.debug) {
-      // eslint-disable-next-line no-console
-      console.log('[NaturalRuleEngine]', ...args);
+      void args;
     }
   }
 
@@ -998,8 +997,7 @@ export class NaturalRuleEngine {
 
   private _actionLog(params: Record<string, unknown>, _ctx: RuleContext): ActionResult {
     const message = params.message as string;
-    // eslint-disable-next-line no-console
-    if (message) console.log('[RuleEngine:log]', message);
+    void message;
     return { actionType: 'log', success: true, output: message, resolvedParams: params };
   }
 

@@ -841,8 +841,8 @@ export class NPCDialogueSystem {
     const listener = speakerId === npcIdA ? npcB : npcA;
 
     // 生成对话内容
-    let text = '';
-    let emotion = 'neutral';
+    let text: string;
+    let emotion: string;
 
     if (llmClient?.isAvailable()) {
       try {
@@ -1002,7 +1002,7 @@ export class NPCDialogueSystem {
     const positiveMemories = npcState.memory?.filter((m) => m.impact > 0 && (m.type === 'player_help' || m.type === 'player_talk')).length || 0;
     const negativeMemories = npcState.memory?.filter((m) => m.impact < 0 && (m.type === 'player_attack' || m.type === 'player_threat')).length || 0;
 
-    let summary = '';
+    let summary: string;
     if (memoryCount === 0) {
       summary = `${npc?.name || npcId} 对玩家尚无深刻印象。`;
     } else if (positiveMemories > negativeMemories * 2) {

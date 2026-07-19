@@ -70,7 +70,7 @@ export class LLMOptionGenerator {
       const rawOptions = this.parseLLMResponse(response.content);
       return this.convertToVNChoices(rawOptions, ctx);
     } catch (err) {
-      console.warn('[LLMOptionGenerator] LLM 生成选项失败，回退到默认选项:', err);
+      console.error('[LLMOptionGenerator] LLM 生成选项失败，回退到默认选项:', err);
       return this.buildFallbackOptions(ctx);
     }
   }
@@ -177,7 +177,7 @@ ${history}
           .filter((opt: LLMRawOption) => opt.text.trim().length > 0);
       }
     } catch (err) {
-      console.warn('[LLMOptionGenerator] JSON 解析失败:', err);
+      console.error('[LLMOptionGenerator] JSON 解析失败:', err);
     }
 
     return [];

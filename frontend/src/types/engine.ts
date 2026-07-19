@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 export interface VNState {
   currentSceneId: string;
   bg: string;
@@ -10,7 +11,7 @@ export interface VNState {
   isPaused?: boolean; // 引擎暂停状态
   isChatStreaming?: boolean; // Phase 1-D: 闲聊模式 streaming 状态
   /** Phase 3-E: 当前氛围叠加层样式 */
-  atmosphereOverlay?: React.CSSProperties;
+  atmosphereOverlay?: CSSProperties;
   /** Phase 3-E: 氛围 CSS 滤镜 */
   atmosphereFilter?: string;
 }

@@ -686,7 +686,7 @@ export class GameStateMachine {
         npcStateUpdates: result.npcStateUpdates,
       };
     } catch (err) {
-      console.warn('[GameStateMachine] Story progression failed:', err);
+      console.error('[GameStateMachine] Story progression failed:', err);
       return null;
     }
   }

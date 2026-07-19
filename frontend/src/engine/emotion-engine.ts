@@ -7,6 +7,7 @@
  */
 
 import type { Module, Scene } from '../types/module';
+import type { CSSProperties } from 'react';
 
 /** 游戏氛围类型 */
 export type AtmosphereType =
@@ -523,7 +524,7 @@ export class EmotionEngine {
   /**
    * 生成氛围叠加层样式（用于 BackgroundLayer）
    */
-  getOverlayStyle(): React.CSSProperties {
+  getOverlayStyle(): CSSProperties {
     if (!this.currentConfig) return {};
     return {
       backgroundColor: this.currentConfig.overlayColor,
@@ -535,7 +536,7 @@ export class EmotionEngine {
   /**
    * 获取暗角样式（用于 vignette 增强）
    */
-  getVignetteStyle(): React.CSSProperties {
+  getVignetteStyle(): CSSProperties {
     if (!this.currentConfig) return {};
     return {
       boxShadow: `inset 0 0 ${150 + this.currentConfig.vignetteIntensity * 100}px ${60 + this.currentConfig.vignetteIntensity * 40}px rgba(0,0,0,${0.7 + this.currentConfig.vignetteIntensity * 0.2})`,

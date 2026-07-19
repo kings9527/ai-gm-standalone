@@ -133,8 +133,7 @@ const PlayPage: React.FC = () => {
         // Phase 3-E: 初始化情绪/氛围引擎
         if (!emotionEngineRef.current) {
           emotionEngineRef.current = new EmotionEngine({
-            onAtmosphereChange: (prev, next, event) => {
-              console.log(`[EmotionEngine] ${prev?.type} → ${next.type} (${event.source})`);
+            onAtmosphereChange: (prev, next, _event) => {
               useGameStore.getState().setAtmosphere(next.type);
             },
             onVisualFeedback: (effects) => {
@@ -193,7 +192,7 @@ const PlayPage: React.FC = () => {
 
     // Phase 3-F: 初始化任务系统并添加默认主线任务
     const questSystem = new QuestSystem(initialCampaign, {
-      onQuestAccepted: (q) => console.log('[Quest] Accepted:', q.title),
+      onQuestAccepted: (_q) => {},
       onQuestCompleted: (q, rewards) => {
         const rewardText = rewards.map((r) => {
           if (r.type === 'item') return `物品：${r.target}`;
@@ -307,7 +306,7 @@ const PlayPage: React.FC = () => {
         });
       }
     } catch (err) {
-      console.warn('[PlayPage] 生成选项失败:', err);
+      console.error('[PlayPage] 生成选项失败:', err);
     }
   }, []);
 
