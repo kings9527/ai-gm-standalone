@@ -29,6 +29,54 @@ import { ExploreSystem } from '../engine/explore-system';
 import { LLMOptionGenerator } from '../llm/llm-option-generator';
 import { StoryEngine } from '../engine/story-engine';
 import { EmotionEngine } from '../engine/emotion-engine';
+import { QuestSystem, QuestTemplates, type Quest, type QuestReward } from '../engine/quest-system';
+
+/**
+ * Phase 3-F: 任务卡片组件
+ */
+const QuestCard: React.FC<{ quest: Quest }> = ({ quest }) => {
+  const completedCount = quest.objectives.filter((o) => o.completed).length;
+  const totalCount = quest.objectives.length;
+  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  return (
+    <div className="bg-gray-900/60 border border-gray-700/30 rounded-lg p-3">
+      <div className="flex items-start justify-between mb-2">
+        <div className="text-gray-200 text-sm font-medium">{quest.title}</div>
+        <div className="text-[10px] text-gray-500">
+          {completedCount}/{totalCount}
+        </div>
+      </div>
+      <div className="text-gray-400 text-xs mb-2 leading-relaxed">{quest.description}</div>
+      {/* 进度条 */}
+      <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full bg-yellow-600/80 rounded-full transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      {/* 目标列表 */}
+      <div className="space-y-1">
+        {quest.objectives.map((obj) => (
+          <div key={obj.id} className="flex items-center gap-2">
+            <div
+              className={`w-3 h-3 rounded-full flex-shrink-0 border ${
+                obj.completed
+                  ? 'bg-green-900/50 border-green-600/50'
+                  : 'bg-gray-800 border-gray-600/50'
+              }`}
+            >
+              {obj.completed && <div className="w-full h-full flex items-center justify-center text-[6px] text-green-400">✓</div>}
+            </div>
+            <span className={`text-xs ${obj.completed ? 'text-gray-500 line-through' : 'text-gray-300'}`}>
+              {obj.description}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -56,6 +104,8 @@ const PlayPage: React.FC = () => {
 
   const [loadedFromSave, setLoadedFromSave] = useState(false);
   const [loadedSceneId, setLoadedSceneId] = useState<string | undefined>(undefined);
+  const [questPanelOpen, setQuestPanelOpen] = useState(false);
+  const [questNotify, setQuestNotify] = useState<{ title: string; message: string } | null>(null);
 
   const vnRef = useRef<VisualNovelEngineHandle>(null);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,6 +114,9 @@ const PlayPage: React.FC = () => {
   const npcDialogueRef = useRef<NPCDialogueSystem | null>(null);
   /** Phase 3-A: LLM 动态选项生成器实例 */
   const llmOptionGeneratorRef = useRef<LLMOptionGenerator | null>(null);
+
+  /** Phase 3-F: 任务系统实例 */
+  const questSystemRef = useRef<QuestSystem | null>(null);
 
   /** Phase 3-E: 情绪/氛围引擎实例 */
   const emotionEngineRef = useRef<EmotionEngine | null>(null);
@@ -137,6 +190,67 @@ const PlayPage: React.FC = () => {
       inputHistory: [], // Phase 1-B: 初始化空输入历史
       npcDialogueHistory: {}, // Phase 3-D: 初始化空对话历史
     };
+
+    // Phase 3-F: 初始化任务系统并添加默认主线任务
+    const questSystem = new QuestSystem(initialCampaign, {
+      onQuestAccepted: (q) => console.log('[Quest] Accepted:', q.title),
+      onQuestCompleted: (q, rewards) => {
+        const rewardText = rewards.map((r) => {
+          if (r.type === 'item') return `物品：${r.target}`;
+          if (r.type === 'npc_favor') return `好感度+${r.value}`;
+          if (r.type === 'stat_boost') return `${r.target}+${r.value}`;
+          return r.target;
+        }).join('、');
+        setQuestNotify({ title: `任务完成：${q.title}`, message: `获得奖励：${rewardText}` });
+        setTimeout(() => setQuestNotify(null), 5000);
+      },
+      onObjectiveCompleted: (q, obj) => {
+        setQuestNotify({ title: `目标完成`, message: `${q.title}：${obj.description}` });
+        setTimeout(() => setQuestNotify(null), 4000);
+      },
+    });
+
+    // 添加默认主线任务「调查密修会」
+    const mainQuest = QuestTemplates.createMainQuest(
+      'main_investigate_cult',
+      '调查密修会',
+      '阿卡姆镇近期发生了一系列离奇失踪案，所有线索都指向一个神秘的地下组织——密修会。作为调查员，你需要揭开这个组织的真相。',
+      [
+        { id: 'obj1', description: '到达阿卡姆镇图书馆，查阅关于密修会的历史资料', type: 'reach_scene', target: 'library', required: 1 },
+        { id: 'obj2', description: '与图书馆管理员威尔金斯交谈，获取密修会线索', type: 'talk_to_npc', target: 'wilkins', required: 1 },
+        { id: 'obj3', description: '找到密修会的秘密集会地点', type: 'reach_scene', target: 'cult_hideout', required: 1 },
+      ],
+      [
+        { type: 'item', target: 'ancient_tome' },
+        { type: 'stat_boost', target: '侦查', value: 10 },
+        { type: 'npc_favor', target: 'wilkins', value: 20 },
+      ],
+      ['library', 'cult_hideout', 'town_square'],
+      ['wilkins'],
+    );
+    questSystem.acceptQuest(mainQuest);
+
+    // 添加支线任务「失踪的猫」
+    const sideQuest = QuestTemplates.createSideQuest(
+      'side_missing_cat',
+      '失踪的猫',
+      '老街区的玛莎夫人拜托你寻找她失踪的黑猫"墨菲"。据说最后一次看到它是在废弃工厂附近。',
+      [
+        { id: 'sc1', description: '在废弃工厂附近找到墨菲', type: 'reach_scene', target: 'abandoned_factory', required: 1 },
+        { id: 'sc2', description: '将墨菲安全带回给玛莎夫人', type: 'talk_to_npc', target: 'martha', required: 1 },
+      ],
+      [
+        { type: 'item', target: 'lucky_charm' },
+        { type: 'npc_favor', target: 'martha', value: 30 },
+      ],
+      undefined,
+      ['abandoned_factory', 'old_district'],
+      ['martha'],
+    );
+    questSystem.acceptQuest(sideQuest);
+
+    questSystemRef.current = questSystem;
+    useGameStore.getState().setQuestLog(questSystem.getQuestLog());
 
     setCampaign(initialCampaign);
     const { llm } = useSettingsStore.getState();
@@ -219,6 +333,14 @@ const PlayPage: React.FC = () => {
       // 同步更新 stateMachine，确保后续状态操作一致
       sm.campaign = updatedCampaign;
       sm.currentScene = currentModule.scenes[sceneId];
+
+      // Phase 3-F: 场景切换时自动检查任务目标
+      if (questSystemRef.current) {
+        const updated = questSystemRef.current.autoCheckObjective('reach_scene', sceneId);
+        if (updated.length > 0) {
+          useGameStore.getState().setQuestLog(questSystemRef.current.getQuestLog());
+        }
+      }
 
       // Phase 2-F: 检查 NPC 主动发起对话（Phase 3-D: 保留历史上下文实现跨场景记忆）
       if (npcDialogueRef.current) {
@@ -307,6 +429,27 @@ const PlayPage: React.FC = () => {
           onHistoryUpdate: (history) => useGameStore.getState().setNpcDialogueHistory(history),
         });
 
+        // Phase 3-F: 读档后恢复任务系统
+        if (save.campaign.questLog) {
+          questSystemRef.current = new QuestSystem(restoredCampaign, {
+            onQuestCompleted: (q, rewards) => {
+              const rewardText = rewards.map((r) => {
+                if (r.type === 'item') return `物品：${r.target}`;
+                if (r.type === 'npc_favor') return `好感度+${r.value}`;
+                if (r.type === 'stat_boost') return `${r.target}+${r.value}`;
+                return r.target;
+              }).join('、');
+              setQuestNotify({ title: `任务完成：${q.title}`, message: `获得奖励：${rewardText}` });
+              setTimeout(() => setQuestNotify(null), 5000);
+            },
+            onObjectiveCompleted: (q, obj) => {
+              setQuestNotify({ title: `目标完成`, message: `${q.title}：${obj.description}` });
+              setTimeout(() => setQuestNotify(null), 4000);
+            },
+          });
+          useGameStore.getState().setQuestLog(questSystemRef.current.getQuestLog());
+        }
+
         setLoading(false);
       } catch (err: any) {
         setError(err.message || '读档失败');
@@ -384,6 +527,11 @@ const PlayPage: React.FC = () => {
     return { snapshot, thumbnail };
   }, [campaign, module]);
 
+  const handleQuestPanelToggle = useCallback(() => {
+    sfxClick();
+    setQuestPanelOpen((prev) => !prev);
+  }, []);
+
   // 处理自由输入：通过 GameStateMachine / ActionHandler 处理玩家输入并显示 AI 响应
   // Phase 1-E: 当意图为高置信度（>=0.6）非 'chat' 时，触发行动模式
   // Phase 1-D: 当意图为 chat 或 confidence < 0.6 时，进入闲聊模式，直接调用 LLM streaming
@@ -431,6 +579,15 @@ const PlayPage: React.FC = () => {
               npcDialogueRef.current.endDialogue(npcResult.npcId);
             }
           }
+
+          // Phase 3-F: NPC 对话完成后自动检查 talk_to_npc 目标
+          if (questSystemRef.current) {
+            const updated = questSystemRef.current.autoCheckObjective('talk_to_npc', npcResult.npcId);
+            if (updated.length > 0) {
+              useGameStore.getState().setQuestLog(questSystemRef.current.getQuestLog());
+            }
+          }
+
           return; // NPC 处理完毕，不再进入 AI-GM 流程
         }
       }
@@ -842,6 +999,10 @@ const PlayPage: React.FC = () => {
     };
   }, []);
 
+  const activeQuests = questSystemRef.current?.getActiveQuests() ?? [];
+  const mainQuests = questSystemRef.current?.getMainQuests().filter((q) => q.status === 'active') ?? [];
+  const sideQuests = questSystemRef.current?.getSideQuests().filter((q) => q.status === 'active') ?? [];
+
   if (loading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-black text-gray-400 gap-6 p-4">
@@ -881,6 +1042,69 @@ const PlayPage: React.FC = () => {
 
   return (
     <div className="relative w-full h-full">
+      {/* Phase 3-F: 任务通知弹窗 */}
+      {questNotify && (
+        <motion.div
+          initial={{ opacity: 0, y: -20, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, x: '-50%' }}
+          exit={{ opacity: 0, y: -20, x: '-50%' }}
+          className="fixed top-6 left-1/2 z-50 bg-black/90 border border-yellow-700/60 rounded-lg px-5 py-3 shadow-2xl max-w-md"
+        >
+          <div className="text-yellow-400 font-semibold text-sm">{questNotify.title}</div>
+          <div className="text-gray-300 text-xs mt-1">{questNotify.message}</div>
+        </motion.div>
+      )}
+
+      {/* Phase 3-F: 任务面板切换按钮 */}
+      {activeQuests.length > 0 && (
+        <motion.button
+          onClick={handleQuestPanelToggle}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="fixed top-4 right-4 z-40 bg-black/70 border border-yellow-700/50 text-yellow-400 rounded-lg px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-black/90 transition-colors"
+        >
+          📜 任务 ({activeQuests.length})
+        </motion.button>
+      )}
+
+      {/* Phase 3-F: 任务面板 */}
+      {questPanelOpen && (
+        <motion.div
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 100 }}
+          className="fixed top-14 right-4 z-40 w-80 max-h-[70vh] bg-black/90 border border-yellow-700/40 rounded-lg shadow-2xl backdrop-blur-sm overflow-hidden flex flex-col"
+        >
+          <div className="px-4 py-3 border-b border-yellow-700/30 flex items-center justify-between">
+            <span className="text-yellow-400 font-semibold text-sm">任务日志</span>
+            <button
+              onClick={() => setQuestPanelOpen(false)}
+              className="text-gray-500 hover:text-gray-300 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="overflow-y-auto flex-1 p-3 space-y-3">
+            {mainQuests.length > 0 && (
+              <div>
+                <div className="text-yellow-600 text-xs font-semibold uppercase tracking-wider mb-2">主线任务</div>
+                {mainQuests.map((quest) => (
+                  <QuestCard key={quest.id} quest={quest} />
+                ))}
+              </div>
+            )}
+            {sideQuests.length > 0 && (
+              <div>
+                <div className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">支线任务</div>
+                {sideQuests.map((quest) => (
+                  <QuestCard key={quest.id} quest={quest} />
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       <VisualNovelEngine
         ref={vnRef}
         module={module}
@@ -906,6 +1130,7 @@ const PlayPage: React.FC = () => {
         onQuit={handleQuit}
         onResume={handleResume}
         onExitApplication={handleExitApplication}
+        onQuestPanel={handleQuestPanelToggle}
       />
 
       <SaveLoadPanel

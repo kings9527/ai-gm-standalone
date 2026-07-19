@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, RotateCcw, Settings, LogOut, Play, X } from 'lucide-react';
+import { Save, RotateCcw, Settings, LogOut, Play, X, ScrollText } from 'lucide-react';
 
 interface InGameMenuProps {
   isOpen: boolean;
@@ -10,7 +10,8 @@ interface InGameMenuProps {
   onSettings: () => void;
   onQuit: () => void;
   onResume: () => void;
-  onExitApplication?: () => void; // 退出应用（Electron 环境）
+  onExitApplication?: () => void;
+  onQuestPanel?: () => void;
 }
 
 /**
@@ -27,6 +28,7 @@ export const InGameMenu: React.FC<InGameMenuProps> = ({
   onQuit,
   onResume,
   onExitApplication,
+  onQuestPanel,
 }) => {
   // ESC key handler
   useEffect(() => {
@@ -44,6 +46,7 @@ export const InGameMenu: React.FC<InGameMenuProps> = ({
 
   const menuItems = [
     { icon: Play, label: '继续游戏', action: onResume, color: 'text-green-400', border: 'border-green-900/30', hover: 'hover:bg-green-950/20 hover:border-green-800/40' },
+    ...(onQuestPanel ? [{ icon: ScrollText, label: '任务日志', action: onQuestPanel, color: 'text-yellow-400' as const, border: 'border-yellow-900/30' as const, hover: 'hover:bg-yellow-950/20 hover:border-yellow-800/40' as const }] : []),
     { icon: Save, label: '保存游戏', action: onSave, color: 'text-red-400', border: 'border-red-900/30', hover: 'hover:bg-red-950/20 hover:border-red-800/40' },
     { icon: RotateCcw, label: '读取存档', action: onLoad, color: 'text-amber-400', border: 'border-amber-900/30', hover: 'hover:bg-amber-950/20 hover:border-amber-800/40' },
     { icon: Settings, label: '设置', action: onSettings, color: 'text-blue-400', border: 'border-blue-900/30', hover: 'hover:bg-blue-950/20 hover:border-blue-800/40' },

@@ -340,6 +340,50 @@ export interface Campaign {
   inputHistory?: string[]; // 玩家自由输入历史（Phase 1-B 新增）
   /** Phase 3-D: NPC 完整对话历史 — 跨场景记忆 */
   npcDialogueHistory?: Record<string, NPCDialogueHistoryEntry[]>;
+  /** Phase 3-F: 任务日志系统 */
+  questLog?: QuestLog;
+}
+
+/** Phase 3-F: 任务日志 */
+export interface QuestLog {
+  /** 所有任务映射（id → Quest） */
+  quests: Record<string, Quest>;
+  /** 按顺序记录的任务历史（quest id 列表） */
+  history: string[];
+}
+
+/** Phase 3-F: 任务 */
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  type: 'main' | 'side';
+  status: 'not_started' | 'active' | 'completed' | 'failed';
+  objectives: QuestObjective[];
+  rewards: QuestReward[];
+  prerequisites?: string[];
+  relatedSceneIds?: string[];
+  relatedNpcIds?: string[];
+  acceptedAt?: number;
+  completedAt?: number;
+}
+
+/** Phase 3-F: 任务目标 */
+export interface QuestObjective {
+  id: string;
+  description: string;
+  completed: boolean;
+  type: 'reach_scene' | 'talk_to_npc' | 'find_item' | 'defeat_enemy' | 'custom';
+  target?: string;
+  progress: number;
+  required: number;
+}
+
+/** Phase 3-F: 任务奖励 */
+export interface QuestReward {
+  type: 'item' | 'skill' | 'npc_favor' | 'stat_boost' | 'custom';
+  target: string;
+  value?: number | string;
 }
 
 export interface Player {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Campaign, Module, GameSave, NPCDialogueHistoryEntry } from '../types/module';
+import type { Campaign, Module, GameSave, NPCDialogueHistoryEntry, QuestLog } from '../types/module';
 import type { CombatState } from '../types/combat';
 import type { GameStateMachine } from '../engine/state-machine';
 
@@ -50,6 +50,11 @@ interface GameState {
   // Restore from save
   restoreFromSave: (save: GameSave) => void;
   setPlayingAndScene: (sceneId: string) => void;
+
+  // Phase 3-F: 任务系统状态
+  questLog: QuestLog | null;
+  setQuestLog: (questLog: QuestLog | null) => void;
+  updateQuestLog: (updates: Partial<QuestLog>) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -69,12 +74,17 @@ export const useGameStore = create<GameState>((set) => ({
   // Phase 3-D: NPC 对话历史初始值
   npcDialogueHistory: {},
 
+  // Phase 3-F: 任务日志初始值
+  questLog: null,
+
   setCampaign: (campaign) => set({
     campaign,
     isPlaying: true,
     inputHistory: campaign.inputHistory ?? [],
     // Phase 3-D: 兼容旧存档，无 npcDialogueHistory 时默认空对象
     npcDialogueHistory: campaign.npcDialogueHistory ?? {},
+    // Phase 3-F: 兼容旧存档，无 questLog 时默认 null
+    questLog: campaign.questLog ?? null,
   }),
 
   setModule: (module) => set({ module }),
@@ -168,6 +178,25 @@ export const useGameStore = create<GameState>((set) => ({
       return { npcDialogueHistory: history, campaign: updatedCampaign };
     }),
 
+  // Phase 3-F: 任务日志 Actions
+  setQuestLog: (questLog) =>
+    set((state) => {
+      const updatedCampaign = state.campaign
+        ? { ...state.campaign, questLog: questLog ?? undefined }
+        : null;
+      return { questLog, campaign: updatedCampaign };
+    }),
+
+  updateQuestLog: (updates) =>
+    set((state) => {
+      if (!state.questLog) return state;
+      const newLog = { ...state.questLog, ...updates };
+      const updatedCampaign = state.campaign
+        ? { ...state.campaign, questLog: newLog }
+        : null;
+      return { questLog: newLog, campaign: updatedCampaign };
+    }),
+
   reset: () =>
     set({
       campaign: null,
@@ -181,6 +210,7 @@ export const useGameStore = create<GameState>((set) => ({
       freeInputText: '',
       inputHistory: [],
       npcDialogueHistory: {},
+      questLog: null,
     }),
 
   restoreFromSave: (save) =>
@@ -193,6 +223,8 @@ export const useGameStore = create<GameState>((set) => ({
       inputHistory: save.campaign.inputHistory ?? [],
       // Phase 3-D: 兼容旧存档，无 npcDialogueHistory 时默认空对象
       npcDialogueHistory: save.campaign.npcDialogueHistory ?? {},
+      // Phase 3-F: 兼容旧存档，无 questLog 时默认 null
+      questLog: save.campaign.questLog ?? null,
       inputMode: 'choice',
       freeInputText: '',
     }),
