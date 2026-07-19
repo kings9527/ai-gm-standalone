@@ -4,7 +4,7 @@ import BackgroundLayer from './BackgroundLayer';
 import SpriteLayer from './SpriteLayer';
 import DialogueLayer from './DialogueLayer';
 import EffectLayer from './EffectLayer';
-import type { VNState, VNEffect } from '../../types/engine';
+import type { VNState, VNEffect, VNChoice } from '../../types/engine';
 import type { Module, Scene, NPC } from '../../types/module';
 import { useGameStore } from '../../stores/gameStore';
 import { sfxMenuOpen, sfxMenuClose, sfxSave, sfxClick } from '../../utils/soundfx';
@@ -46,6 +46,8 @@ interface VisualNovelEngineProps {
   onCombatEnd?: (result: 'victory' | 'defeat' | 'fled') => void;
   onAutoSave?: (snapshot: VNState, thumbnail: string) => void; // 关键节点自动存档
   onFreeInput?: (text: string) => void;
+  /** Phase 3-A: 选项选择回调 — 当玩家选择非标准选项（combat/custom/dice_check 等）时触发 */
+  onChoice?: (choice: VNChoice) => void;
 }
 
 /**
@@ -57,7 +59,7 @@ interface VisualNovelEngineProps {
  * Supports snapshot save/restore for save/load system.
  */
 export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovelEngineProps>(
-  ({ module, initialSceneId, isPaused = false, onSave, onMenuToggle, onSceneChange, onCombatEnd, onAutoSave, onFreeInput }, ref) => {
+  ({ module, initialSceneId, isPaused = false, onSave, onMenuToggle, onSceneChange, onCombatEnd, onAutoSave, onFreeInput, onChoice }, ref) => {
     const startScene = initialSceneId || module.start_scene;
     const [vnState, setVnState] = useState<VNState>({
       currentSceneId: startScene,
@@ -271,7 +273,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
 
     const handleChoice = useCallback(
       (choiceId: string) => {
-        const choice = currentScene?.choices?.find((c) => c.id === choiceId);
+        // Phase 3-A: 从 vnState.choices 查找（支持 LLM 动态生成的选项）
+        const choice = vnState.choices.find((c) => c.id === choiceId);
         if (!choice) return;
 
         if (choice.action === 'scene' && choice.target) {
@@ -282,7 +285,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           }));
         } else if (choice.action === 'next') {
           handleAdvance();
-        } else if (choice.action === 'dice_check' && choice.dice_check) {
+        } else if (choice.action === 'dice_check') {
           const diceEffect: VNEffect = {
             type: 'shake',
             intensity: 0.8,
@@ -292,9 +295,18 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
             ...prev,
             effects: [...prev.effects, diceEffect],
           }));
+        } else if (choice.action === 'combat') {
+          // Phase 3-A: 触发战斗（由上层 PlayPage 处理具体逻辑）
+          onChoice?.(choice);
+        } else if (choice.action === 'free_input') {
+          // Phase 3-A: 自由输入 — 不处理，由 DialogueLayer 直接触发 onFreeInput
+          // 这里不需要额外操作
+        } else {
+          // Phase 3-A: custom 或其他未知 action，委托给上层 PlayPage
+          onChoice?.(choice);
         }
       },
-      [currentScene, handleAdvance]
+      [vnState.choices, handleAdvance, onChoice]
     );
 
     const handleSpriteClick = useCallback((charId: string) => {
@@ -485,6 +497,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
           isStreaming={vnState.isChatStreaming}
           npcInitiative={npcDialogueState.initiative}
           npcEmotion={npcDialogueState.emotion}
+          mixedDisplay={true} // Phase 3-A: 启用混合显示模式
         />
 
         {/* Layer 4: Effects */}

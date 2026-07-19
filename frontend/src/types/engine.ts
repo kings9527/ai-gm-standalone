@@ -36,6 +36,14 @@ export interface VNChoice {
   text: string;
   disabled: boolean;
   condition?: unknown;
+  /** Phase 3-A: LLM 动态选项生成 — 置信度 (0-1) */
+  confidence?: number;
+  /** Phase 3-A: 选项动作类型 */
+  action?: 'scene' | 'next' | 'dice_check' | 'combat' | 'custom' | 'free_input';
+  /** Phase 3-A: 选项目标 */
+  target?: string;
+  /** Phase 3-A: 是否标记为自由输入选项 */
+  isFreeInput?: boolean;
 }
 
 export interface VNEffect {

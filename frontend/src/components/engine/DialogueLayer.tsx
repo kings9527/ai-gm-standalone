@@ -16,6 +16,8 @@ interface DialogueLayerProps {
   npcInitiative?: boolean;
   /** Phase 2-F: NPC 情绪标签 — 控制对话框样式 */
   npcEmotion?: string;
+  /** Phase 3-A: 是否启用混合显示模式（同时显示选项和自由输入） */
+  mixedDisplay?: boolean;
 }
 
 /**
@@ -24,6 +26,9 @@ interface DialogueLayerProps {
  * Supports free input mode with textarea (Enter to send, Shift+Enter for newline).
  * Supports pause/resume for in-game menu overlay.
  * Uses CSS variables for dynamic theming (--agm-dialogue-bg, --agm-accent, --agm-text).
+ *
+ * Phase 3-A: 新增混合显示模式 — 同时显示 LLM 动态选项和自由输入区域。
+ * 选项附带 confidence 指示器（颜色深浅和圆点标记）。
  */
 export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   dialogue,
@@ -35,6 +40,7 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
   isStreaming = false,
   npcInitiative = false,
   npcEmotion,
+  mixedDisplay = true, // Phase 3-A: 默认启用混合显示
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -153,6 +159,160 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
     }
   };
 
+  // Phase 3-A: 渲染选项按钮，包含 confidence 指示器
+  const renderChoiceButton = (choice: VNChoice) => {
+    const isFreeInput = choice.isFreeInput || choice.action === 'free_input';
+    const confidence = choice.confidence ?? 0.5;
+    // confidence 颜色映射：高(0.8+)→亮色，低(0.5-)→暗色
+    const confidenceAlpha = Math.round(confidence * 255).toString(16).padStart(2, '0');
+    const confidenceLabel = confidence >= 0.9 ? '●' : confidence >= 0.7 ? '◐' : '○';
+
+    return (
+      <motion.button
+        key={choice.id}
+        className={`w-full text-left px-5 py-3 rounded-lg border transition-all duration-200 ${
+          choice.disabled
+            ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/50'
+            : 'hover:translate-x-2'
+        } ${isFreeInput ? 'border-dashed' : ''}`}
+        disabled={choice.disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isFreeInput && onFreeInput) {
+            // 自由输入选项：切换到自由输入模式
+            setInputMode('free');
+            setFreeText('');
+            setTimeout(() => textareaRef.current?.focus(), 100);
+          } else {
+            onChoice(choice.id);
+          }
+        }}
+        style={choice.disabled ? undefined : {
+          borderColor: isFreeInput
+            ? `${accentColor}60`
+            : `${accentColor}${confidenceAlpha}`,
+          backgroundColor: isFreeInput
+            ? `${accentColor}10`
+            : 'rgba(10,10,10,0.8)',
+        }}
+        whileHover={!choice.disabled ? { scale: 1.02 } : {}}
+        whileTap={!choice.disabled ? { scale: 0.98 } : {}}
+        onMouseEnter={(e) => {
+          if (!choice.disabled) {
+            e.currentTarget.style.backgroundColor = `${accentColor}15`;
+            e.currentTarget.style.borderColor = `${accentColor}80`;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!choice.disabled) {
+            e.currentTarget.style.backgroundColor = isFreeInput
+              ? `${accentColor}10`
+              : 'rgba(10,10,10,0.8)';
+            e.currentTarget.style.borderColor = isFreeInput
+              ? `${accentColor}60`
+              : `${accentColor}${confidenceAlpha}`;
+          }
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span style={{ color: textColor }}>{choice.text}</span>
+          {/* Phase 3-A: confidence 指示器 */}
+          {choice.confidence !== undefined && !isFreeInput && (
+            <span
+              className="text-xs ml-2 shrink-0"
+              style={{
+                color: `${accentColor}${confidenceAlpha}`,
+                opacity: 0.7,
+              }}
+              title={`置信度: ${(confidence * 100).toFixed(0)}%`}
+            >
+              {confidenceLabel}
+            </span>
+          )}
+        </div>
+      </motion.button>
+    );
+  };
+
+  // Phase 3-A: 渲染自由输入区域
+  const renderFreeInputArea = () => (
+    <motion.div
+      className="mt-3 pt-3 border-t border-dashed"
+      style={{ borderColor: `${accentColor}20` }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.2 }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs" style={{ color: `${accentColor}80` }}>
+          ✎ 自由输入
+        </span>
+        <div className="flex-1 h-px" style={{ backgroundColor: `${accentColor}20` }} />
+      </div>
+      <InputHistoryPanel
+        history={inputHistory}
+        onSelect={(text) => setFreeText(text)}
+        visible={true}
+        accentColor={accentColor}
+        textColor={textColor}
+        maxDisplay={5}
+      />
+      <textarea
+        ref={textareaRef}
+        value={freeText}
+        onChange={(e) => setFreeText(e.target.value)}
+        onKeyDown={handleTextareaKeyDown}
+        placeholder="输入你想做的事情...（Enter 发送，Shift+Enter 换行）"
+        rows={2}
+        className="w-full px-4 py-3 rounded-lg border resize-none text-sm leading-relaxed outline-none focus:ring-2 focus:ring-opacity-20 transition-all"
+        style={{
+          borderColor: `${accentColor}40`,
+          backgroundColor: 'rgba(10,10,10,0.85)',
+          color: textColor,
+          boxShadow: 'none',
+          caretColor: accentColor,
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = `${accentColor}80`;
+          e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.95)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = `${accentColor}40`;
+          e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.85)';
+        }}
+      />
+      <div className="flex justify-end mt-2">
+        <motion.button
+          className="px-4 py-2 rounded-lg text-sm font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={!freeText.trim()}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleFreeSubmit();
+          }}
+          style={{
+            borderColor: `${accentColor}60`,
+            backgroundColor: `${accentColor}20`,
+            color: accentColor,
+          }}
+          whileHover={freeText.trim() ? { scale: 1.03 } : {}}
+          whileTap={freeText.trim() ? { scale: 0.97 } : {}}
+          onMouseEnter={(e) => {
+            if (freeText.trim()) {
+              e.currentTarget.style.backgroundColor = `${accentColor}35`;
+              e.currentTarget.style.borderColor = `${accentColor}80`;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = `${accentColor}20`;
+            e.currentTarget.style.borderColor = `${accentColor}60`;
+          }}
+        >
+          发送 ↵
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+
   if (!dialogue) return null;
 
   return (
@@ -258,154 +418,68 @@ export const DialogueLayer: React.FC<DialogueLayerProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Mode Switch */}
-              {onFreeInput && (
-                <div className="flex justify-center mb-3">
-                  <motion.button
-                    className="px-3 py-1 rounded-full text-xs border transition-colors flex items-center gap-1.5"
-                    style={{
-                      borderColor: `${accentColor}40`,
-                      backgroundColor: 'rgba(10,10,10,0.8)',
-                      color: `${accentColor}cc`,
-                    }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInputMode((prev) => (prev === 'choice' ? 'free' : 'choice'));
-                      setFreeText('');
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${accentColor}15`;
-                      e.currentTarget.style.borderColor = `${accentColor}60`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.8)';
-                      e.currentTarget.style.borderColor = `${accentColor}40`;
-                    }}
-                  >
-                    <span>{inputMode === 'choice' ? '✎ 自由输入' : '☰ 选项模式'}</span>
-                  </motion.button>
-                </div>
-              )}
-
-              {/* Choice Mode */}
-              {inputMode === 'choice' && choices.length > 0 && (
+              {/* Phase 3-A: 混合显示模式 — 选项和自由输入同时显示 */}
+              {mixedDisplay ? (
                 <motion.div
                   className="flex flex-col gap-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, staggerChildren: 0.1 }}
                 >
-                  {choices.map((choice) => (
-                    <motion.button
-                      key={choice.id}
-                      className={`w-full text-left px-5 py-3 rounded-lg border transition-all duration-200 ${
-                        choice.disabled
-                          ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/50'
-                          : 'hover:translate-x-2'
-                      }`}
-                      disabled={choice.disabled}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onChoice(choice.id);
-                      }}
-                      style={choice.disabled ? undefined : {
-                        borderColor: `${accentColor}40`,
-                        backgroundColor: 'rgba(10,10,10,0.8)',
-                      }}
-                      whileHover={!choice.disabled ? { scale: 1.02 } : {}}
-                      whileTap={!choice.disabled ? { scale: 0.98 } : {}}
-                      onMouseEnter={(e) => {
-                        if (!choice.disabled) {
+                  {/* 动态选项列表（包含 confidence 显示） */}
+                  {choices.map((choice) => renderChoiceButton(choice))}
+
+                  {/* 混合模式下的自由输入区域（始终显示在选项下方） */}
+                  {onFreeInput && renderFreeInputArea()}
+                </motion.div>
+              ) : (
+                <>
+                  {/* Mode Switch */}
+                  {onFreeInput && (
+                    <div className="flex justify-center mb-3">
+                      <motion.button
+                        className="px-3 py-1 rounded-full text-xs border transition-colors flex items-center gap-1.5"
+                        style={{
+                          borderColor: `${accentColor}40`,
+                          backgroundColor: 'rgba(10,10,10,0.8)',
+                          color: `${accentColor}cc`,
+                        }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInputMode((prev) => (prev === 'choice' ? 'free' : 'choice'));
+                          setFreeText('');
+                        }}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = `${accentColor}15`;
                           e.currentTarget.style.borderColor = `${accentColor}60`;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!choice.disabled) {
+                        }}
+                        onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.8)';
                           e.currentTarget.style.borderColor = `${accentColor}40`;
-                        }
-                      }}
-                    >
-                      <span style={{ color: textColor }}>{choice.text}</span>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
+                        }}
+                      >
+                        <span>{inputMode === 'choice' ? '✎ 自由输入' : '☰ 选项模式'}</span>
+                      </motion.button>
+                    </div>
+                  )}
 
-              {/* Free Input Mode */}
-              {inputMode === 'free' && onFreeInput && (
-                <motion.div
-                  className="flex flex-col gap-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {/* Phase 1-F: 快捷输入历史面板 */}
-                  <InputHistoryPanel
-                    history={inputHistory}
-                    onSelect={(text) => setFreeText(text)}
-                    visible={inputMode === 'free'}
-                    accentColor={accentColor}
-                    textColor={textColor}
-                    maxDisplay={8}
-                  />
-                  <textarea
-                    ref={textareaRef}
-                    value={freeText}
-                    onChange={(e) => setFreeText(e.target.value)}
-                    onKeyDown={handleTextareaKeyDown}
-                    placeholder="输入你想做的事情...（Enter 发送，Shift+Enter 换行）"
-                    rows={2}
-                    className="w-full px-4 py-3 rounded-lg border resize-none text-sm leading-relaxed outline-none focus:ring-2 focus:ring-opacity-20 transition-all"
-                    style={{
-                      borderColor: `${accentColor}40`,
-                      backgroundColor: 'rgba(10,10,10,0.85)',
-                      color: textColor,
-                      boxShadow: 'none',
-                      caretColor: accentColor,
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = `${accentColor}80`;
-                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.95)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = `${accentColor}40`;
-                      e.currentTarget.style.backgroundColor = 'rgba(10,10,10,0.85)';
-                    }}
-                  />
-                  <div className="flex justify-end">
-                    <motion.button
-                      className="px-4 py-2 rounded-lg text-sm font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      disabled={!freeText.trim()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFreeSubmit();
-                      }}
-                      style={{
-                        borderColor: `${accentColor}60`,
-                        backgroundColor: `${accentColor}20`,
-                        color: accentColor,
-                      }}
-                      whileHover={freeText.trim() ? { scale: 1.03 } : {}}
-                      whileTap={freeText.trim() ? { scale: 0.97 } : {}}
-                      onMouseEnter={(e) => {
-                        if (freeText.trim()) {
-                          e.currentTarget.style.backgroundColor = `${accentColor}35`;
-                          e.currentTarget.style.borderColor = `${accentColor}80`;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = `${accentColor}20`;
-                        e.currentTarget.style.borderColor = `${accentColor}60`;
-                      }}
+                  {/* Choice Mode */}
+                  {inputMode === 'choice' && choices.length > 0 && (
+                    <motion.div
+                      className="flex flex-col gap-2"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, staggerChildren: 0.1 }}
                     >
-                      发送 ↵
-                    </motion.button>
-                  </div>
-                </motion.div>
+                      {choices.map((choice) => renderChoiceButton(choice))}
+                    </motion.div>
+                  )}
+
+                  {/* Free Input Mode */}
+                  {inputMode === 'free' && onFreeInput && renderFreeInputArea()}
+                </>
               )}
             </motion.div>
           )}

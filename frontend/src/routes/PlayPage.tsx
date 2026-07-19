@@ -14,6 +14,7 @@ import { useGameStore } from '../stores/gameStore';
 import { useSaveStore } from '../stores/saveStore';
 import { GameStateMachine } from '../engine/state-machine';
 import type { Module, Campaign } from '../types/module';
+import type { VNChoice } from '../types/engine';
 import { electronAPI } from '../api/electron';
 import { sfxMenuOpen, sfxMenuClose, sfxClick, sfxSave } from '../utils/soundfx';
 
@@ -25,6 +26,7 @@ import { ActionHandler, type SettingsCommand } from '../engine/action-handler';
 import { ImageBridge } from '../engine/image-bridge';
 import { NPCDialogueSystem } from '../engine/npc-system';
 import { ExploreSystem } from '../engine/explore-system';
+import { LLMOptionGenerator } from '../llm/llm-option-generator';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +60,8 @@ const PlayPage: React.FC = () => {
   const combatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Phase 2-F: NPC 对话系统实例 */
   const npcDialogueRef = useRef<NPCDialogueSystem | null>(null);
+  /** Phase 3-A: LLM 动态选项生成器实例 */
+  const llmOptionGeneratorRef = useRef<LLMOptionGenerator | null>(null);
 
   // Load module on mount
   useEffect(() => {
@@ -113,7 +117,53 @@ const PlayPage: React.FC = () => {
 
     // Phase 2-F: 初始化 NPC 对话系统
     npcDialogueRef.current = new NPCDialogueSystem(initialCampaign, module);
+
+    // Phase 3-A: 初始化 LLM 动态选项生成器
+    llmOptionGeneratorRef.current = new LLMOptionGenerator(llmClient);
   }, [module, loadedFromSave, campaign, setCampaign, setStateMachine]);
+
+  // Phase 1-F: 从 store 读取输入历史，用于触发选项重新生成
+  const inputHistory = useGameStore((state) => state.inputHistory);
+
+  /**
+   * Phase 3-A: 生成 LLM 动态选项并更新 VN 引擎 choices
+   */
+  const generateAndUpdateChoices = useCallback(async () => {
+    const currentCampaign = useGameStore.getState().campaign;
+    const currentModule = useGameStore.getState().module;
+    const currentSceneId = useGameStore.getState().currentSceneId;
+    const gen = llmOptionGeneratorRef.current;
+    if (!gen || !currentCampaign || !currentModule || !currentSceneId) return;
+
+    const scene = currentModule.scenes[currentSceneId];
+    if (!scene) return;
+
+    try {
+      const { inputHistory } = useGameStore.getState();
+      const dialogue = vnRef.current?.getSnapshot()?.dialogue;
+
+      const choices = await gen.generateOptions({
+        scene,
+        campaign: currentCampaign,
+        module: currentModule,
+        inputHistory: inputHistory.slice(-10),
+        lastPlayerInput: inputHistory[inputHistory.length - 1],
+        currentDialogue: dialogue?.text || undefined,
+        currentSpeaker: dialogue?.speaker || undefined,
+      });
+
+      // 更新 VN 引擎的 choices
+      const snapshot = vnRef.current?.getSnapshot();
+      if (snapshot && vnRef.current) {
+        vnRef.current.restoreSnapshot({
+          ...snapshot,
+          choices,
+        });
+      }
+    } catch (err) {
+      console.warn('[PlayPage] 生成选项失败:', err);
+    }
+  }, []);
 
   const handleSceneChange = useCallback(
     (sceneId: string) => {
@@ -155,6 +205,9 @@ const PlayPage: React.FC = () => {
           }
         }
       }
+
+      // Phase 3-A: 场景切换后由 useEffect 监听 currentSceneId 变化自动触发选项生成
+      // 无需在此手动调用，避免重复生成
     },
     [setCampaign]
   );
@@ -587,6 +640,35 @@ const PlayPage: React.FC = () => {
     [module, handleOpenSave, handleSettings, addInputHistory]
   );
 
+  // Phase 3-A: 处理 VN 引擎中特殊选项（combat / custom）
+  const handleChoice = useCallback(
+    (choice: VNChoice) => {
+      if (choice.action === 'combat') {
+        const currentSceneId = useGameStore.getState().currentSceneId;
+        const currentModule = useGameStore.getState().module;
+        if (!currentSceneId || !currentModule) return;
+        const scene = currentModule.scenes[currentSceneId];
+        if (scene?.combat?.enabled && scene.combat.enemies.length > 0) {
+          vnRef.current?.triggerCombat(scene.combat.enemies);
+        }
+      } else if (choice.action === 'custom' && choice.target) {
+        const currentModule = useGameStore.getState().module;
+        const npc = currentModule?.npcs?.[choice.target];
+        const item = currentModule?.items?.[choice.target];
+        const label = npc?.name || item?.name || choice.target;
+        vnRef.current?.displayNarration(`你决定调查 ${label}...`, '你');
+      }
+    },
+    []
+  );
+
+  // Phase 3-A: 当场景切换或玩家输入历史更新时，重新生成 LLM 动态选项
+  useEffect(() => {
+    if (!module || loading || !currentSceneId) return;
+    generateAndUpdateChoices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSceneId, inputHistory.length, module, loading]);
+
   // 游戏启动时应用全屏设置
   useEffect(() => {
     const { game } = useSettingsStore.getState();
@@ -678,6 +760,7 @@ const PlayPage: React.FC = () => {
         onSceneChange={handleSceneChange}
         onAutoSave={handleAutoSave}
         onFreeInput={handleFreeInput}
+        onChoice={handleChoice} // Phase 3-A: 传递选项选择回调
       />
 
       <InGameMenu
