@@ -1,6 +1,7 @@
 import type { Campaign, Module, NPC, NPCState } from '../types/module';
 import type { LLMClient } from '../llm/client';
 import { PromptBuilder } from '../llm/prompts';
+import { WorldStateEngine, type NPCBehaviorModifier } from './world-state';
 
 /**
  * NPC Decision Engine (ported from old project)
@@ -47,6 +48,8 @@ export class NPCDecisionEngine {
   npcId: string;
   npcState: NPCState;
   npcTemplate: NPC;
+  /** Phase 3-G: 世界状态引擎 */
+  worldStateEngine: WorldStateEngine;
 
   constructor(campaign: Campaign, moduleData: Module, npcId: string) {
     // BUG-6 Fix: 使用不可变更新，不直接修改传入的 campaign 对象
@@ -58,6 +61,9 @@ export class NPCDecisionEngine {
     this.npcId = npcId;
     this.npcState = this._ensureNPCState(npcId);
     this.npcTemplate = moduleData.npcs?.[npcId] || ({} as NPC);
+    // Phase 3-G: 初始化世界状态引擎
+    const existingWorldState = (campaign as any).worldState;
+    this.worldStateEngine = new WorldStateEngine(existingWorldState);
     this._validateTemplate();
   }
 
@@ -97,13 +103,18 @@ export class NPCDecisionEngine {
 
     const context = this._buildContext(situation, chatHistory);
 
+    // Phase 3-G: 应用世界状态对 NPC 行为的修饰
+    const worldModifier = this.worldStateEngine.getNPCBehaviorModifier(this.npcId, this.npcState);
+
     const ruleDecision = this._ruleBasedDecision(context);
+    this._applyWorldStateModifier(ruleDecision, worldModifier);
     if (ruleDecision.confidence >= 0.85) {
       this._updateAttitudeFromDecision(ruleDecision, situation);
       return ruleDecision;
     }
 
     const attitudeDecision = this._attitudeBasedDecision(context);
+    this._applyWorldStateModifier(attitudeDecision, worldModifier);
     if (attitudeDecision.confidence > 0.5) {
       this._updateAttitudeFromDecision(attitudeDecision, situation);
       return attitudeDecision;
@@ -111,14 +122,18 @@ export class NPCDecisionEngine {
 
     if (llmClient?.isAvailable()) {
       try {
-        const llmDecision = await this._llmEnhancedDecision(context, llmClient);
+        const worldContext = this.worldStateEngine.getWorldContextSummary();
+        const llmDecision = await this._llmEnhancedDecision(context, llmClient, worldContext);
+        this._applyWorldStateModifier(llmDecision, worldModifier);
         this._updateAttitudeFromDecision(llmDecision, situation);
         return llmDecision;
       } catch (error: any) {
       /* no-op */ }
     }
 
-    return this._defaultFallback(context);
+    const fallback = this._defaultFallback(context);
+    this._applyWorldStateModifier(fallback, worldModifier);
+    return fallback;
   }
 
   private _buildContext(situation: any, chatHistory: string = '') {
@@ -286,7 +301,7 @@ export class NPCDecisionEngine {
     }
   }
 
-  private async _llmEnhancedDecision(context: any, llmClient: LLMClient): Promise<NPCDecision> {
+  private async _llmEnhancedDecision(context: any, llmClient: LLMClient, worldContext: string = ''): Promise<NPCDecision> {
     const { npc, template, situation, campaign_state, chat_history } = context;
 
     const promptBuilder = new PromptBuilder(this.campaign, this.module);
@@ -312,6 +327,8 @@ ${template.secrets?.length ? `Secrets: ${template.secrets.map((s: any) => s.keyw
 ${npc.secrets_revealed.length ? `Already revealed: ${npc.secrets_revealed.join(', ')}` : ''}
 ${npc.known_topics.length ? `Known topics: ${npc.known_topics.join(', ')}` : ''}
 
+${worldContext ? `\nWorld State Context:\n${worldContext}` : ''}
+
 Available actions: ${this._getAvailableActions().join(', ')}.
 
 You must respond with a single JSON object containing exactly these fields:
@@ -329,7 +346,8 @@ Rules:
 4. If trust is high (> 60), favor talk/help over hostility.
 5. If fear is high (> 70), favor fleeing or pleading.
 6. In combat, enemies attack or use special abilities; allies help.
-7. NEVER output markdown, only raw JSON.`;
+7. Consider the world state: if factions are on high alert, NPCs are more cautious or hostile.
+8. NEVER output markdown, only raw JSON.`;
 
     const userPrompt = `Situation: ${situation.type}
 ${situation.player_input ? `Player input: "${situation.player_input}"` : ''}
@@ -383,6 +401,61 @@ What do you do?`;
     if (situation.type === 'combat_turn') { decision = 'attack'; mood = 'focused'; }
 
     return { action: decision, confidence: 0.5, reasoning: 'Default role-based decision (MVP fallback)', mood, target_id: 'player', dialogue_topic: situation.type === 'player_talk' ? 'generic' : null };
+  }
+
+  /**
+   * Phase 3-G: 应用世界状态修饰符到 NPC 决策
+   * 调整决策的 confidence、mood、reasoning，并可能封锁/强制某些 action
+   */
+  private _applyWorldStateModifier(decision: NPCDecision, modifier: NPCBehaviorModifier) {
+    if (!modifier) return;
+
+    // 封锁的行动 → 改为 ignore 或 flee
+    if (modifier.blockedActions.includes(decision.action)) {
+      decision.reasoning = `[世界状态影响] ${decision.reasoning}。但由于当前形势，无法执行 ${decision.action}。`;
+      decision.action = modifier.forcedActions[0] || 'ignore';
+      decision.confidence *= 0.7;
+    }
+
+    // 强制的行动
+    if (modifier.forcedActions.length > 0 && !modifier.forcedActions.includes(decision.action)) {
+      decision.reasoning = `[世界状态影响] ${decision.reasoning}。迫于形势，选择 ${modifier.forcedActions[0]}。`;
+      decision.action = modifier.forcedActions[0];
+    }
+
+    // 态度偏移影响 confidence
+    if (modifier.attitudeShift < -15) {
+      decision.confidence = Math.min(1, decision.confidence * 1.2);
+      if (!decision.mood.includes('hostile') && !decision.mood.includes('alert')) {
+        decision.mood = 'alert';
+      }
+    }
+
+    // 信任偏移影响 reasoning
+    if (modifier.trustShift < -10) {
+      decision.reasoning = `[不信任] ${decision.reasoning}`;
+    }
+
+    // 恐惧偏移
+    if (modifier.fearShift > 15) {
+      if (decision.action === 'attack') {
+        decision.action = 'flee';
+        decision.reasoning = `[恐惧] ${decision.reasoning}`;
+        decision.mood = 'terrified';
+      }
+    }
+
+    // 敌意偏移
+    if (modifier.hostilityShift > 15 && decision.action === 'talk') {
+      decision.action = 'ignore';
+      decision.reasoning = `[敌意] ${decision.reasoning}`;
+      decision.mood = 'hostile';
+    }
+
+    // 添加世界状态对话提示到 reasoning（如果有）
+    if (modifier.dialogueHints.length > 0 && decision.action === 'talk') {
+      decision.reasoning = `${modifier.dialogueHints[0]} ${decision.reasoning}`;
+    }
   }
 
   private _updateAttitudeFromDecision(decision: NPCDecision, situation: any) {

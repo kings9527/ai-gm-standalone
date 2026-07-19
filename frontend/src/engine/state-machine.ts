@@ -3,6 +3,7 @@ import { IntentParser, type IntentResult } from './intent-parser';
 import { EventSystem } from './event-system';
 import { SceneLoader } from './scene-loader';
 import { StoryEngine } from './story-engine';
+import { WorldStateEngine, type WorldState, PRESET_WORLD_IMPACTS } from './world-state';
 import type { Module, Campaign, NPCState } from '../types/module';
 
 /**
@@ -32,6 +33,8 @@ export interface GameResult {
   globalVarUpdates?: Record<string, unknown>;
   /** Phase 3-C: NPC 状态更新 */
   npcStateUpdates?: Record<string, Partial<NPCState>>;
+  /** Phase 3-G: 世界状态变更 */
+  worldStateChanges?: Record<string, unknown>[];
   [key: string]: unknown;
 }
 
@@ -46,6 +49,8 @@ export class GameStateMachine {
   sceneLoader: SceneLoader;
   /** Phase 3-C: LLM 驱动的剧情引擎 */
   storyEngine: StoryEngine;
+  /** Phase 3-G: 世界动态响应引擎 */
+  worldStateEngine: WorldStateEngine;
 
   constructor(module: Module, campaign: Campaign, llmClient: any = null) {
     this.module = module;
@@ -57,6 +62,9 @@ export class GameStateMachine {
     this.eventSystem = new EventSystem(module, campaign, this.currentScene);
     this.sceneLoader = new SceneLoader(module);
     this.storyEngine = new StoryEngine(module, llmClient);
+    // Phase 3-G: 初始化世界状态引擎（兼容旧存档）
+    const existingWorldState = (campaign as any).worldState as WorldState | undefined;
+    this.worldStateEngine = new WorldStateEngine(existingWorldState);
   }
 
   async processAction(action: GameAction): Promise<GameResult> {
@@ -119,6 +127,20 @@ export class GameStateMachine {
 
     if (intent.type === 'attack') {
       return await this.handleCombatInitiation(intent, player_input || '');
+    }
+
+    // Phase 3-G: 处理 choice 选择对世界状态的影响
+    if (action_type === 'choice' && action.action_data?.choiceId) {
+      const choiceId = action.action_data.choiceId as string;
+      const presetImpact = PRESET_WORLD_IMPACTS[choiceId];
+      if (presetImpact) {
+        this.worldStateEngine.applyChoiceImpact(choiceId, presetImpact, this.campaign.global_vars);
+        this.syncWorldStateToCampaign();
+      }
+      // choice 后继续处理（可能触发场景切换）
+      if (action.action_data?.targetScene) {
+        return this.transitionTo(action.action_data.targetScene as string, { choiceId });
+      }
     }
 
     // Phase 3-C: 当基础意图都不匹配时，尝试 LLM 驱动的剧情推进
@@ -234,6 +256,9 @@ export class GameStateMachine {
         this.campaign.global_vars[key] = value;
       }
     }
+    // Phase 3-G: 事件效果联动世界状态
+    this.worldStateEngine.applyEventImpact('event', effects);
+    this.syncWorldStateToCampaign();
   }
 
   findMatchingExit(intent: any, input: string) {
@@ -751,6 +776,9 @@ export class GameStateMachine {
     // 重新初始化 EventSystem 为新场景
     this.eventSystem = new EventSystem(this.module, this.campaign, this.currentScene);
 
+    // Phase 3-G: 使用世界状态引擎构建动态场景描述
+    const dynamicDescription = this.worldStateEngine.buildDynamicSceneDescription(scene, scene.description);
+
     // Phase 3-C: 尝试生成动态场景描述
     let dynamicNarration: string | null = null;
     if (this.llmClient?.isAvailable()) {
@@ -779,9 +807,9 @@ export class GameStateMachine {
         type: 'ending',
         from: this.campaign.scene_history[this.campaign.scene_history.length - 2] || null,
         to: sceneId,
-        scene: { id: scene.id, title: scene.title, description: scene.description },
+        scene: { id: scene.id, title: scene.title, description: dynamicDescription },
         ending: scene.ending,
-        narration: `${scene.title}\n\n${scene.description}\n\n${scene.ending.description}`,
+        narration: `${scene.title}\n\n${dynamicDescription}\n\n${scene.ending.description}`,
         available_actions: [{ type: 'restart', label: '重新开始' }, { type: 'load_save', label: '读取存档' }],
       };
     }
@@ -792,8 +820,8 @@ export class GameStateMachine {
         type: 'scene_change_combat',
         from: this.campaign.scene_history[this.campaign.scene_history.length - 2] || null,
         to: sceneId,
-        scene: { id: scene.id, title: scene.title, description: scene.description, npcs_present: scene.npcs || [], combat: scene.combat },
-        narration: `你来到了${scene.title}。${scene.description}\n\n⚔️ 敌人出现！${enemies.map((e: string) => this.module.npcs?.[e]?.name || e).join('、')}正挡在你面前。`,
+        scene: { id: scene.id, title: scene.title, description: dynamicDescription, npcs_present: scene.npcs || [], combat: scene.combat },
+        narration: `你来到了${scene.title}。${dynamicDescription}\n\n⚔️ 敌人出现！${enemies.map((e: string) => this.module.npcs?.[e]?.name || e).join('、')}正挡在你面前。`,
         combat: { enemies, alert: true },
         available_actions: [{ type: 'combat_start', label: '开始战斗' }, ...this.getAvailableActions()],
       };
@@ -803,10 +831,10 @@ export class GameStateMachine {
       type: 'scene_change',
       from: this.campaign.scene_history[this.campaign.scene_history.length - 2] || null,
       to: sceneId,
-      scene: { id: scene.id, title: scene.title, description: scene.description, npcs_present: scene.npcs || [], interactables: scene.interactables || [] },
+      scene: { id: scene.id, title: scene.title, description: dynamicDescription, npcs_present: scene.npcs || [], interactables: scene.interactables || [] },
       narration: dynamicNarration
         ? `你来到了${scene.title}。\n\n${dynamicNarration}`
-        : `你来到了${scene.title}。${scene.description}`,
+        : `你来到了${scene.title}。${dynamicDescription}`,
       available_actions: this.getAvailableActions(),
     };
   }
@@ -863,6 +891,12 @@ export class GameStateMachine {
     } catch {
       return 0;
     }
+  }
+
+  /** Phase 3-G: 将世界状态同步回 campaign，确保存档时保存 */
+  syncWorldStateToCampaign() {
+    const worldState = this.worldStateEngine.getState();
+    this.campaign = { ...this.campaign, worldState };
   }
 
   buildCheckNarration(skill: string, roll: number, target: number, result: string): string {

@@ -342,6 +342,8 @@ export interface Campaign {
   npcDialogueHistory?: Record<string, NPCDialogueHistoryEntry[]>;
   /** Phase 3-F: 任务日志系统 */
   questLog?: QuestLog;
+  /** Phase 3-G: 世界动态响应状态 */
+  worldState?: any;
 }
 
 /** Phase 3-F: 任务日志 */
