@@ -87,7 +87,8 @@ function getTransition(effect: VNEffect) {
         duration: effect.duration / 1000,
         times: [0, 0.5, 1],
       };
-    default:
+    case 'color_tint':
+    case 'atmosphere':
       return {
         ...base,
         duration: effect.duration / 1000,
@@ -104,6 +105,9 @@ function getInitialState(effect: VNEffect) {
     case 'shake':
       return { x: 0, y: 0 };
     case 'flash':
+      return { opacity: 0 };
+    case 'color_tint':
+    case 'atmosphere':
       return { opacity: 0 };
     default:
       return {};
@@ -123,8 +127,10 @@ function getAnimateState(effect: VNEffect) {
       };
     case 'flash':
       return { opacity: [0, effect.intensity, 0] };
-    default:
-      return {};
+    case 'color_tint':
+      return { opacity: effect.opacity ?? effect.intensity };
+    case 'atmosphere':
+      return { opacity: effect.opacity ?? effect.intensity };
   }
 }
 
@@ -154,6 +160,27 @@ function renderEffectContent(effect: VNEffect) {
       );
     case 'flash':
       return <div className="absolute inset-0 bg-white" style={{ opacity: effect.intensity }} />;
+    case 'color_tint':
+      return (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundColor: effect.color || '#ff0000',
+            opacity: effect.opacity ?? effect.intensity,
+            mixBlendMode: 'multiply',
+          }}
+        />
+      );
+    case 'atmosphere':
+      return (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(ellipse at center, transparent 40%, ${effect.color || '#000000'} 100%)`,
+            opacity: effect.opacity ?? effect.intensity,
+          }}
+        />
+      );
     default:
       return null;
   }

@@ -28,6 +28,7 @@ import { NPCDialogueSystem } from '../engine/npc-system';
 import { ExploreSystem } from '../engine/explore-system';
 import { LLMOptionGenerator } from '../llm/llm-option-generator';
 import { StoryEngine } from '../engine/story-engine';
+import { EmotionEngine } from '../engine/emotion-engine';
 
 const PlayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +65,8 @@ const PlayPage: React.FC = () => {
   /** Phase 3-A: LLM 动态选项生成器实例 */
   const llmOptionGeneratorRef = useRef<LLMOptionGenerator | null>(null);
 
-  // Load module on mount
+  /** Phase 3-E: 情绪/氛围引擎实例 */
+  const emotionEngineRef = useRef<EmotionEngine | null>(null);
   useEffect(() => {
     fetch('/demo-module.json')
       .then((res) => {
@@ -75,6 +77,31 @@ const PlayPage: React.FC = () => {
         setModule(data);
         setStoreModule(data);
         setLoading(false);
+        // Phase 3-E: 初始化情绪/氛围引擎
+        if (!emotionEngineRef.current) {
+          emotionEngineRef.current = new EmotionEngine({
+            onAtmosphereChange: (prev, next, event) => {
+              console.log(`[EmotionEngine] ${prev?.type} → ${next.type} (${event.source})`);
+              useGameStore.getState().setAtmosphere(next.type);
+            },
+            onVisualFeedback: (effects) => {
+              const engine = emotionEngineRef.current;
+              if (!engine || !vnRef.current) return;
+              const overlay = engine.getOverlayStyle();
+              const filter = engine.getCSSFilter();
+              const vnEffects = engine.getVisualEffects();
+              vnRef.current.applyAtmosphere(overlay, filter, [...vnEffects, ...effects]);
+              useGameStore.getState().setAtmosphereOverlay(overlay);
+              useGameStore.getState().setAtmosphereFilter(filter);
+              // Phase 3-E: 更新 CSS 变量（动态主题）
+              const cssVars = engine.getCSSVariables();
+              Object.entries(cssVars).forEach(([key, val]) => {
+                document.documentElement.style.setProperty(key, val);
+              });
+            },
+          });
+        }
+        emotionEngineRef.current.setModule(data);
       })
       .catch((err) => {
         setError('加载模组失败，请检查网络连接');
@@ -216,6 +243,15 @@ const PlayPage: React.FC = () => {
 
       // Phase 3-A: 场景切换后由 useEffect 监听 currentSceneId 变化自动触发选项生成
       // 无需在此手动调用，避免重复生成
+
+      // Phase 3-E: 分析新场景氛围并触发视觉反馈
+      const newScene = currentModule.scenes[sceneId];
+      if (newScene && emotionEngineRef.current) {
+        const event = emotionEngineRef.current.analyzeScene(newScene);
+        if (event) {
+          emotionEngineRef.current.triggerEvent(event);
+        }
+      }
     },
     [setCampaign]
   );
@@ -393,10 +429,6 @@ const PlayPage: React.FC = () => {
             // 如果对话结束，清除 NPC 对话状态
             if (npcResult.result.endDialogue) {
               npcDialogueRef.current.endDialogue(npcResult.npcId);
-              // 延迟清除视觉状态
-              setTimeout(() => {
-                vnRef.current?.clearNPCDialogueState();
-              }, 2000);
             }
           }
           return; // NPC 处理完毕，不再进入 AI-GM 流程
@@ -445,6 +477,8 @@ const PlayPage: React.FC = () => {
 
         // Phase 2-B: 战斗系统自然语言触发 — 先显示 LLM 生成的战斗开场描述，再延迟触发 CombatOverlay
         if (actionResult.combatStart) {
+          // Phase 3-E: 触发战斗氛围（史诗感）
+          emotionEngineRef.current?.triggerCombat(1);
           const textLength = (actionResult.narration || '').length;
           // 打字机速度 30ms/字符 + 1.5s 阅读缓冲，最少 2.5s
           const delay = Math.max(2500, textLength * 30 + 1500);
@@ -572,11 +606,15 @@ const PlayPage: React.FC = () => {
             ? `以下是玩家最近的输入历史（供你参考上下文，但不要直接回复历史内容）：\n${recentHistory.map((h, i) => `${i + 1}. ${h}`).join('\n')}\n\n`
             : '';
 
+          // Phase 3-E: 获取当前氛围语调提示
+          const tonePrompt = emotionEngineRef.current?.getTonePrompt() || '';
+
           const messages = [
             {
               role: 'system' as const,
               content:
-                '你是AI-GM，一个TRPG游戏的叙事型AI主持人。根据玩家的自由输入，生成沉浸式的、符合游戏世界观的叙事回复。保持角色扮演风格，回复简洁（1-3句话），中文回答。',
+                '你是AI-GM，一个TRPG游戏的叙事型AI主持人。根据玩家的自由输入，生成沉浸式的、符合游戏世界观的叙事回复。保持角色扮演风格，回复简洁（1-3句话），中文回答。' +
+                (tonePrompt ? '\n\n【当前氛围指令】' + tonePrompt : ''),
             },
             // Phase 1-F: 在历史非空时，以 assistant 角色注入历史上下文提示
             ...(recentHistory.length > 0

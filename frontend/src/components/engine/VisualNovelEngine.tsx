@@ -32,8 +32,10 @@ export interface VisualNovelEngineHandle {
   triggerCombat: (enemies: string[]) => void;
   /** Phase 2-F: 显示 NPC 对话 */
   displayNPCDialogue: (text: string, speaker: string, emotion: string, initiative?: boolean) => void;
-  /** Phase 2-F: 结束 NPC 对话状态 */
-  clearNPCDialogueState: () => void;
+  /** Phase 3-E: 应用氛围视觉反馈 */
+  applyAtmosphere: (overlay: React.CSSProperties, filter: string, effects?: VNEffect[]) => void;
+  /** Phase 3-E: 清除氛围视觉反馈 */
+  clearAtmosphere: () => void;
 }
 
 interface VisualNovelEngineProps {
@@ -71,6 +73,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       effects: [],
       isTransitioning: false,
       isChatStreaming: false,
+      atmosphereOverlay: {},
+      atmosphereFilter: '',
     });
 
     const [currentScene, setCurrentScene] = useState<Scene | null>(null);
@@ -460,9 +464,22 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         }));
         setNpcDialogueState({ active: true, emotion, initiative });
       },
-      // Phase 2-F: 清除 NPC 对话状态
-      clearNPCDialogueState: () => {
-        setNpcDialogueState({ active: false, emotion: '', initiative: false });
+      // Phase 3-E: 应用氛围视觉反馈
+      applyAtmosphere: (overlay: React.CSSProperties, filter: string, effects?: VNEffect[]) => {
+        setVnState((prev) => ({
+          ...prev,
+          atmosphereOverlay: overlay,
+          atmosphereFilter: filter,
+          effects: effects ? [...prev.effects, ...effects] : prev.effects,
+        }));
+      },
+      // Phase 3-E: 清除氛围视觉反馈
+      clearAtmosphere: () => {
+        setVnState((prev) => ({
+          ...prev,
+          atmosphereOverlay: {},
+          atmosphereFilter: '',
+        }));
       },
     }));
 
@@ -481,7 +498,13 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         style={{ transform: 'translateZ(0)' }} // 开启 GPU 加速，提高截图稳定性
       >
         {/* Layer 1: Background */}
-        <BackgroundLayer bg={vnState.bg} transition={vnState.bgTransition} isPaused={isPaused} />
+        <BackgroundLayer
+          bg={vnState.bg}
+          transition={vnState.bgTransition}
+          isPaused={isPaused}
+          atmosphereOverlay={vnState.atmosphereOverlay}
+          atmosphereFilter={vnState.atmosphereFilter}
+        />
 
         {/* Layer 2: Sprites */}
         <SpriteLayer sprites={vnState.sprites} onSpriteClick={handleSpriteClick} isPaused={isPaused} />

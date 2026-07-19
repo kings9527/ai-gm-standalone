@@ -6,6 +6,10 @@ interface BackgroundLayerProps {
   transition: 'fade' | 'slide' | 'none';
   style?: React.CSSProperties;
   isPaused?: boolean;
+  /** Phase 3-E: 氛围叠加层样式 */
+  atmosphereOverlay?: React.CSSProperties;
+  /** Phase 3-E: 氛围 CSS 滤镜 */
+  atmosphereFilter?: string;
 }
 
 /**
@@ -14,7 +18,7 @@ interface BackgroundLayerProps {
  * Supports pause/resume via useAnimationControls.
  * Supports image URLs (http, data, blob, local paths), CSS gradients, or solid colors.
  */
-export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ bg, transition, style, isPaused }) => {
+export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ bg, transition, style, isPaused, atmosphereOverlay, atmosphereFilter }) => {
   const isImage =
     bg.startsWith('http') ||
     bg.startsWith('data:image') ||
@@ -41,12 +45,20 @@ export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({ bg, transition
       <motion.div
         key={bg}
         className="absolute inset-0 z-0"
-        style={{ ...bgStyle, ...style }}
+        style={{ ...bgStyle, ...style, filter: atmosphereFilter }}
         initial={transition === 'fade' ? { opacity: 0 } : false}
         animate={controls}
         exit={transition === 'fade' ? { opacity: 0 } : undefined}
         transition={{ duration: 1.2, ease: 'easeInOut' }}
-      />
+      >
+        {/* Phase 3-E: 氛围叠加层 */}
+        {atmosphereOverlay && Object.keys(atmosphereOverlay).length > 0 && (
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none"
+            style={atmosphereOverlay}
+          />
+        )}
+      </motion.div>
     </AnimatePresence>
   );
 };

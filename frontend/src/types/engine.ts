@@ -9,6 +9,10 @@ export interface VNState {
   isTransitioning: boolean;
   isPaused?: boolean; // 引擎暂停状态
   isChatStreaming?: boolean; // Phase 1-D: 闲聊模式 streaming 状态
+  /** Phase 3-E: 当前氛围叠加层样式 */
+  atmosphereOverlay?: React.CSSProperties;
+  /** Phase 3-E: 氛围 CSS 滤镜 */
+  atmosphereFilter?: string;
 }
 
 export interface VNSprite {
@@ -47,9 +51,13 @@ export interface VNChoice {
 }
 
 export interface VNEffect {
-  type: 'shake' | 'flash' | 'grain' | 'vignette' | 'chromatic' | 'fade_in' | 'fade_out';
+  type: 'shake' | 'flash' | 'grain' | 'vignette' | 'chromatic' | 'fade_in' | 'fade_out' | 'color_tint' | 'atmosphere';
   intensity: number;
   duration: number;
+  /** Phase 3-E: 可选颜色参数（用于 atmosphere 特效） */
+  color?: string;
+  /** Phase 3-E: 透明度参数 */
+  opacity?: number;
 }
 
 export interface SceneTransition {

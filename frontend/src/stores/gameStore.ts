@@ -22,7 +22,13 @@ interface GameState {
   addNpcDialogueHistory: (npcId: string, entries: NPCDialogueHistoryEntry[]) => void;
   setNpcDialogueHistory: (history: Record<string, NPCDialogueHistoryEntry[]>) => void;
 
-  // Actions
+  // Phase 3-E: 情绪/氛围引擎状态
+  atmosphere: string | null;
+  atmosphereOverlay: React.CSSProperties;
+  atmosphereFilter: string;
+  setAtmosphere: (atmosphere: string | null) => void;
+  setAtmosphereOverlay: (overlay: React.CSSProperties) => void;
+  setAtmosphereFilter: (filter: string) => void;
   setCampaign: (campaign: Campaign) => void;
   setModule: (module: Module) => void;
   setStateMachine: (sm: GameStateMachine | null) => void;
@@ -112,9 +118,15 @@ export const useGameStore = create<GameState>((set) => ({
         : null,
     })),
 
+  atmosphere: null,
+  atmosphereOverlay: {},
+  atmosphereFilter: '',
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setIsTransitioning: (transitioning) => set({ isTransitioning: transitioning }),
   setCurrentSceneId: (sceneId) => set({ currentSceneId: sceneId }),
+  setAtmosphere: (atmosphere) => set({ atmosphere }),
+  setAtmosphereOverlay: (atmosphereOverlay) => set({ atmosphereOverlay }),
+  setAtmosphereFilter: (atmosphereFilter) => set({ atmosphereFilter }),
 
   // Phase 1-B: 输入系统 Actions
   setInputMode: (mode) => set({ inputMode: mode }),
