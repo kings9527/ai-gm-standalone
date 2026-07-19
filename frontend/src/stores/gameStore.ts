@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Campaign, Module, GameSave } from '../types/module';
+import type { Campaign, Module, GameSave, NPCDialogueHistoryEntry } from '../types/module';
 import type { CombatState } from '../types/combat';
 import type { GameStateMachine } from '../engine/state-machine';
 
@@ -16,6 +16,11 @@ interface GameState {
   inputMode: 'choice' | 'free';
   freeInputText: string;
   inputHistory: string[]; // 从 campaign 派生或同步，UI 快速读取用
+
+  // Phase 3-D: NPC 长期对话上下文记忆
+  npcDialogueHistory: Record<string, NPCDialogueHistoryEntry[]>;
+  addNpcDialogueHistory: (npcId: string, entries: NPCDialogueHistoryEntry[]) => void;
+  setNpcDialogueHistory: (history: Record<string, NPCDialogueHistoryEntry[]>) => void;
 
   // Actions
   setCampaign: (campaign: Campaign) => void;
@@ -55,7 +60,16 @@ export const useGameStore = create<GameState>((set) => ({
   freeInputText: '',
   inputHistory: [],
 
-  setCampaign: (campaign) => set({ campaign, isPlaying: true, inputHistory: campaign.inputHistory ?? [] }),
+  // Phase 3-D: NPC 对话历史初始值
+  npcDialogueHistory: {},
+
+  setCampaign: (campaign) => set({
+    campaign,
+    isPlaying: true,
+    inputHistory: campaign.inputHistory ?? [],
+    // Phase 3-D: 兼容旧存档，无 npcDialogueHistory 时默认空对象
+    npcDialogueHistory: campaign.npcDialogueHistory ?? {},
+  }),
 
   setModule: (module) => set({ module }),
 
@@ -120,6 +134,28 @@ export const useGameStore = create<GameState>((set) => ({
       return { inputHistory: newHistory, campaign: updatedCampaign };
     }),
 
+  // Phase 3-D: NPC 对话历史 Actions
+  addNpcDialogueHistory: (npcId, entries) =>
+    set((state) => {
+      const existing = state.npcDialogueHistory[npcId] || [];
+      // 合并并限制每个 NPC 最多保留 50 条完整对话记录（避免存档膨胀）
+      const merged = [...existing, ...entries].slice(-50);
+      const newHistory = { ...state.npcDialogueHistory, [npcId]: merged };
+      // 同步到 campaign，确保存档时一并保存
+      const updatedCampaign = state.campaign
+        ? { ...state.campaign, npcDialogueHistory: newHistory }
+        : null;
+      return { npcDialogueHistory: newHistory, campaign: updatedCampaign };
+    }),
+
+  setNpcDialogueHistory: (history) =>
+    set((state) => {
+      const updatedCampaign = state.campaign
+        ? { ...state.campaign, npcDialogueHistory: history }
+        : null;
+      return { npcDialogueHistory: history, campaign: updatedCampaign };
+    }),
+
   reset: () =>
     set({
       campaign: null,
@@ -132,6 +168,7 @@ export const useGameStore = create<GameState>((set) => ({
       inputMode: 'choice',
       freeInputText: '',
       inputHistory: [],
+      npcDialogueHistory: {},
     }),
 
   restoreFromSave: (save) =>
@@ -142,6 +179,8 @@ export const useGameStore = create<GameState>((set) => ({
       currentSceneId: save.campaign.current_scene,
       // Phase 1-B: 兼容旧存档，无 inputHistory 时默认空数组
       inputHistory: save.campaign.inputHistory ?? [],
+      // Phase 3-D: 兼容旧存档，无 npcDialogueHistory 时默认空对象
+      npcDialogueHistory: save.campaign.npcDialogueHistory ?? {},
       inputMode: 'choice',
       freeInputText: '',
     }),

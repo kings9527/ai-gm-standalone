@@ -108,6 +108,7 @@ const PlayPage: React.FC = () => {
       flags: {},
       turn: 0,
       inputHistory: [], // Phase 1-B: 初始化空输入历史
+      npcDialogueHistory: {}, // Phase 3-D: 初始化空对话历史
     };
 
     setCampaign(initialCampaign);
@@ -116,8 +117,11 @@ const PlayPage: React.FC = () => {
     const sm = new GameStateMachine(module, initialCampaign, llmClient);
     setStateMachine(sm);
 
-    // Phase 2-F: 初始化 NPC 对话系统
-    npcDialogueRef.current = new NPCDialogueSystem(initialCampaign, module);
+    // Phase 2-F: 初始化 NPC 对话系统（Phase 3-D: 传入历史回调实现跨场景记忆）
+    npcDialogueRef.current = new NPCDialogueSystem(initialCampaign, module, {
+      npcDialogueHistory: initialCampaign.npcDialogueHistory ?? {},
+      onHistoryUpdate: (history) => useGameStore.getState().setNpcDialogueHistory(history),
+    });
 
     // Phase 3-A: 初始化 LLM 动态选项生成器
     llmOptionGeneratorRef.current = new LLMOptionGenerator(llmClient);
@@ -189,10 +193,13 @@ const PlayPage: React.FC = () => {
       sm.campaign = updatedCampaign;
       sm.currentScene = currentModule.scenes[sceneId];
 
-      // Phase 2-F: 检查 NPC 主动发起对话
+      // Phase 2-F: 检查 NPC 主动发起对话（Phase 3-D: 保留历史上下文实现跨场景记忆）
       if (npcDialogueRef.current) {
-        // 更新对话系统内的 campaign 引用
-        npcDialogueRef.current = new NPCDialogueSystem(updatedCampaign, currentModule);
+        const currentHistory = useGameStore.getState().npcDialogueHistory;
+        npcDialogueRef.current = new NPCDialogueSystem(updatedCampaign, currentModule, {
+          npcDialogueHistory: currentHistory,
+          onHistoryUpdate: (history) => useGameStore.getState().setNpcDialogueHistory(history),
+        });
         const initiative = npcDialogueRef.current.checkNPCInitiative(sceneId);
         if (initiative.triggered && initiative.npcId) {
           const npc = currentModule.npcs?.[initiative.npcId];
@@ -258,8 +265,11 @@ const PlayPage: React.FC = () => {
           vnRef.current.restoreSnapshot(save.vnSnapshot);
         }
 
-        // Phase 2-F: 重置 NPC 对话状态
-        npcDialogueRef.current = new NPCDialogueSystem(restoredCampaign, restoredModule);
+        // Phase 2-F: 重置 NPC 对话状态（Phase 3-D: 恢复历史记忆）
+        npcDialogueRef.current = new NPCDialogueSystem(restoredCampaign, restoredModule, {
+          npcDialogueHistory: restoredCampaign.npcDialogueHistory ?? {},
+          onHistoryUpdate: (history) => useGameStore.getState().setNpcDialogueHistory(history),
+        });
 
         setLoading(false);
       } catch (err: any) {

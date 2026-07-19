@@ -186,9 +186,22 @@ export interface EndingConfig {
   conditions?: Condition;
 }
 
-// ───────────────────────────────────────────
-// Phase 2-F: NPC 自由对话系统类型定义
-// ───────────────────────────────────────────
+/** Phase 3-D: NPC 完整对话历史条目 — 解决金鱼记忆问题 */
+export interface NPCDialogueHistoryEntry {
+  /** 游戏回合数 */
+  turn: number;
+  /** 场景 ID */
+  sceneId: string;
+  /** 发言者角色 */
+  role: 'player' | 'npc';
+  /** 对话内容 */
+  text: string;
+  /** 时间戳 */
+  timestamp: number;
+  /** NPC 情绪（仅 role='npc' 时） */
+  emotion?: string;
+}
+
 
 /** 对话树节点 — 支持条件分支和玩家输入匹配 */
 export interface DialogueTreeNode {
@@ -325,6 +338,8 @@ export interface Campaign {
   flags: Record<string, boolean>;
   turn: number;
   inputHistory?: string[]; // 玩家自由输入历史（Phase 1-B 新增）
+  /** Phase 3-D: NPC 完整对话历史 — 跨场景记忆 */
+  npcDialogueHistory?: Record<string, NPCDialogueHistoryEntry[]>;
 }
 
 export interface Player {

@@ -11,6 +11,7 @@ import type {
   ResponseTemplate,
   Campaign,
   Module,
+  NPCDialogueHistoryEntry,
 } from '../types/module';
 import type { LLMClient } from '../llm/client';
 import { NPCDecisionEngine, type NPCDecision } from './npc-decision';
@@ -63,10 +64,23 @@ export class NPCDialogueSystem {
   private activeDialogues: Map<string, string> = new Map();
   /** 已触发的一次性触发器 */
   private triggeredOnce: Set<string> = new Set();
+  /** Phase 3-D: 完整对话历史 — npcId -> 历史记录 */
+  private npcDialogueHistory: Record<string, NPCDialogueHistoryEntry[]>;
+  /** Phase 3-D: 历史变更回调，供外部同步到 store */
+  private onHistoryUpdate?: (history: Record<string, NPCDialogueHistoryEntry[]>) => void;
 
-  constructor(campaign: Campaign, moduleData: Module) {
+  constructor(
+    campaign: Campaign,
+    moduleData: Module,
+    options?: {
+      npcDialogueHistory?: Record<string, NPCDialogueHistoryEntry[]>;
+      onHistoryUpdate?: (history: Record<string, NPCDialogueHistoryEntry[]>) => void;
+    },
+  ) {
     this.campaign = campaign;
     this.module = moduleData;
+    this.npcDialogueHistory = options?.npcDialogueHistory ?? {};
+    this.onHistoryUpdate = options?.onHistoryUpdate;
   }
 
   // ═══════════════════════════════════════════
@@ -98,6 +112,8 @@ export class NPCDialogueSystem {
         impact,
         sceneId,
       );
+      // Phase 3-D: 记录完整对话历史（跨场景记忆）
+      this._recordDialogueHistory(targetNpc.id, sceneId, playerInput, result.text, result.emotion);
       return { npcId: targetNpc.id, result };
     }
 
@@ -117,6 +133,8 @@ export class NPCDialogueSystem {
           impact,
           sceneId,
         );
+        // Phase 3-D: 记录完整对话历史
+        this._recordDialogueHistory(npcId, sceneId, playerInput, result.text, result.emotion);
         return { npcId, result };
       }
     }
@@ -136,6 +154,8 @@ export class NPCDialogueSystem {
           impact,
           sceneId,
         );
+        // Phase 3-D: 记录完整对话历史
+        this._recordDialogueHistory(npcId, sceneId, playerInput, result.text, result.emotion);
         return { npcId, result };
       }
     }
@@ -191,6 +211,43 @@ export class NPCDialogueSystem {
       emotion: best.trigger.emotion,
       triggerId: best.trigger.id,
     };
+  }
+
+  /**
+   * Phase 3-D: 获取当前完整对话历史（供外部同步到 store / 存档）。
+   */
+  getHistory(): Record<string, NPCDialogueHistoryEntry[]> {
+    return this.npcDialogueHistory;
+  }
+
+  /**
+   * Phase 3-D: 设置外部传入的对话历史（读档后恢复）。
+   */
+  setHistory(history: Record<string, NPCDialogueHistoryEntry[]>): void {
+    this.npcDialogueHistory = history;
+  }
+
+  /**
+   * Phase 3-D: 记录玩家与 NPC 的完整对话历史（跨场景记忆）。
+   */
+  private _recordDialogueHistory(
+    npcId: string,
+    sceneId: string,
+    playerInput: string,
+    npcResponse: string,
+    emotion?: string,
+  ): void {
+    const turn = this.campaign.turn || 1;
+    const entries: NPCDialogueHistoryEntry[] = [
+      { turn, sceneId, role: 'player', text: playerInput, timestamp: Date.now() },
+      { turn, sceneId, role: 'npc', text: npcResponse, timestamp: Date.now(), emotion },
+    ];
+
+    const existing = this.npcDialogueHistory[npcId] || [];
+    // 限制每个 NPC 最多保留 50 条完整对话记录（避免存档膨胀）
+    const merged = [...existing, ...entries].slice(-50);
+    this.npcDialogueHistory = { ...this.npcDialogueHistory, [npcId]: merged };
+    this.onHistoryUpdate?.(this.npcDialogueHistory);
   }
 
   /**
@@ -392,9 +449,24 @@ export class NPCDialogueSystem {
 
     const npcState = this._getNPCState(npc.id);
 
-    const systemPrompt = `你是 ${npc.name}，一个${npc.description}。\n` +
-      `性格：${npc.personality || '未设定'}\n` +
-      `当前态度：${npcState.attitude}，信任：${npcState.trust}，恐惧：${npcState.fear}\n` +
+    // Phase 3-D: 构建历史上下文 messages — 将过往对话以角色格式注入 LLM
+    const historyEntries = (this.npcDialogueHistory[npc.id] || []).slice(-10);
+    const historyMessages: { role: 'user' | 'assistant'; content: string }[] = [];
+    for (const entry of historyEntries) {
+      if (entry.role === 'player') {
+        historyMessages.push({ role: 'user', content: entry.text });
+      } else {
+        historyMessages.push({ role: 'assistant', content: entry.text });
+      }
+    }
+
+    const systemPrompt = `你是 ${npc.name}，一个${npc.description}。
+` +
+      `性格：${npc.personality || '未设定'}
+` +
+      `当前态度：${npcState.attitude}，信任：${npcState.trust}，恐惧：${npcState.fear}
+` +
+      `${historyEntries.length > 0 ? `你们之前的对话记录：\n${historyEntries.map((e) => `[${e.sceneId}] ${e.role === 'player' ? '玩家' : npc.name}：${e.text}`).join('\n')}\n` : ''}` +
       `你必须以 JSON 格式回复，只包含 { "text": "你的台词", "emotion": "情绪标签" }`;
 
     const userPrompt = `玩家对你说："${playerInput}"\n` +
@@ -403,7 +475,11 @@ export class NPCDialogueSystem {
 
     try {
       const response = await llmClient.chat(
-        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+        [
+          { role: 'system', content: systemPrompt },
+          ...historyMessages,
+          { role: 'user', content: userPrompt },
+        ],
         { temperature: 0.7, maxTokens: 256 },
       );
 
