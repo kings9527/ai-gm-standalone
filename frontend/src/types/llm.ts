@@ -1,5 +1,7 @@
+import type { LLMProvider } from '../stores/settingsStore';
+
 export interface LLMConfig {
-  provider: 'openai' | 'claude' | 'ollama';
+  provider: LLMProvider;
   baseUrl: string;
   apiKey: string;
   model: string;

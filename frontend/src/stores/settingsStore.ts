@@ -7,7 +7,7 @@ import { encrypt, decrypt, isEncrypted } from '../utils/crypto';
 //  Types
 /* ------------------------------------------------------------------ */
 
-export type LLMProvider = 'openai' | 'claude' | 'ollama';
+export type LLMProvider = 'openai' | 'claude' | 'kimi' | 'deepseek' | 'qwen' | 'glm' | 'gemini' | 'ollama' | 'custom';
 export type ImageStrategy = 'search' | 'generate' | 'upload';
 export type ThemeMode = 'auto' | 'dark' | 'light';
 
@@ -224,11 +224,23 @@ export const useSettingsStore = create<SettingsState>()(
 export const PROVIDER_MODELS: Record<LLMProvider, string[]> = {
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   claude: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+  kimi: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  deepseek: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
+  qwen: ['qwen-turbo', 'qwen-plus', 'qwen-max'],
+  glm: ['glm-4', 'glm-4-plus', 'glm-4-flash'],
+  gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'],
   ollama: ['llama3.2', 'llama3.1', 'mistral', 'qwen2.5', 'phi4'],
+  custom: [''],
 };
 
 export const PROVIDER_DEFAULTS: Record<LLMProvider, Partial<LLMConfig>> = {
   openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   claude: { baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20241022' },
+  kimi: { baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo' },
+  glm: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash' },
   ollama: { baseUrl: 'http://localhost:11434/v1', model: 'llama3.2' },
+  custom: { baseUrl: '', model: '' },
 };

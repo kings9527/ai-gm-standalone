@@ -468,7 +468,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             >
               <option value="openai">OpenAI</option>
               <option value="claude">Claude (Anthropic)</option>
+              <option value="kimi">Kimi (Moonshot)</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="qwen">通义千问 (Qwen)</option>
+              <option value="glm">智谱 AI (GLM)</option>
+              <option value="gemini">Gemini (Google)</option>
               <option value="ollama">Ollama (本地)</option>
+              <option value="custom">自定义 (OpenAI 兼容)</option>
             </Select>
           </div>
           <div>
