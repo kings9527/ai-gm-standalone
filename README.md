@@ -34,7 +34,7 @@
 
 ### Phase 2 — AI 集成（模组生成 / 风格分析 / 图片生成）
 
-- **多 LLM 支持** — OpenAI (GPT-4o / GPT-4o-mini)、Claude (3.5 Sonnet)、Ollama 本地模型，通过安全后端 IPC 代理
+- **多 LLM 支持** — OpenAI (GPT-4o / GPT-4o-mini)、Claude (3.5 Sonnet)、Kimi (Moonshot)、DeepSeek、Qwen (通义千问)、GLM (智谱)、Gemini、Ollama 本地模型，以及任意兼容 OpenAI API 的自定义端点，全部通过安全后端 IPC 代理
 - **流式对话** — SSE 格式实时流式响应，逐字显示 AI 回复
 - **AI 模组生成器** — 粘贴故事文本（≥200 字），AI 自动分析并生成完整可玩模组（场景/NPC/物品/事件/战斗）
 - **AI 风格分析器** — 提取故事的视觉风格配置：色板、氛围、艺术风格、光照、情绪关键词
@@ -158,9 +158,15 @@ backendProcess = spawn(nodeExec, [backendPath], { env });
 
 进入 **设置 → LLM**，选择你的 AI 提供商：
 
-- **OpenAI**：输入 API Key，选择 GPT-4o 或 GPT-4o-mini
+- **OpenAI**：输入 API Key，选择 GPT-4o / GPT-4o-mini
 - **Claude**：输入 API Key，选择 Claude 3.5 Sonnet
+- **Kimi (Moonshot)**：输入 API Key，选择 moonshot-v1 系列
+- **DeepSeek**：输入 API Key，选择 deepseek-chat / deepseek-coder
+- **Qwen (通义千问)**：输入 API Key，选择 qwen-turbo / qwen-plus / qwen-max
+- **GLM (智谱)**：输入 API Key，选择 glm-4 系列
+- **Gemini**：输入 API Key，选择 gemini-1.5 系列
 - **Ollama**：确保本地已运行 `ollama serve`，选择本地模型
+- **自定义**：输入任意兼容 OpenAI API 格式的端点地址和模型名
 
 ![LLM 设置面板](docs/screenshots/quickstart-llm-settings.png)
 
