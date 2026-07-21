@@ -6,6 +6,9 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default [
+  {
+    ignores: ['dist/**', 'node_modules/**', 'build/**'],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
@@ -42,9 +45,18 @@ export default [
     },
   },
   {
-    files: ['**/*.js'],
+    files: ['**/*.js', '**/*.cjs'],
     rules: {
       'no-console': 'off',
+    },
+  },
+  {
+    files: ['*.config.ts', '*.config.js'],
+    languageOptions: {
+      parserOptions: {
+        project: null,
+        createDefaultProgram: true,
+      },
     },
   },
 ];
