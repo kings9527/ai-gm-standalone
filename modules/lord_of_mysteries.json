@@ -1,12 +1,18 @@
 {
-  "name": "诡秘之主：廷根迷雾",
   "version": "1.0.0",
   "author": "AI-GM",
   "description": "基于《诡秘之主》小说第一卷'小丑'篇深度改编。玩家扮演克莱恩·莫雷蒂，一位从现代穿越到异世界的非凡者，在廷根市经历真实造物主子嗣降临事件。",
   "world_setting": {
     "title": "廷根市 · 第五纪1349年6月",
     "background": "这是一个蒸汽与机械并存的世界，煤气灯照亮着雾都的街道，工厂烟囱喷吐着浓烟。表面上，这是维多利亚时代的翻版——贵族、议会、警察、报纸、证券交易所。但在普通人看不到的暗面，非凡者行走于阴影之中，古老的神祇在星空深处投下注视，隐秘组织策划着不可名状的阴谋。\n\n你——克莱恩·莫雷蒂——原是一个普通的现代中国上班族，因为一场诡异的仪式穿越到了这个名为'鲁恩王国'的世界。你成为了霍纳奇斯大学历史系毕业生，同时也是值夜者小队的一员。刚刚消化完'占卜家'魔药的你，即将被卷入一场足以毁灭廷根市的恐怖事件——真实造物主的子嗣降临。",
-    "themes": ["蒸汽朋克", "克苏鲁", "神秘学", "魔药体系", "扮演法", "星空注视"],
+    "themes": [
+      "蒸汽朋克",
+      "克苏鲁",
+      "神秘学",
+      "魔药体系",
+      "扮演法",
+      "星空注视"
+    ],
     "power_system": {
       "name": "22条神之途径",
       "description": "这个世界存在22条非凡途径，每条途径从序列9到序列0共有10个序列。非凡者通过服食魔药晋升，但必须在每一序列'扮演'以消化魔药，否则会在晋升时失控疯狂。你目前处于'占卜家'途径的序列9。",
@@ -30,7 +36,11 @@
           "name": "仪式魔法",
           "description": "布置简单的防护仪式、净化仪式或召唤仪式。需要特定材料（如满月时的月光、草药、银制器具）。",
           "cost": 10,
-          "materials": ["满月月光", "夜香草", "银质烛台"]
+          "materials": [
+            "满月月光",
+            "夜香草",
+            "银质烛台"
+          ]
         }
       ],
       "acting_method": "扮演法：要消化'占卜家'魔药，必须像真正的占卜家一样生活——用占卜帮助他人，收取象征性费用，保持神秘但不做作。扮演是消化魔药的核心，但切记：你只是扮演，不是真的成为那个人。"
@@ -40,7 +50,13 @@
         "name": "值夜者",
         "description": "黑夜女神教会的非凡者小队，负责处理廷根市的神秘事件、保护市民免受非凡危害。总部设在黑荆棘安保公司地下。",
         "leader": "邓恩·史密斯",
-        "members": ["老尼尔", "伦纳德·米切尔", "弗莱", "洛耀", "克莱恩·莫雷蒂"]
+        "members": [
+          "老尼尔",
+          "伦纳德·米切尔",
+          "弗莱",
+          "洛耀",
+          "克莱恩·莫雷蒂"
+        ]
       },
       "mandated_punishers": {
         "name": "机械之心",
@@ -69,369 +85,814 @@
       "sealed_artifact_1-42": "1-42 失控的封印物，在查尼斯门深处沉睡。"
     }
   },
-  "scenes": [
-    {
+  "scenes": {
+    "blackthorn_security": {
       "id": "blackthorn_security",
       "name": "黑荆棘安保公司",
       "description": "值夜者小队的总部，表面是一家普通的安保公司，地下却藏着通往查尼斯门的通道。墙上挂着罗塞尔大帝的肖像——那位穿越者前辈用中文写下的'奇变偶不变'让你倍感亲切。角落里堆放着神秘学书籍，空气中弥漫着咖啡和烟草的味道。邓恩队长的办公室在最里面，老尼尔经常在地下室做实验，伦纳德则喜欢靠在窗边念诗。",
       "bg": "dark_victorian_office",
       "atmosphere": "calm",
-      "npcs": ["dunn_smith", "old_neil", "leonard_mitchell", "frye"],
-      "exits": [
-        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "离开黑荆棘安保公司，前往廷根市区" },
-        { "direction": "地下档案室", "target_scene": "archives", "description": "通过隐藏的楼梯前往地下档案室，存放着神秘学资料和封印物记录" },
-        { "direction": "查尼斯门", "target_scene": "chanis_gate", "description": "通往更深层的封印物收容区，需要队长权限" }
+      "npcs": [
+        "dunn_smith",
+        "old_neil",
+        "leonard_mitchell",
+        "frye"
       ],
-      "events": ["morning_briefing", "old_neil_experiment"],
-      "hidden_clues": ["罗塞尔大帝的笔记残页", "封印物登记簿"]
+      "exits": [
+        {
+          "description": "离开黑荆棘安保公司，前往廷根市区",
+          "label": "廷根市区",
+          "target": "tingen_streets"
+        },
+        {
+          "description": "通过隐藏的楼梯前往地下档案室，存放着神秘学资料和封印物记录",
+          "label": "地下档案室",
+          "target": "archives"
+        },
+        {
+          "description": "通往更深层的封印物收容区，需要队长权限",
+          "label": "查尼斯门",
+          "target": "chanis_gate"
+        }
+      ],
+      "events": [
+        "morning_briefing",
+        "old_neil_experiment"
+      ],
+      "hidden_clues": [
+        "罗塞尔大帝的笔记残页",
+        "封印物登记簿"
+      ]
     },
-    {
+    "tingen_streets": {
       "id": "tingen_streets",
       "name": "廷根市区",
       "description": "煤气路灯照亮着雾气弥漫的街道，马车哒哒地驶过石板路。远处传来工厂的汽笛声，报刊亭里贩卖着《贝克兰德日报》和《廷根市老实人报》。街角有一位占卜师在招揽生意，面包店的香气从橱窗里飘出来。你能感受到这座城市表面平静下涌动的暗流——擦肩而过的绅士可能是某个隐秘组织的成员，街边乞讨的流浪汉或许知晓不该知道的秘密。",
       "bg": "foggy_victorian_street",
       "atmosphere": "mystery",
-      "npcs": ["newspaper_seller", "street_fortune_teller", "kenley"],
-      "exits": [
-        { "direction": "黑荆棘安保公司", "target_scene": "blackthorn_security", "description": "返回值夜者总部" },
-        { "direction": "占卜俱乐部", "target_scene": "divination_club", "description": "前往威尔·昂赛汀的占卜俱乐部" },
-        { "direction": "码头区", "target_scene": "dock_district", "description": "前往码头区调查密修会线索" },
-        { "direction": "圣赛琳娜教堂", "target_scene": "saint_selena_church", "description": "黑夜女神教会在廷根市的主教堂" },
-        { "direction": "大学区", "target_scene": "university_district", "description": "霍纳奇斯大学所在区域" }
+      "npcs": [
+        "newspaper_seller",
+        "street_fortune_teller",
+        "kenley"
       ],
-      "events": ["street_encounter", "tarot_club_vision"],
-      "hidden_clues": ["密修会的暗号标记", "极光会的传单"]
+      "exits": [
+        {
+          "description": "返回值夜者总部",
+          "label": "黑荆棘安保公司",
+          "target": "blackthorn_security"
+        },
+        {
+          "description": "前往威尔·昂赛汀的占卜俱乐部",
+          "label": "占卜俱乐部",
+          "target": "divination_club"
+        },
+        {
+          "description": "前往码头区调查密修会线索",
+          "label": "码头区",
+          "target": "dock_district"
+        },
+        {
+          "description": "黑夜女神教会在廷根市的主教堂",
+          "label": "圣赛琳娜教堂",
+          "target": "saint_selena_church"
+        },
+        {
+          "description": "霍纳奇斯大学所在区域",
+          "label": "大学区",
+          "target": "university_district"
+        }
+      ],
+      "events": [
+        "street_encounter",
+        "tarot_club_vision"
+      ],
+      "hidden_clues": [
+        "密修会的暗号标记",
+        "极光会的传单"
+      ]
     },
-    {
+    "divination_club": {
       "id": "divination_club",
       "name": "威尔·昂赛汀的占卜俱乐部",
       "description": "一间装饰着水晶球和塔罗牌的小屋，空气中弥漫着薰衣草和夜香草的香气。威尔·昂赛汀——一位自称'命运之轮'的老者——在这里教授占卜技巧。墙上挂着巨大的命运之轮图案，架子上摆满了各种占卜工具。你知道，这位看似普通的老者实际上是一位序列1的'水银之蛇'，在躲避另一位'水银之蛇'的追杀。",
       "bg": "mystical_divination_room",
       "atmosphere": "mystery",
-      "npcs": ["will_auceptin"],
-      "exits": [
-        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "离开占卜俱乐部" }
+      "npcs": [
+        "will_auceptin"
       ],
-      "events": ["divination_lesson", "tarot_reading", "snake_of_fate"],
-      "hidden_clues": ["命运之轮的密文"]
+      "exits": [
+        {
+          "description": "离开占卜俱乐部",
+          "label": "廷根市区",
+          "target": "tingen_streets"
+        }
+      ],
+      "events": [
+        "divination_lesson",
+        "tarot_reading",
+        "snake_of_fate"
+      ],
+      "hidden_clues": [
+        "命运之轮的密文"
+      ]
     },
-    {
+    "dock_district": {
       "id": "dock_district",
       "name": "廷根码头区",
       "description": "咸腥的海风混合着煤烟的味道。破旧的仓库排列在码头边，走私者和密修会的成员可能藏匿于此。你发现一些可疑的符号——是密修会的标记。灵视开启后，你能看到标记周围缠绕着黑色的雾气，那是邪恶力量的残留。码头工人在装卸货物，但有几个人的眼神不太对劲。",
       "bg": "dark_dock_warehouse",
       "atmosphere": "tense",
-      "npcs": ["dock_worker", "suspicious_stranger"],
-      "exits": [
-        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "返回市区" },
-        { "direction": "废弃仓库", "target_scene": "abandoned_warehouse", "description": "调查标记所在的废弃仓库" },
-        { "direction": "海船", "target_scene": "ship", "description": "调查可疑的海船" }
+      "npcs": [
+        "dock_worker",
+        "suspicious_stranger"
       ],
-      "events": ["find_cult_symbols", "ambush", "underground_deal"],
-      "hidden_clues": ["密修会仪式材料清单", "邪神降临的时间表"]
+      "exits": [
+        {
+          "description": "返回市区",
+          "label": "廷根市区",
+          "target": "tingen_streets"
+        },
+        {
+          "description": "调查标记所在的废弃仓库",
+          "label": "废弃仓库",
+          "target": "abandoned_warehouse"
+        },
+        {
+          "description": "调查可疑的海船",
+          "label": "海船",
+          "target": "ship"
+        }
+      ],
+      "events": [
+        "find_cult_symbols",
+        "ambush",
+        "underground_deal"
+      ],
+      "hidden_clues": [
+        "密修会仪式材料清单",
+        "邪神降临的时间表"
+      ]
     },
-    {
+    "abandoned_warehouse": {
       "id": "abandoned_warehouse",
       "name": "废弃仓库",
       "description": "昏暗的仓库里堆满了发霉的货物。墙上的密修会符号发出微弱的荧光，地上画着未完成的仪式法阵。你能感受到某种邪恶的力量在附近徘徊——那是真实造物主的力量，混乱、疯狂、充满呓语。灵视下，仓库的角落里盘踞着黑色的触手状阴影。你必须阻止这个仪式，否则廷根市将生灵涂炭。",
       "bg": "ritual_warehouse",
       "atmosphere": "horror",
-      "npcs": ["cultist_leader", "cultist_acolyte"],
-      "exits": [
-        { "direction": "码头区", "target_scene": "dock_district", "description": "逃离仓库" }
+      "npcs": [
+        "cultist_leader",
+        "cultist_acolyte"
       ],
-      "events": ["ritual_interrupted", "combat_cultist", "true_creator_vision"],
-      "hidden_clues": ["安提哥努斯家族笔记残页", "真实造物主降临仪式的详细步骤"]
+      "exits": [
+        {
+          "description": "逃离仓库",
+          "label": "码头区",
+          "target": "dock_district"
+        }
+      ],
+      "events": [
+        "ritual_interrupted",
+        "combat_cultist",
+        "true_creator_vision"
+      ],
+      "hidden_clues": [
+        "安提哥努斯家族笔记残页",
+        "真实造物主降临仪式的详细步骤"
+      ]
     },
-    {
+    "saint_selena_church": {
       "id": "saint_selena_church",
       "name": "圣赛琳娜教堂",
       "description": "廷根市黑夜女神教会的主教堂，高耸的哥特式建筑尖顶刺破雾气。教堂内部庄严肃穆，彩绘玻璃描绘着黑夜女神的神话故事。圣赛琳娜的骨灰就安葬在这里——她是教会的英雄，序列4的'守夜人'。你能感觉到这里比其他地方更加宁静，非凡的力量被压制，邪神的力量难以渗透。",
       "bg": "gothic_church",
       "atmosphere": "peaceful",
-      "npcs": ["bishop", "prayer_believer"],
-      "exits": [
-        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "离开教堂" }
+      "npcs": [
+        "bishop",
+        "prayer_believer"
       ],
-      "events": ["prayer", "benediction", "divine_inspiration"],
-      "hidden_clues": ["圣赛琳娜的生平记录", "黑夜女神的教义秘本"]
+      "exits": [
+        {
+          "description": "离开教堂",
+          "label": "廷根市区",
+          "target": "tingen_streets"
+        }
+      ],
+      "events": [
+        "prayer",
+        "benediction",
+        "divine_inspiration"
+      ],
+      "hidden_clues": [
+        "圣赛琳娜的生平记录",
+        "黑夜女神的教义秘本"
+      ]
     },
-    {
+    "university_district": {
       "id": "university_district",
       "name": "大学区",
       "description": "霍纳奇斯大学的所在地，年轻的学子们在此学习历史、文学、法律和神秘学。你曾是这里的一名学生，现在则是值夜者。图书馆里藏着许多古老的典籍，其中一些涉及神秘学的知识。教授们中有几位可能知晓非凡世界的存在。",
       "bg": "university_campus",
       "atmosphere": "calm",
-      "npcs": ["professor", "student"],
-      "exits": [
-        { "direction": "廷根市区", "target_scene": "tingen_streets", "description": "返回市区" },
-        { "direction": "图书馆", "target_scene": "library", "description": "前往大学图书馆" }
+      "npcs": [
+        "professor",
+        "student"
       ],
-      "events": ["academic_research", "secret_society_recruit"],
-      "hidden_clues": ["罗塞尔大帝的历史笔记", "安提哥努斯家族的考古报告"]
+      "exits": [
+        {
+          "description": "返回市区",
+          "label": "廷根市区",
+          "target": "tingen_streets"
+        },
+        {
+          "description": "前往大学图书馆",
+          "label": "图书馆",
+          "target": "library"
+        }
+      ],
+      "events": [
+        "academic_research",
+        "secret_society_recruit"
+      ],
+      "hidden_clues": [
+        "罗塞尔大帝的历史笔记",
+        "安提哥努斯家族的考古报告"
+      ]
     },
-    {
+    "library": {
       "id": "library",
       "name": "霍纳奇斯大学图书馆",
       "description": "宏伟的图书馆，书架高耸至天花板，弥漫着旧纸张和羊皮纸的气味。这里有普通的历史书籍，也有被锁在特殊区域的神秘学典籍。你曾在历史系的藏书区找到过关于安提哥努斯家族的线索。",
       "bg": "grand_library",
       "atmosphere": "mystery",
-      "npcs": ["librarian"],
-      "exits": [
-        { "direction": "大学区", "target_scene": "university_district", "description": "离开图书馆" }
+      "npcs": [
+        "librarian"
       ],
-      "events": ["ancient_texts", "封印物_record"],
-      "hidden_clues": ["第四纪历史", "冥皇萨林格尔的传说"]
+      "exits": [
+        {
+          "description": "离开图书馆",
+          "label": "大学区",
+          "target": "university_district"
+        }
+      ],
+      "events": [
+        "ancient_texts",
+        "封印物_record"
+      ],
+      "hidden_clues": [
+        "第四纪历史",
+        "冥皇萨林格尔的传说"
+      ]
     },
-    {
+    "chanis_gate": {
       "id": "chanis_gate",
       "name": "查尼斯门",
       "description": "黑荆棘安保公司地下深处的封印物收容区。厚重的金属门上刻满了封印符文，门后是危险等级从3到0的封印物。即使作为值夜者，你也不能随意进入。这里沉睡着'1-42'——一件失控的封印物，它的恐怖足以毁灭整个廷根市。邓恩队长时刻提醒：封印物不是工具，是灾难。",
       "bg": "sealed_chamber",
       "atmosphere": "horror",
-      "npcs": ["sealed_artifact_guard"],
-      "exits": [
-        { "direction": "黑荆棘安保公司", "target_scene": "blackthorn_security", "description": "返回地面" }
+      "npcs": [
+        "sealed_artifact_guard"
       ],
-      "events": ["sealed_artifact_description", "nightmare_whisper"],
-      "hidden_clues": ["封印物登记簿", "0级封印物名单"]
+      "exits": [
+        {
+          "description": "返回地面",
+          "label": "黑荆棘安保公司",
+          "target": "blackthorn_security"
+        }
+      ],
+      "events": [
+        "sealed_artifact_description",
+        "nightmare_whisper"
+      ],
+      "hidden_clues": [
+        "封印物登记簿",
+        "0级封印物名单"
+      ]
     }
-  ],
-  "npcs": [
-    {
+  },
+  "npcs": {
+    "dunn_smith": {
       "id": "dunn_smith",
       "name": "邓恩·史密斯",
       "title": "值夜者队长",
       "description": "一位沉稳可靠的中年男子，'不眠者'途径序列7'梦魇'。他的眼睛深邃，仿佛能看透人心。总是把保护廷根市民的安全放在第一位。邓恩有一个秘密——他偶尔会'忘记'一些事情，因为他正在对抗内心深处的某种影响。",
-      "sprite": "middle_aged_man_uniform",
       "dialogue_style": "沉稳、关怀、偶尔幽默，会引用黑夜女神的教义",
-      "personality": ["责任感强", "保护欲", "经验丰富", "偶尔健忘"],
-      "knowledge": ["密修会情报", "查尼斯门封印物", "值夜者内部流程"],
+      "personality": [
+        "责任感强",
+        "保护欲",
+        "经验丰富",
+        "偶尔健忘"
+      ],
+      "knowledge": [
+        "密修会情报",
+        "查尼斯门封印物",
+        "值夜者内部流程"
+      ],
       "sequence": 7,
       "path": "不眠者",
-      "relationship": "你的直属上司，像父亲一样关心你"
+      "relationship": "你的直属上司，像父亲一样关心你",
+      "sprites": [
+        "middle_aged_man_uniform"
+      ]
     },
-    {
+    "old_neil": {
       "id": "old_neil",
       "name": "老尼尔",
       "title": "资深值夜者",
       "description": "头发花白的老者，'窥秘人'途径序列9。他对神秘学知识如数家珍，经常在地下室做各种奇怪的实验。老尼尔总是乐观开朗，但他内心深处藏着一个悲伤的秘密——他年轻时试图用神秘学复活死去的妻子，结果付出了惨痛的代价。",
-      "sprite": "elderly_scholar",
       "dialogue_style": "博学、幽默、偶尔神经质，喜欢讲冷笑话和神秘学典故",
-      "personality": ["好奇心旺盛", "知识渊博", "乐观", "内心悲伤"],
-      "knowledge": ["仪式魔法", "神秘学历史", "古代文字", "魔药配方"],
+      "personality": [
+        "好奇心旺盛",
+        "知识渊博",
+        "乐观",
+        "内心悲伤"
+      ],
+      "knowledge": [
+        "仪式魔法",
+        "神秘学历史",
+        "古代文字",
+        "魔药配方"
+      ],
       "sequence": 9,
       "path": "窥秘人",
-      "relationship": "你的导师和前辈，像爷爷一样照顾你"
+      "relationship": "你的导师和前辈，像爷爷一样照顾你",
+      "sprites": [
+        "elderly_scholar"
+      ]
     },
-    {
+    "leonard_mitchell": {
       "id": "leonard_mitchell",
       "name": "伦纳德·米切尔",
       "title": "值夜者队员",
       "description": "年轻帅气的值夜者，'收尸人'途径序列9。总是带着一把左轮手枪，自称'诗人'。他的体内寄生着一位古老的强者——帕列斯·索罗亚斯德，序列1的'时之虫'。伦纳德本人对此并不完全知情，只偶尔觉得脑海中有个声音在指导他。",
-      "sprite": "young_poet_gunslinger",
       "dialogue_style": "浪漫、自信、带诗意，偶尔冒出不符合时代的用词（来自帕列斯）",
-      "personality": ["自信", "浪漫", "秘密主义者", "幸运体质"],
-      "knowledge": ["魔药配方", "古神知识", "偷盗者途径秘密"],
+      "personality": [
+        "自信",
+        "浪漫",
+        "秘密主义者",
+        "幸运体质"
+      ],
+      "knowledge": [
+        "魔药配方",
+        "古神知识",
+        "偷盗者途径秘密"
+      ],
       "sequence": 9,
       "path": "收尸人",
-      "relationship": "你的搭档，表面轻浮实则可靠"
+      "relationship": "你的搭档，表面轻浮实则可靠",
+      "sprites": [
+        "young_poet_gunslinger"
+      ]
     },
-    {
+    "frye": {
       "id": "frye",
       "name": "弗莱",
       "title": "值夜者队员",
       "description": "沉默寡言的值夜者，'收尸人'途径序列9。面色苍白，像尸体一样没有表情。他很少说话，但执行力极强。据说他能在尸体上'看到'死者生前的记忆片段。",
-      "sprite": "pale_silent_man",
       "dialogue_style": "简短、直接、不带感情",
-      "personality": ["沉默", "冷静", "专业", "与死亡为伴"],
-      "knowledge": ["尸体处理", "死亡现场调查", "亡灵知识"],
+      "personality": [
+        "沉默",
+        "冷静",
+        "专业",
+        "与死亡为伴"
+      ],
+      "knowledge": [
+        "尸体处理",
+        "死亡现场调查",
+        "亡灵知识"
+      ],
       "sequence": 9,
       "path": "收尸人",
-      "relationship": "你的同事，话少但可靠"
+      "relationship": "你的同事，话少但可靠",
+      "sprites": [
+        "pale_silent_man"
+      ]
     },
-    {
+    "will_auceptin": {
       "id": "will_auceptin",
       "name": "威尔·昂赛汀",
       "title": "命运之轮",
       "description": "一位看似普通的老者，实则是一位序列1的'水银之蛇'。他经营着占卜俱乐部，以'命运之轮'为代号。他一直在躲避另一位'水银之蛇'威尔·昂赛汀（同名）的追杀。他给你塔罗牌，暗示你的命运，但从不直接干预。",
-      "sprite": "mysterious_old_man",
       "dialogue_style": "神秘、隐喻、引导式，说话像谜语",
-      "personality": ["神秘", "智慧", "观察者", "谨慎"],
-      "knowledge": ["命运途径", "塔罗会", "序列0的秘密", "水银之蛇的宿命"],
+      "personality": [
+        "神秘",
+        "智慧",
+        "观察者",
+        "谨慎"
+      ],
+      "knowledge": [
+        "命运途径",
+        "塔罗会",
+        "序列0的秘密",
+        "水银之蛇的宿命"
+      ],
       "sequence": 1,
       "path": "命运之轮",
-      "relationship": "你的神秘引路人，赠你塔罗牌"
+      "relationship": "你的神秘引路人，赠你塔罗牌",
+      "sprites": [
+        "mysterious_old_man"
+      ]
     },
-    {
+    "cultist_leader": {
       "id": "cultist_leader",
       "name": "兰尔乌斯",
       "title": "密修会祭司",
       "description": "密修会在廷根市的负责人，真实造物主的忠实信徒。表面上是廷根市知名的慈善家，暗地里策划着让真实造物主子嗣降临的仪式。他欺骗了许多人，包括梅高欧丝——一位被真实造物主污染的可怜女子。",
-      "sprite": "charismatic_fanatic",
       "dialogue_style": "狂热、煽动、充满呓语般的宗教激情",
-      "personality": ["狂热", "残忍", "狡猾", "伪装慈善"],
-      "knowledge": ["真实造物主教义", "降临仪式", "密修会网络"],
+      "personality": [
+        "狂热",
+        "残忍",
+        "狡猾",
+        "伪装慈善"
+      ],
+      "knowledge": [
+        "真实造物主教义",
+        "降临仪式",
+        "密修会网络"
+      ],
       "sequence": 8,
       "path": "牧羊人",
-      "relationship": "你的敌人，廷根事件的幕后黑手"
+      "relationship": "你的敌人，廷根事件的幕后黑手",
+      "sprites": [
+        "charismatic_fanatic"
+      ]
     },
-    {
+    "cultist_acolyte": {
       "id": "cultist_acolyte",
       "name": "密修会成员",
       "title": "邪教徒",
       "description": "身穿黑袍的邪教徒，脸上戴着刻有诡异符号的面具。他们正在进行某种邪恶的仪式。大部分成员是被洗脑的普通人，少数是低序列非凡者。",
-      "sprite": "hooded_cultist",
       "dialogue_style": "疯狂、邪恶、低语",
-      "personality": ["狂热", "残忍", "疯狂"],
-      "knowledge": ["邪神仪式", "诅咒", "真实造物主呓语"],
+      "personality": [
+        "狂热",
+        "残忍",
+        "疯狂"
+      ],
+      "knowledge": [
+        "邪神仪式",
+        "诅咒",
+        "真实造物主呓语"
+      ],
       "sequence": 9,
       "path": "秘祈人",
-      "relationship": "敌人"
+      "relationship": "敌人",
+      "sprites": [
+        "hooded_cultist"
+      ]
     },
-    {
+    "kenley": {
       "id": "kenley",
       "name": "肯莱",
       "title": "廷根市警察",
       "description": "廷根市的普通警察，不知晓非凡世界的存在。他负责处理普通案件，偶尔会向值夜者移交'奇怪'的案件。他是个正直的人，总是尽职尽责。",
-      "sprite": "police_officer",
       "dialogue_style": "正直、认真、略带天真",
-      "personality": ["正直", "尽职", "普通市民"],
-      "knowledge": ["廷根市治安", "普通犯罪"],
+      "personality": [
+        "正直",
+        "尽职",
+        "普通市民"
+      ],
+      "knowledge": [
+        "廷根市治安",
+        "普通犯罪"
+      ],
       "sequence": 0,
       "path": "普通人",
-      "relationship": "值夜者的表面合作者"
+      "relationship": "值夜者的表面合作者",
+      "sprites": [
+        "police_officer"
+      ]
     }
-  ],
-  "events": [
-    {
+  },
+  "events": {
+    "morning_briefing": {
       "id": "morning_briefing",
       "name": "晨间简报",
       "trigger": "进入黑荆棘安保公司",
       "description": "邓恩队长召集所有人进行晨间简报。最近廷根市出现了多起与密修会有关的失踪案件，需要调查。老尼尔根据星象推算，一场大危机正在酝酿。",
       "dialogue": [
-        { "speaker": "邓恩·史密斯", "text": "各位，最近廷根市不太平。码头区发现了密修会的标记，已经有三个人失踪了。肯莱警官移交了一个案子——一位名叫梅高欧丝的女士失踪了，她的未婚夫兰尔乌斯报案说她精神失常出走。" },
-        { "speaker": "老尼尔", "text": "密修会？那些崇拜真实造物主的疯子？我研究过他们的仪式，需要特定的星象才能进行大规模召唤。最近的天象...不太对劲。满月之夜的群星排列指向某种'降临'。" },
-        { "speaker": "伦纳德·米切尔", "text": "让我去吧，我的'收尸人'能力正好克制那些不死生物。不过...我需要一些帮手。克莱恩，你是占卜家，正好能追踪那些邪教徒的踪迹。" },
-        { "speaker": "邓恩·史密斯", "text": "克莱恩，你来协助伦纳德。记住，遇到危险优先保护自己。灵视不要开太久，会损耗精神。如果看到不该看的东西——闭上眼睛，立刻报告。" }
+        {
+          "speaker": "邓恩·史密斯",
+          "text": "各位，最近廷根市不太平。码头区发现了密修会的标记，已经有三个人失踪了。肯莱警官移交了一个案子——一位名叫梅高欧丝的女士失踪了，她的未婚夫兰尔乌斯报案说她精神失常出走。"
+        },
+        {
+          "speaker": "老尼尔",
+          "text": "密修会？那些崇拜真实造物主的疯子？我研究过他们的仪式，需要特定的星象才能进行大规模召唤。最近的天象...不太对劲。满月之夜的群星排列指向某种'降临'。"
+        },
+        {
+          "speaker": "伦纳德·米切尔",
+          "text": "让我去吧，我的'收尸人'能力正好克制那些不死生物。不过...我需要一些帮手。克莱恩，你是占卜家，正好能追踪那些邪教徒的踪迹。"
+        },
+        {
+          "speaker": "邓恩·史密斯",
+          "text": "克莱恩，你来协助伦纳德。记住，遇到危险优先保护自己。灵视不要开太久，会损耗精神。如果看到不该看的东西——闭上眼睛，立刻报告。"
+        }
       ],
       "choices": [
-        { "text": "我明白了，队长。我会小心的。优先保护自己，然后保护廷根。", "effect": { "trust_dunn": 15, "duty": 10 } },
-        { "text": "密修会的标记是什么样的？我想先了解一下，还有梅高欧丝...她可能不是普通失踪。", "effect": { "knowledge_cult": 10, "insight": 5 }, "next_event": "learn_cult_symbols" },
-        { "text": "队长，我昨晚占卜了一下...结果不太好。廷根市有大危机。", "effect": { "divination_skill": 5, "trust_dunn": 5, "forewarning": true } }
+        {
+          "text": "我明白了，队长。我会小心的。优先保护自己，然后保护廷根。",
+          "effect": {
+            "trust_dunn": 15,
+            "duty": 10
+          }
+        },
+        {
+          "text": "密修会的标记是什么样的？我想先了解一下，还有梅高欧丝...她可能不是普通失踪。",
+          "effect": {
+            "knowledge_cult": 10,
+            "insight": 5
+          },
+          "next_event": "learn_cult_symbols"
+        },
+        {
+          "text": "队长，我昨晚占卜了一下...结果不太好。廷根市有大危机。",
+          "effect": {
+            "divination_skill": 5,
+            "trust_dunn": 5,
+            "forewarning": true
+          }
+        }
       ]
     },
-    {
+    "old_neil_experiment": {
       "id": "old_neil_experiment",
       "name": "老尼尔的实验",
       "trigger": "与老尼尔对话",
       "description": "老尼尔正在地下室做某种神秘学实验，周围摆满了草药和银质器具。",
       "dialogue": [
-        { "speaker": "老尼尔", "text": "啊，克莱恩，你来得正好。我在尝试配置一种能增强灵视的药剂，但缺了一味主材料——夜香草。你帮我找找？" },
-        { "speaker": "老尼尔", "text": "对了，年轻人...（压低声音）我年轻时犯了一个错误。我试图用仪式魔法复活我死去的妻子。结果...仪式失败了，我失去了一些东西。不要重蹈我的覆辙。非凡的力量有代价。" }
+        {
+          "speaker": "老尼尔",
+          "text": "啊，克莱恩，你来得正好。我在尝试配置一种能增强灵视的药剂，但缺了一味主材料——夜香草。你帮我找找？"
+        },
+        {
+          "speaker": "老尼尔",
+          "text": "对了，年轻人...（压低声音）我年轻时犯了一个错误。我试图用仪式魔法复活我死去的妻子。结果...仪式失败了，我失去了一些东西。不要重蹈我的覆辙。非凡的力量有代价。"
+        }
       ],
       "choices": [
-        { "text": "我会帮你找夜香草。尼尔先生...您的故事让我很受触动。", "effect": { "trust_old_neil": 15, "herb_knowledge": 5 } },
-        { "text": "复活仪式？那太危险了。队长知道吗？", "effect": { "knowledge_ritual": 10, "concern": 5 } },
-        { "text": "我想学习这个药剂的配置方法。", "effect": { "potion_knowledge": 10, "trust_old_neil": 5 } }
+        {
+          "text": "我会帮你找夜香草。尼尔先生...您的故事让我很受触动。",
+          "effect": {
+            "trust_old_neil": 15,
+            "herb_knowledge": 5
+          }
+        },
+        {
+          "text": "复活仪式？那太危险了。队长知道吗？",
+          "effect": {
+            "knowledge_ritual": 10,
+            "concern": 5
+          }
+        },
+        {
+          "text": "我想学习这个药剂的配置方法。",
+          "effect": {
+            "potion_knowledge": 10,
+            "trust_old_neil": 5
+          }
+        }
       ]
     },
-    {
+    "divination_lesson": {
       "id": "divination_lesson",
       "name": "占卜课程",
       "trigger": "与威尔·昂赛汀对话",
       "description": "威尔教你如何使用占卜家的能力进行更精确的占卜。他能看穿你的秘密——你是穿越者。",
       "dialogue": [
-        { "speaker": "威尔·昂赛汀", "text": "年轻人，你身上的气息告诉我，你刚刚踏上'占卜家'的道路。让我教你一些真正的技巧。" },
-        { "speaker": "威尔·昂赛汀", "text": "记住，占卜不是预测未来，而是解读命运的线索。水晶球、塔罗牌、灵摆——都是工具，重要的是你的心。" },
-        { "speaker": "威尔·昂赛汀", "text": "（微笑）你来自很远的地方，不是吗？'奇变偶不变'...我也听过这句话。罗塞尔大帝很喜欢这句。" }
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "年轻人，你身上的气息告诉我，你刚刚踏上'占卜家'的道路。让我教你一些真正的技巧。"
+        },
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "记住，占卜不是预测未来，而是解读命运的线索。水晶球、塔罗牌、灵摆——都是工具，重要的是你的心。"
+        },
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "（微笑）你来自很远的地方，不是吗？'奇变偶不变'...我也听过这句话。罗塞尔大帝很喜欢这句。"
+        }
       ],
       "choices": [
-        { "text": "请教我塔罗牌的真正用法。", "effect": { "divination_skill": 15, "tarot_mastery": true } },
-        { "text": "我想学习灵视的高级用法——如何看到更深层次的东西。", "effect": { "spirit_vision": 10, "danger": 5 } },
-        { "text": "威尔先生...您知道'穿越'的事吗？", "effect": { "secret_knowledge": 10, "trust_will": 5 } }
+        {
+          "text": "请教我塔罗牌的真正用法。",
+          "effect": {
+            "divination_skill": 15,
+            "tarot_mastery": true
+          }
+        },
+        {
+          "text": "我想学习灵视的高级用法——如何看到更深层次的东西。",
+          "effect": {
+            "spirit_vision": 10,
+            "danger": 5
+          }
+        },
+        {
+          "text": "威尔先生...您知道'穿越'的事吗？",
+          "effect": {
+            "secret_knowledge": 10,
+            "trust_will": 5
+          }
+        }
       ]
     },
-    {
+    "tarot_reading": {
       "id": "tarot_reading",
       "name": "塔罗占卜",
       "trigger": "请求威尔占卜",
       "description": "威尔为你进行一次塔罗占卜，揭示未来的线索。他看到了廷根的命运。",
       "dialogue": [
-        { "speaker": "威尔·昂赛汀", "text": "抽三张牌吧，让我们看看命运之轮为你准备了什么。" },
-        { "speaker": "威尔·昂赛汀", "text": "...有趣。'愚者'正位，代表新的开始和未知的可能；'命运之轮'逆位，暗示危险临近、命运失控；'死神'正位...意味着重大的转变，旧事物的终结。" },
-        { "speaker": "威尔·昂赛汀", "text": "小心码头区，那里的阴影比想象中更深。梅高欧丝...她不是失踪。她是被选中的人。'真实造物主'的子嗣正在她体内孕育。" }
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "抽三张牌吧，让我们看看命运之轮为你准备了什么。"
+        },
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "...有趣。'愚者'正位，代表新的开始和未知的可能；'命运之轮'逆位，暗示危险临近、命运失控；'死神'正位...意味着重大的转变，旧事物的终结。"
+        },
+        {
+          "speaker": "威尔·昂赛汀",
+          "text": "小心码头区，那里的阴影比想象中更深。梅高欧丝...她不是失踪。她是被选中的人。'真实造物主'的子嗣正在她体内孕育。"
+        }
       ],
       "choices": [
-        { "text": "真实造物主的子嗣...降临廷根？那我们必须阻止它！", "effect": { "crisis_awareness": true, "clue_dock": true, "urgency": 20 }, "unlock_scene": "dock_district" },
-        { "text": "梅高欧丝...兰尔乌斯知道真相吗？", "effect": { "insight": 10, "conspiracy": 5 } }
+        {
+          "text": "真实造物主的子嗣...降临廷根？那我们必须阻止它！",
+          "effect": {
+            "crisis_awareness": true,
+            "clue_dock": true,
+            "urgency": 20
+          },
+          "unlock_scene": "dock_district"
+        },
+        {
+          "text": "梅高欧丝...兰尔乌斯知道真相吗？",
+          "effect": {
+            "insight": 10,
+            "conspiracy": 5
+          }
+        }
       ]
     },
-    {
+    "find_cult_symbols": {
       "id": "find_cult_symbols",
       "name": "发现密修会标记",
       "trigger": "在码头区调查",
       "description": "你在码头区的墙壁上发现了密修会的标记——一个扭曲的五角星，中央是一只睁开的眼睛。灵视下，标记周围缠绕着黑色的雾气。",
       "dialogue": [
-        { "text": "（你开启灵视，看到标记周围缠绕着黑色的雾气——这是真实造物主力量的残留。雾气中有无数细小的触手在蠕动，那是精神污染的痕迹）" },
-        { "text": "标记还很新鲜，画上去不超过三天。密修会的人可能就在附近。更可怕的是，你感觉到某种'注视'——似乎有什么东西透过标记在看着你。" }
+        {
+          "text": "（你开启灵视，看到标记周围缠绕着黑色的雾气——这是真实造物主力量的残留。雾气中有无数细小的触手在蠕动，那是精神污染的痕迹）"
+        },
+        {
+          "text": "标记还很新鲜，画上去不超过三天。密修会的人可能就在附近。更可怕的是，你感觉到某种'注视'——似乎有什么东西透过标记在看着你。"
+        }
       ],
       "choices": [
-        { "text": "追踪标记，找到他们的藏身之处。用占卜确认方向。", "effect": { "cult_trail": true, "divination_skill": 5 }, "unlock_scene": "abandoned_warehouse" },
-        { "text": "先回去报告队长，不要打草惊蛇。这是大案子。", "effect": { "caution": 10, "trust_dunn": 5 } },
-        { "text": "灵视全开，看看标记背后还有什么...", "effect": { "spirit_vision": 10, "madness_risk": 15, "hidden_clue": true } }
+        {
+          "text": "追踪标记，找到他们的藏身之处。用占卜确认方向。",
+          "effect": {
+            "cult_trail": true,
+            "divination_skill": 5
+          },
+          "unlock_scene": "abandoned_warehouse"
+        },
+        {
+          "text": "先回去报告队长，不要打草惊蛇。这是大案子。",
+          "effect": {
+            "caution": 10,
+            "trust_dunn": 5
+          }
+        },
+        {
+          "text": "灵视全开，看看标记背后还有什么...",
+          "effect": {
+            "spirit_vision": 10,
+            "madness_risk": 15,
+            "hidden_clue": true
+          }
+        }
       ]
     },
-    {
+    "combat_cultist": {
       "id": "combat_cultist",
       "name": "遭遇密修会成员",
       "trigger": "进入废弃仓库",
       "description": "密修会成员发现了你的 intrusion！他们正在准备某种仪式，真实造物主的力量在仓库中凝聚。你必须阻止他们。",
       "dialogue": [
-        { "speaker": "兰尔乌斯", "text": "克莱恩·莫雷蒂...值夜者的占卜家。你以为你能阻止神的降临？梅高欧丝已经怀上了神子，她的身体就是圣器。" },
-        { "speaker": "兰尔乌斯", "text": "真实造物主是仁慈的！祂会净化这个腐朽的世界！而你...会成为祭品。" },
-        { "text": "（仓库内的温度骤降，墙壁上渗出黑色的液体。灵视中，你看到兰尔乌斯的身后有一个巨大的虚影——那是真实造物主的分身，触手、眼睛、嘴巴，不断变换着形态）" }
+        {
+          "speaker": "兰尔乌斯",
+          "text": "克莱恩·莫雷蒂...值夜者的占卜家。你以为你能阻止神的降临？梅高欧丝已经怀上了神子，她的身体就是圣器。"
+        },
+        {
+          "speaker": "兰尔乌斯",
+          "text": "真实造物主是仁慈的！祂会净化这个腐朽的世界！而你...会成为祭品。"
+        },
+        {
+          "text": "（仓库内的温度骤降，墙壁上渗出黑色的液体。灵视中，你看到兰尔乌斯的身后有一个巨大的虚影——那是真实造物主的分身，触手、眼睛、嘴巴，不断变换着形态）"
+        }
       ],
       "combat": {
         "enemies": [
-          { "name": "兰尔乌斯", "hp": 120, "attack": 20, "defense": 10, "skills": ["邪神呓语", "暗影触手", "精神污染"], "sequence": 8, "path": "牧羊人" },
-          { "name": "密修会成员", "hp": 60, "attack": 12, "defense": 3, "skills": ["诅咒匕首", "恐惧术"], "sequence": 9, "path": "秘祈人" }
+          {
+            "name": "兰尔乌斯",
+            "hp": 120,
+            "attack": 20,
+            "defense": 10,
+            "skills": [
+              "邪神呓语",
+              "暗影触手",
+              "精神污染"
+            ],
+            "sequence": 8,
+            "path": "牧羊人"
+          },
+          {
+            "name": "密修会成员",
+            "hp": 60,
+            "attack": 12,
+            "defense": 3,
+            "skills": [
+              "诅咒匕首",
+              "恐惧术"
+            ],
+            "sequence": 9,
+            "path": "秘祈人"
+          }
         ],
         "win_event": "ritual_stopped",
         "lose_event": "captured_by_cult"
       }
     },
-    {
+    "ritual_stopped": {
       "id": "ritual_stopped",
       "name": "仪式中断",
       "trigger": "击败兰尔乌斯",
       "description": "你击败了兰尔乌斯，但为时已晚。梅高欧丝体内的真实造物主子嗣已经开始觉醒。廷根市的危机远未结束。",
       "dialogue": [
-        { "speaker": "兰尔乌斯", "text": "（临死前狂笑）太迟了...太迟了！神子已经觉醒...梅高欧丝会生下它...廷根市...将会...成为祭坛..." },
-        { "text": "（兰尔乌斯倒地身亡。但你感觉到廷根市的地下深处，某种恐怖的存在正在苏醒。梅高欧丝...她去了哪里？）" }
+        {
+          "speaker": "兰尔乌斯",
+          "text": "（临死前狂笑）太迟了...太迟了！神子已经觉醒...梅高欧丝会生下它...廷根市...将会...成为祭坛..."
+        },
+        {
+          "text": "（兰尔乌斯倒地身亡。但你感觉到廷根市的地下深处，某种恐怖的存在正在苏醒。梅高欧丝...她去了哪里？）"
+        }
       ],
       "choices": [
-        { "text": "立刻回黑荆棘报告！必须找到梅高欧丝！", "effect": { "urgency": 30, "trust_dunn": 10 }, "next_event": "urgent_briefing" },
-        { "text": "搜查仓库，找到更多线索。", "effect": { "clue_warehouse": true, "knowledge_cult": 10 } }
+        {
+          "text": "立刻回黑荆棘报告！必须找到梅高欧丝！",
+          "effect": {
+            "urgency": 30,
+            "trust_dunn": 10
+          },
+          "next_event": "urgent_briefing"
+        },
+        {
+          "text": "搜查仓库，找到更多线索。",
+          "effect": {
+            "clue_warehouse": true,
+            "knowledge_cult": 10
+          }
+        }
       ]
     },
-    {
+    "true_creator_vision": {
       "id": "true_creator_vision",
       "name": "真实造物主的注视",
       "trigger": "在仓库中灵视全开",
       "description": "你的灵视触及了不该触及的东西。真实造物主——这位堕落的真神——透过仪式标记的残余力量，注视着你。",
       "dialogue": [
-        { "text": "（无数的声音在你脑海中响起——不是语言，而是纯粹的疯狂。你看到了星空之外的恐怖存在，触手、眼睛、嘴巴，在虚空中扭动）" },
-        { "text": "'救...救...我...'——那是真实造物主的声音，祂在痛苦中挣扎，祂渴望解脱，祂的疯狂感染着一切接触祂的生物。" },
-        { "text": "（你的精神受到了严重污染。需要立刻进行净化仪式，否则你会发疯）" }
+        {
+          "text": "（无数的声音在你脑海中响起——不是语言，而是纯粹的疯狂。你看到了星空之外的恐怖存在，触手、眼睛、嘴巴，在虚空中扭动）"
+        },
+        {
+          "text": "'救...救...我...'——那是真实造物主的声音，祂在痛苦中挣扎，祂渴望解脱，祂的疯狂感染着一切接触祂的生物。"
+        },
+        {
+          "text": "（你的精神受到了严重污染。需要立刻进行净化仪式，否则你会发疯）"
+        }
       ],
-      "effects": { "madness": 30, "spirit_damage": 20, "divine_knowledge": true },
+      "effects": {
+        "madness": 30,
+        "spirit_damage": 20,
+        "divine_knowledge": true
+      },
       "choices": [
-        { "text": "立刻关闭灵视，念诵黑夜女神的祈祷词！", "effect": { "madness": -15, "faith": 10 } },
-        { "text": "抵抗！我是占卜家，我能看到真相，也能承受真相！", "effect": { "madness": 10, "willpower": 15, "spirit_damage": 10 } }
+        {
+          "text": "立刻关闭灵视，念诵黑夜女神的祈祷词！",
+          "effect": {
+            "madness": -15,
+            "faith": 10
+          }
+        },
+        {
+          "text": "抵抗！我是占卜家，我能看到真相，也能承受真相！",
+          "effect": {
+            "madness": 10,
+            "willpower": 15,
+            "spirit_damage": 10
+          }
+        }
       ]
     }
-  ],
+  },
   "player": {
     "name": "克莱恩·莫雷蒂",
     "title": "序列9 占卜家",
@@ -465,16 +926,44 @@
         "name": "仪式魔法",
         "description": "布置简单的防护仪式、净化仪式或召唤仪式。需要特定材料（满月月光、夜香草、银制器具）。",
         "cost": 10,
-        "materials": ["满月月光", "夜香草", "银质烛台"]
+        "materials": [
+          "满月月光",
+          "夜香草",
+          "银质烛台"
+        ]
       }
     ],
     "inventory": [
-      { "name": "水晶球", "type": "tool", "description": "占卜用的工具，从老尼尔那里获得" },
-      { "name": "塔罗牌", "type": "tool", "description": "威尔·昂赛汀赠送的塔罗牌，牌灵很强" },
-      { "name": "灵摆", "type": "tool", "description": "银质灵摆，寻人寻物时最准" },
-      { "name": "魔药（占卜家）", "type": "consumable", "description": "序列9占卜家魔药，已完全消化。晋升序列8'小丑'需要新的魔药配方和主材料" },
-      { "name": "罗塞尔大帝日记残页", "type": "clue", "description": "用中文写下的日记，记录着穿越者前辈的秘密。你能读懂，这个世界的人看不懂。" },
-      { "name": "值夜者徽章", "type": "identity", "description": "值夜者的身份象征，能打开黑荆棘安保公司的隐藏通道" }
+      {
+        "name": "水晶球",
+        "type": "tool",
+        "description": "占卜用的工具，从老尼尔那里获得"
+      },
+      {
+        "name": "塔罗牌",
+        "type": "tool",
+        "description": "威尔·昂赛汀赠送的塔罗牌，牌灵很强"
+      },
+      {
+        "name": "灵摆",
+        "type": "tool",
+        "description": "银质灵摆，寻人寻物时最准"
+      },
+      {
+        "name": "魔药（占卜家）",
+        "type": "consumable",
+        "description": "序列9占卜家魔药，已完全消化。晋升序列8'小丑'需要新的魔药配方和主材料"
+      },
+      {
+        "name": "罗塞尔大帝日记残页",
+        "type": "clue",
+        "description": "用中文写下的日记，记录着穿越者前辈的秘密。你能读懂，这个世界的人看不懂。"
+      },
+      {
+        "name": "值夜者徽章",
+        "type": "identity",
+        "description": "值夜者的身份象征，能打开黑荆棘安保公司的隐藏通道"
+      }
     ],
     "secrets": [
       "你是穿越者，来自地球",
@@ -506,5 +995,8 @@
         "completed": false
       }
     ]
-  }
+  },
+  "title": "诡秘之主：廷根迷雾",
+  "id": "lord_of_mysteries",
+  "start_scene": "blackthorn_security"
 }
