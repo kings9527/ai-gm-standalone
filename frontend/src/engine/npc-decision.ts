@@ -22,8 +22,8 @@ const ATTITUDE_TRANSITIONS: Record<string, Record<string, string>> = {
   player_help: { neutral: 'friendly', friendly: 'friendly', afraid: 'neutral', hostile: 'neutral', hostile_alerted: 'afraid', hostile_fleeing: 'neutral' },
   player_threat: { neutral: 'afraid', friendly: 'afraid', afraid: 'hostile_fleeing', hostile: 'hostile_alerted', hostile_alerted: 'hostile_alerted', hostile_fleeing: 'hostile_fleeing' },
   combat_start: { neutral: 'hostile', friendly: 'hostile', afraid: 'hostile_fleeing', hostile: 'hostile_alerted', hostile_alerted: 'hostile_alerted', hostile_fleeing: 'hostile_fleeing' },
-  combat_end_player_win: { hostile: 'afraid', hostile_alerted: 'afraid', hostile_fleeing: 'afraid' },
-  combat_end_player_lose: { hostile: 'neutral', hostile_alerted: 'neutral', hostile_fleeing: 'neutral' },
+  combat_end_player_win: { neutral: 'friendly', friendly: 'friendly', afraid: 'neutral', hostile: 'afraid', hostile_alerted: 'afraid', hostile_fleeing: 'afraid' },
+  combat_end_player_lose: { neutral: 'hostile', friendly: 'hostile', afraid: 'afraid', hostile: 'neutral', hostile_alerted: 'neutral', hostile_fleeing: 'neutral' },
 };
 
 export interface NPCDecision {
@@ -611,8 +611,9 @@ If no secret is revealed, omit secretRevealed or set it to null.`;
     if (outcome.suspicion_delta !== undefined) npc.suspicion = Math.min(100, Math.max(0, npc.suspicion + outcome.suspicion_delta));
 
     if (npc.trust > 60 && npc.fear < 30 && npc.attitude !== 'friendly') npc.attitude = 'friendly';
-    if (npc.fear > 70 && !npc.attitude.startsWith('hostile') && npc.attitude !== 'afraid') npc.attitude = 'afraid';
-    if (npc.trust < 20 && !npc.attitude.startsWith('hostile') && npc.attitude !== 'afraid') npc.attitude = 'hostile';
+    else if (npc.fear > 70 && !npc.attitude.startsWith('hostile') && npc.attitude !== 'afraid') npc.attitude = 'afraid';
+    else if (npc.trust < 20 && !npc.attitude.startsWith('hostile') && npc.attitude !== 'afraid') npc.attitude = 'hostile';
+    else npc.attitude = 'neutral';
 
     npc.current_action = decision.action;
     npc.turns_in_scene++;

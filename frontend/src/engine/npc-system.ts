@@ -740,6 +740,7 @@ export class NPCDialogueSystem {
     if (npcState.trust > 60 && npcState.fear < 30) npcState.attitude = 'friendly';
     else if (npcState.fear > 70) npcState.attitude = 'afraid';
     else if (npcState.trust < 20) npcState.attitude = 'hostile';
+    else npcState.attitude = 'neutral';
   }
 
   // ═══════════════════════════════════════════
@@ -844,18 +845,22 @@ export class NPCDialogueSystem {
     let text: string;
     let emotion: string;
 
+    // 发言者关系（用于情绪/模板选择）和听者关系（用于记忆影响）
+    const speakerRel = speakerId === npcIdA ? relAtoB : relBtoA;
+    const listenerRel = speakerId === npcIdA ? relBtoA : relAtoB;
+
     if (llmClient?.isAvailable()) {
       try {
         const result = await this._generateNPCNPCDialogueLLM(speaker, listener, context || '', llmClient);
         text = result.text;
         emotion = result.emotion;
       } catch (e) {
-        text = this._generateNPCNPCDialogueTemplate(speaker, listener, relAtoB);
-        emotion = relAtoB.attitude === 'friendly' ? 'friendly' : 'neutral';
+        text = this._generateNPCNPCDialogueTemplate(speaker, listener, speakerRel);
+        emotion = speakerRel.attitude === 'friendly' ? 'friendly' : 'neutral';
       }
     } else {
-      text = this._generateNPCNPCDialogueTemplate(speaker, listener, relAtoB);
-      emotion = relAtoB.attitude === 'friendly' ? 'friendly' : 'neutral';
+      text = this._generateNPCNPCDialogueTemplate(speaker, listener, speakerRel);
+      emotion = speakerRel.attitude === 'friendly' ? 'friendly' : 'neutral';
     }
 
     // 记录双方记忆
@@ -863,7 +868,7 @@ export class NPCDialogueSystem {
       speakerId,
       'npc_interaction',
       `对 ${listener.name} 说："${text}"`,
-      relAtoB.attitude === 'friendly' ? 5 : relAtoB.attitude === 'hostile' ? -10 : 0,
+      speakerRel.attitude === 'friendly' ? 5 : speakerRel.attitude === 'hostile' ? -10 : 0,
       this.campaign.current_scene,
       speakerId === npcIdA ? npcIdB : npcIdA,
     );
@@ -871,22 +876,22 @@ export class NPCDialogueSystem {
       speakerId === npcIdA ? npcIdB : npcIdA,
       'npc_interaction',
       `${speaker.name} 对我说："${text}"`,
-      relAtoB.attitude === 'friendly' ? 5 : relAtoB.attitude === 'hostile' ? -10 : 0,
+      listenerRel.attitude === 'friendly' ? 5 : listenerRel.attitude === 'hostile' ? -10 : 0,
       this.campaign.current_scene,
       speakerId,
     );
 
-    // 更新关系（互动后信任微增）
-    if (relAtoB.attitude === 'friendly') {
+    // 更新关系（互动后信任微增，任一方向友好则双向增加）
+    if (relAtoB.attitude === 'friendly' || relBtoA.attitude === 'friendly') {
       this.updateRelationship(npcIdA, npcIdB, { trust_delta: 2 });
       this.updateRelationship(npcIdB, npcIdA, { trust_delta: 2 });
     }
 
-    // 旁观者视角描述
+    // 旁观者视角描述（综合双方关系）
     const observerText =
-      relAtoB.attitude === 'hostile'
+      relAtoB.attitude === 'hostile' || relBtoA.attitude === 'hostile'
         ? `【${npcA.name} 和 ${npcB.name} 之间的气氛十分紧张】`
-        : relAtoB.attitude === 'friendly'
+        : relAtoB.attitude === 'friendly' && relBtoA.attitude === 'friendly'
           ? `【${npcA.name} 和 ${npcB.name} 似乎在低声交谈】`
           : `【${npcA.name} 和 ${npcB.name} 互相看了一眼】`;
 
@@ -992,10 +997,11 @@ export class NPCDialogueSystem {
     const effectiveTrust = Math.round(npcState.trust * 0.7 + (memoryImpact > 0 ? Math.min(100, memoryImpact) : 0) * 0.3);
     const effectiveFear = npcState.fear;
 
-    let attitude = npcState.attitude;
+    let attitude: string;
     if (effectiveTrust > 60 && effectiveFear < 30) attitude = 'friendly';
     else if (effectiveFear > 70) attitude = 'afraid';
     else if (effectiveTrust < 20) attitude = 'hostile';
+    else attitude = 'neutral';
 
     // 生成态度摘要
     const memoryCount = npcState.memory?.length || 0;
