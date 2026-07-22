@@ -114,9 +114,12 @@
       ],
       "verifyUpdateCodeSignature": false
     },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
       "installerIcon": "build/icons/icon.ico",
       "uninstallerIcon": "build/icons/icon.ico",
       "installerHeaderIcon": "build/icons/icon.ico",
