@@ -234,40 +234,63 @@ async function apiFetch(endpoint, options = {}) {
   return res.json();
 }
 
-// LLM
-ipcMain.handle('aigm:llm:chat', async (_event, body) => {
-  return apiFetch('/api/llm/chat', { method: 'POST', body: JSON.stringify(body) });
-});
+// Helper to wrap IPC handlers with error catching
+function safeHandler(fn) {
+  return async (event, ...args) => {
+    try {
+      return await fn(event, ...args);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[IPC Main] Handler failed: ${message}`, err);
+      throw new Error(`[Main] ${message}`);
+    }
+  };
+}
 
-ipcMain.handle('aigm:llm:stream', async (event, body) => {
+// LLM
+ipcMain.handle('aigm:llm:chat', safeHandler(async (_event, body) => {
+  return apiFetch('/api/llm/chat', { method: 'POST', body: JSON.stringify(body) });
+}));
+
+ipcMain.handle('aigm:llm:stream', safeHandler(async (event, body) => {
   const res = await fetch(`${API_BASE}/api/llm/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
+  if (!res.ok) {
+    throw new Error(`LLM stream failed: ${res.status}`);
+  }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    event.sender.send('aigm:llm:stream:chunk', chunk);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      event.sender.send('aigm:llm:stream:chunk', chunk);
+    }
+    event.sender.send('aigm:llm:stream:end');
+  } catch (streamErr) {
+    console.error('[IPC Main] LLM stream error:', streamErr);
+    event.sender.send('aigm:llm:stream:end');
+    throw streamErr;
   }
-  event.sender.send('aigm:llm:stream:end');
-});
+}));
 
 // Modules
-ipcMain.handle('aigm:module:list', async () => apiFetch('/api/modules'));
-ipcMain.handle('aigm:module:get', async (_event, id) => apiFetch(`/api/modules/${id}`));
-ipcMain.handle('aigm:module:save', async (_event, data) =>
+ipcMain.handle('aigm:module:list', safeHandler(async () => apiFetch('/api/modules')));
+ipcMain.handle('aigm:module:get', safeHandler(async (_event, id) => apiFetch(`/api/modules/${id}`)));
+ipcMain.handle('aigm:module:save', safeHandler(async (_event, data) =>
   apiFetch('/api/modules', { method: 'POST', body: JSON.stringify(data) })
-);
-ipcMain.handle('aigm:module:delete', async (_event, id) =>
+));
+ipcMain.handle('aigm:module:delete', safeHandler(async (_event, id) =>
   apiFetch(`/api/modules/${id}`, { method: 'DELETE' })
-);
-ipcMain.handle('aigm:module:import', async () => {
+));
+ipcMain.handle('aigm:module:import', safeHandler(async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -276,8 +299,8 @@ ipcMain.handle('aigm:module:import', async () => {
   const fs = require('fs').promises;
   const content = await fs.readFile(result.filePaths[0], 'utf-8');
   return apiFetch('/api/modules/import', { method: 'POST', body: JSON.stringify({ content }) });
-});
-ipcMain.handle('aigm:module:export', async (_event, id) => {
+}));
+ipcMain.handle('aigm:module:export', safeHandler(async (_event, id) => {
   const mod = await apiFetch(`/api/modules/${id}`);
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: `${mod.name || 'module'}.json`,
@@ -287,43 +310,43 @@ ipcMain.handle('aigm:module:export', async (_event, id) => {
   const fs = require('fs').promises;
   await fs.writeFile(result.filePath, JSON.stringify(mod, null, 2), 'utf-8');
   return true;
-});
+}));
 
 // Saves
-ipcMain.handle('aigm:save:list', async (_event, moduleId) =>
+ipcMain.handle('aigm:save:list', safeHandler(async (_event, moduleId) =>
   apiFetch(`/api/saves?moduleId=${encodeURIComponent(moduleId)}`)
-);
-ipcMain.handle('aigm:save:write', async (_event, data) =>
+));
+ipcMain.handle('aigm:save:write', safeHandler(async (_event, data) =>
   apiFetch('/api/saves', { method: 'POST', body: JSON.stringify(data) })
-);
-ipcMain.handle('aigm:save:read', async (_event, id) => apiFetch(`/api/saves/${id}`));
-ipcMain.handle('aigm:save:delete', async (_event, id) =>
+));
+ipcMain.handle('aigm:save:read', safeHandler(async (_event, id) => apiFetch(`/api/saves/${id}`)));
+ipcMain.handle('aigm:save:delete', safeHandler(async (_event, id) =>
   apiFetch(`/api/saves/${id}`, { method: 'DELETE' })
-);
+));
 
 // Images
-ipcMain.handle('aigm:image:search', async (_event, query) =>
+ipcMain.handle('aigm:image:search', safeHandler(async (_event, query) =>
   apiFetch(`/api/images/search?q=${encodeURIComponent(query)}`)
-);
-ipcMain.handle('aigm:image:download', async (_event, { url, type }) =>
+));
+ipcMain.handle('aigm:image:download', safeHandler(async (_event, { url, type }) =>
   apiFetch('/api/images/download', { method: 'POST', body: JSON.stringify({ url, type }) })
-);
-ipcMain.handle('aigm:image:generate', async (_event, body) =>
+));
+ipcMain.handle('aigm:image:generate', safeHandler(async (_event, body) =>
   apiFetch('/api/images/generate', { method: 'POST', body: JSON.stringify(body) })
-);
-ipcMain.handle('aigm:image:list', async (_event, type) =>
+));
+ipcMain.handle('aigm:image:list', safeHandler(async (_event, type) =>
   apiFetch(`/api/images?type=${encodeURIComponent(type)}`)
-);
-ipcMain.handle('aigm:image:delete', async (_event, id) =>
+));
+ipcMain.handle('aigm:image:delete', safeHandler(async (_event, id) =>
   apiFetch(`/api/images/${id}`, { method: 'DELETE' })
-);
-ipcMain.handle('aigm:image:upload', async (_event, { data, filename, type }) => {
+));
+ipcMain.handle('aigm:image:upload', safeHandler(async (_event, { data, filename, type }) => {
   return apiFetch('/api/images/upload', {
     method: 'POST',
     body: JSON.stringify({ data, filename, type }),
   });
-});
-ipcMain.handle('aigm:image:dialog', async () => {
+}));
+ipcMain.handle('aigm:image:dialog', safeHandler(async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
@@ -338,32 +361,32 @@ ipcMain.handle('aigm:image:dialog', async () => {
   const ext = path.extname(filePath);
   const mimeType = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : ext === '.webp' ? 'image/webp' : 'image/png';
   return { data: `data:${mimeType};base64,${base64}`, filename: path.basename(filePath) };
-});
+}));
 
 // Settings
-ipcMain.handle('aigm:settings:get', async (_event, key) =>
+ipcMain.handle('aigm:settings:get', safeHandler(async (_event, key) =>
   apiFetch(`/api/settings/${encodeURIComponent(key)}`)
-);
-ipcMain.handle('aigm:settings:set', async (_event, { key, value }) =>
+));
+ipcMain.handle('aigm:settings:set', safeHandler(async (_event, { key, value }) =>
   apiFetch('/api/settings', { method: 'POST', body: JSON.stringify({ key, value }) })
-);
-ipcMain.handle('aigm:settings:getAll', async () => apiFetch('/api/settings'));
+));
+ipcMain.handle('aigm:settings:getAll', safeHandler(async () => apiFetch('/api/settings')));
 
 // Styles
-ipcMain.handle('aigm:style:list', async () => apiFetch('/api/styles'));
-ipcMain.handle('aigm:style:get', async (_event, id) => apiFetch(`/api/styles/${encodeURIComponent(id)}`));
-ipcMain.handle('aigm:style:save', async (_event, data) =>
+ipcMain.handle('aigm:style:list', safeHandler(async () => apiFetch('/api/styles')));
+ipcMain.handle('aigm:style:get', safeHandler(async (_event, id) => apiFetch(`/api/styles/${encodeURIComponent(id)}`)));
+ipcMain.handle('aigm:style:save', safeHandler(async (_event, data) =>
   apiFetch('/api/styles', { method: 'POST', body: JSON.stringify(data) })
-);
-ipcMain.handle('aigm:style:update', async (_event, { id, ...data }) =>
+));
+ipcMain.handle('aigm:style:update', safeHandler(async (_event, { id, ...data }) =>
   apiFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) })
-);
-ipcMain.handle('aigm:style:delete', async (_event, id) =>
+));
+ipcMain.handle('aigm:style:delete', safeHandler(async (_event, id) =>
   apiFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' })
-);
+));
 
 // Path
-ipcMain.handle('aigm:path:userData', () => app.getPath('userData'));
+ipcMain.handle('aigm:path:userData', safeHandler(async () => app.getPath('userData')));
 
 // App lifecycle
 app.whenReady().then(async () => {

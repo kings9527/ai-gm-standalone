@@ -51,6 +51,17 @@ const api = typeof window !== 'undefined' && window.electronAPI ? window.electro
 // Fallback for web dev mode (when not in Electron)
 const FALLBACK_BASE = 'http://localhost:9742';
 
+/** Helper to wrap IPC calls with consistent error handling */
+async function ipcCall<T>(channel: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[IPC Error] ${channel} failed: ${message}`, err);
+    throw new Error(`IPC call "${channel}" failed: ${message}`);
+  }
+}
+
 async function fallbackFetch(endpoint: string, options: RequestInit = {}) {
   const res = await fetch(`${FALLBACK_BASE}${endpoint}`, {
     ...options,
@@ -63,7 +74,7 @@ async function fallbackFetch(endpoint: string, options: RequestInit = {}) {
 export const electronAPI = {
   // LLM
   async llmChat(body: any) {
-    if (api) return api.llmChat(body);
+    if (api) return ipcCall('llmChat', () => api.llmChat(body));
     return fallbackFetch('/api/llm/chat', { method: 'POST', body: JSON.stringify(body) });
   },
 
@@ -71,7 +82,7 @@ export const electronAPI = {
     if (api) {
       api.onStreamChunk(onChunk);
       api.onStreamEnd(onEnd);
-      await api.llmStream(body);
+      await ipcCall('llmStream', () => api.llmStream(body));
       return;
     }
     // Fallback: SSE via fetch
@@ -93,111 +104,111 @@ export const electronAPI = {
 
   // Modules
   async moduleList() {
-    if (api) return api.moduleList();
+    if (api) return ipcCall('moduleList', () => api.moduleList());
     return fallbackFetch('/api/modules');
   },
   async moduleGet(id: string) {
-    if (api) return api.moduleGet(id);
+    if (api) return ipcCall('moduleGet', () => api.moduleGet(id));
     return fallbackFetch(`/api/modules/${id}`);
   },
   async moduleSave(data: any) {
-    if (api) return api.moduleSave(data);
+    if (api) return ipcCall('moduleSave', () => api.moduleSave(data));
     return fallbackFetch('/api/modules', { method: 'POST', body: JSON.stringify(data) });
   },
   async moduleDelete(id: string) {
-    if (api) return api.moduleDelete(id);
+    if (api) return ipcCall('moduleDelete', () => api.moduleDelete(id));
     return fallbackFetch(`/api/modules/${id}`, { method: 'DELETE' });
   },
   async moduleImport() {
-    if (api) return api.moduleImport();
+    if (api) return ipcCall('moduleImport', () => api.moduleImport());
     throw new Error('File import requires Electron');
   },
   async moduleExport(id: string) {
-    if (api) return api.moduleExport(id);
+    if (api) return ipcCall('moduleExport', () => api.moduleExport(id));
     throw new Error('File export requires Electron');
   },
 
   // Saves
   async saveList(moduleId: string) {
-    if (api) return api.saveList(moduleId);
+    if (api) return ipcCall('saveList', () => api.saveList(moduleId));
     return fallbackFetch(`/api/saves?moduleId=${encodeURIComponent(moduleId)}`);
   },
   async saveWrite(data: any) {
-    if (api) return api.saveWrite(data);
+    if (api) return ipcCall('saveWrite', () => api.saveWrite(data));
     return fallbackFetch('/api/saves', { method: 'POST', body: JSON.stringify(data) });
   },
   async saveRead(id: string) {
-    if (api) return api.saveRead(id);
+    if (api) return ipcCall('saveRead', () => api.saveRead(id));
     return fallbackFetch(`/api/saves/${id}`);
   },
   async saveDelete(id: string) {
-    if (api) return api.saveDelete(id);
+    if (api) return ipcCall('saveDelete', () => api.saveDelete(id));
     return fallbackFetch(`/api/saves/${id}`, { method: 'DELETE' });
   },
 
   // Images
   async imageSearch(query: string) {
-    if (api) return api.imageSearch(query);
+    if (api) return ipcCall('imageSearch', () => api.imageSearch(query));
     return fallbackFetch(`/api/images/search?q=${encodeURIComponent(query)}`);
   },
   async imageDownload(params: { url: string; type: string }) {
-    if (api) return api.imageDownload(params);
+    if (api) return ipcCall('imageDownload', () => api.imageDownload(params));
     return fallbackFetch('/api/images/download', { method: 'POST', body: JSON.stringify(params) });
   },
   async imageGenerate(body: any) {
-    if (api) return api.imageGenerate(body);
+    if (api) return ipcCall('imageGenerate', () => api.imageGenerate(body));
     return fallbackFetch('/api/images/generate', { method: 'POST', body: JSON.stringify(body) });
   },
   async imageList(type: string) {
-    if (api) return api.imageList(type);
+    if (api) return ipcCall('imageList', () => api.imageList(type));
     return fallbackFetch(`/api/images?type=${encodeURIComponent(type)}`);
   },
   async imageDelete(id: string) {
-    if (api) return api.imageDelete(id);
+    if (api) return ipcCall('imageDelete', () => api.imageDelete(id));
     return fallbackFetch(`/api/images/${id}`, { method: 'DELETE' });
   },
   async imageUpload(params: { data: string; filename: string; type: string }) {
-    if (api) return api.imageUpload(params);
+    if (api) return ipcCall('imageUpload', () => api.imageUpload(params));
     return fallbackFetch('/api/images/upload', { method: 'POST', body: JSON.stringify(params) });
   },
   async imageDialog() {
-    if (api) return api.imageDialog();
+    if (api) return ipcCall('imageDialog', () => api.imageDialog());
     throw new Error('File dialog requires Electron');
   },
 
   // Styles
   async styleList() {
-    if (api) return api.styleList();
+    if (api) return ipcCall('styleList', () => api.styleList());
     return fallbackFetch('/api/styles');
   },
   async styleGet(id: string) {
-    if (api) return api.styleGet(id);
+    if (api) return ipcCall('styleGet', () => api.styleGet(id));
     return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`);
   },
   async styleSave(data: any) {
-    if (api) return api.styleSave(data);
+    if (api) return ipcCall('styleSave', () => api.styleSave(data));
     return fallbackFetch('/api/styles', { method: 'POST', body: JSON.stringify(data) });
   },
   async styleUpdate(id: string, data: any) {
-    if (api) return api.styleUpdate(id, data);
+    if (api) return ipcCall('styleUpdate', () => api.styleUpdate(id, data));
     return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
   },
   async styleDelete(id: string) {
-    if (api) return api.styleDelete(id);
+    if (api) return ipcCall('styleDelete', () => api.styleDelete(id));
     return fallbackFetch(`/api/styles/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   // Settings
   async settingsGet(key: string) {
-    if (api) return api.settingsGet(key);
+    if (api) return ipcCall('settingsGet', () => api.settingsGet(key));
     return fallbackFetch(`/api/settings/${encodeURIComponent(key)}`);
   },
   async settingsSet(key: string, value: any) {
-    if (api) return api.settingsSet(key, value);
+    if (api) return ipcCall('settingsSet', () => api.settingsSet(key, value));
     return fallbackFetch('/api/settings', { method: 'POST', body: JSON.stringify({ key, value }) });
   },
   async settingsGetAll() {
-    if (api) return api.settingsGetAll();
+    if (api) return ipcCall('settingsGetAll', () => api.settingsGetAll());
     return fallbackFetch('/api/settings');
   },
 
@@ -212,13 +223,13 @@ export const electronAPI = {
   },
 
   async userDataPath() {
-    if (api) return api.userDataPath();
+    if (api) return ipcCall('userDataPath', () => api.userDataPath());
     return '/tmp/ai-gm';
   },
 
   async quit() {
     if (api && typeof (api as any).quit === 'function') {
-      return (api as any).quit();
+      return ipcCall('quit', () => (api as any).quit());
     }
     window.close();
   },
