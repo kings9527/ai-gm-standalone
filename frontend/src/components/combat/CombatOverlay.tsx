@@ -309,6 +309,9 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
             }
             break;
           }
+          default:
+            // 未知动作类型，忽略
+            break;
         }
 
         newState = advanceTurn(newState);

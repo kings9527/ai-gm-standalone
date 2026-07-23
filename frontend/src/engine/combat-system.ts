@@ -498,6 +498,12 @@ export function executeSkill(
       }
       break;
     }
+    default:
+      // 未知效果类型，记录日志但不执行
+      log.push(
+        createLogEntry('system', `未知技能效果类型: ${(effect as any).type}`, { actor: userId })
+      );
+      break;
   }
 
   const newEntities = { ...state.entities };

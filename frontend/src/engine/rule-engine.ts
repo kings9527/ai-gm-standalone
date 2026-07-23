@@ -357,7 +357,11 @@ class ConditionEvaluator {
               else if (value.startsWith('[') && value.endsWith(']')) {
                 try {
                   value = JSON.parse(value);
-                } catch {
+                  if (!Array.isArray(value)) {
+                    value = String(value);
+                  }
+                } catch (err) {
+                  console.error('[RuleEngine] Failed to parse array value:', err);
                   // 保持字符串
                 }
               }

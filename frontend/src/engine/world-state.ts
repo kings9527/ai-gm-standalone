@@ -463,6 +463,9 @@ export class WorldStateEngine {
         case 'atmosphere':
           appendParts.push(`【氛围】${mod.value}`);
           break;
+        default:
+          // 未知修饰器类型，忽略
+          break;
       }
     }
 

@@ -493,7 +493,12 @@ export class NPCDialogueSystem {
         const jsonMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
         const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
         parsed = JSON.parse(jsonText);
+        if (typeof parsed !== 'object' || parsed === null) {
+          console.error('[NPCSystem] LLM response parsed to non-object');
+          return null;
+        }
       } catch (e) {
+        console.error('[NPCSystem] Dialogue JSON parse failed:', e);
         return null;
       }
 
@@ -736,6 +741,9 @@ export class NPCDialogueSystem {
           break;
         case 'sanity_delta':
           npcState.current_san = Math.max(0, npcState.current_san + effect.value);
+          break;
+        default:
+          // 未知效果类型，忽略
           break;
       }
     }
@@ -1183,8 +1191,13 @@ ${speakerState.memory?.filter((m) => m.related_npc_id === listener.id).length ? 
       const jsonMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
       const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
       const parsed = JSON.parse(jsonText);
+      if (typeof parsed !== 'object' || parsed === null) {
+        console.error('[NPCSystem] NPC-NPC dialogue parsed to non-object');
+        return { text: response.content.trim().substring(0, 200), emotion: 'neutral' };
+      }
       return { text: parsed.text || '……', emotion: parsed.emotion || 'neutral' };
     } catch (e) {
+      console.error('[NPCSystem] NPC-NPC dialogue JSON parse failed:', e);
       return { text: response.content.trim().substring(0, 200), emotion: 'neutral' };
     }
   }

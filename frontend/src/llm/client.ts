@@ -101,10 +101,15 @@ export class LLMClient {
       if (data === '[DONE]') continue;
       try {
         const parsed = JSON.parse(data);
+        if (typeof parsed !== 'object' || parsed === null) {
+          if (data && data !== '[DONE]') yield data;
+          continue;
+        }
         const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
         if (content) yield content;
-      } catch {
+      } catch (err) {
         // Not JSON, yield raw
+        console.error('[LLMClient] SSE data JSON parse failed:', err);
         if (data && data !== '[DONE]') yield data;
       }
     }
@@ -115,16 +120,24 @@ export class LLMClient {
 
     try {
       const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-      if (jsonMatch) return JSON.parse(jsonMatch[1].trim());
-      return JSON.parse(text.trim());
-    } catch {
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[1].trim());
+        if (typeof parsed === 'object' && parsed !== null) return parsed;
+        return null;
+      }
+      const parsed = JSON.parse(text.trim());
+      if (typeof parsed === 'object' && parsed !== null) return parsed;
+      return null;
+    } catch (err) {
+      console.error('[LLMClient] extractJSON primary parse failed:', err);
       // Try finding JSON object in text
       const objectMatch = text.match(/\{[\s\S]*\}/);
       if (objectMatch) {
         try {
-          return JSON.parse(objectMatch[0]);
-        } catch {
-          return null;
+          const parsed = JSON.parse(objectMatch[0]);
+          if (typeof parsed === 'object' && parsed !== null) return parsed;
+        } catch (nestedErr) {
+          console.error('[LLMClient] extractJSON fallback parse failed:', nestedErr);
         }
       }
       return null;

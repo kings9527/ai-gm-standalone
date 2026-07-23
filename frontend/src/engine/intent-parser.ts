@@ -566,15 +566,23 @@ Rules:
     if (!text) return null;
     try {
       const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-      if (jsonMatch) return JSON.parse(jsonMatch[1].trim());
-      return JSON.parse(text.trim());
-    } catch {
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[1].trim());
+        if (typeof parsed === 'object' && parsed !== null) return parsed;
+        return null;
+      }
+      const parsed = JSON.parse(text.trim());
+      if (typeof parsed === 'object' && parsed !== null) return parsed;
+      return null;
+    } catch (err) {
+      console.error('[IntentParser] JSON parse failed:', err);
       const objectMatch = text.match(/\{[\s\S]*\}/);
       if (objectMatch) {
         try {
-          return JSON.parse(objectMatch[0]);
-        } catch {
-          return null;
+          const parsed = JSON.parse(objectMatch[0]);
+          if (typeof parsed === 'object' && parsed !== null) return parsed;
+        } catch (nestedErr) {
+          console.error('[IntentParser] Fallback JSON parse failed:', nestedErr);
         }
       }
       return null;

@@ -138,6 +138,9 @@ export class EventSystem {
           // 模糊匹配：输入包含关键词，或关键词包含输入（允许子串匹配）
           matched = input.includes(kw) || kw.includes(input) || this.levenshteinDistance(input, kw) <= 2;
           break;
+        default:
+          // 未知匹配模式，默认使用 contains
+          break;
       }
 
       if (matched) matchCount++;

@@ -298,6 +298,9 @@ export class QuestSystem {
             this.campaign.global_vars[reward.target] = reward.value;
           }
           break;
+        default:
+          // 未知奖励类型，忽略
+          break;
       }
     }
     return rewards;

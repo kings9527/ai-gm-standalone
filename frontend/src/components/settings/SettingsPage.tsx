@@ -374,6 +374,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           confirmMsg = `主题已切换为${newMode === 'dark' ? '深色' : newMode === 'light' ? '浅色' : '跟随系统'}`;
           break;
         }
+        default:
+          // 未知设置项，忽略
+          break;
       }
 
       if (confirmMsg) {

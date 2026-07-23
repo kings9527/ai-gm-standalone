@@ -92,10 +92,13 @@ export const useModuleStore = create<ModuleState>((set, get) => ({
         const parsed = JSON.parse(raw) as Module[];
         if (Array.isArray(parsed)) {
           set({ modules: parsed });
+        } else {
+          console.error('[moduleStore] localStorage data is not an array, ignoring');
         }
       }
     } catch (err) {
-    /* no-op */ }
+      console.error('[moduleStore] Failed to load from localStorage:', err);
+    }
   },
 
   saveToStorage: () => {

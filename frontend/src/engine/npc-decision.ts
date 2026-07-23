@@ -370,7 +370,12 @@ What do you do?`;
         const jsonMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
         const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
         parsed = JSON.parse(jsonText);
+        if (typeof parsed !== 'object' || parsed === null) {
+          console.error('[NPCDecision] LLM response parsed to non-object:', parsed);
+          return this._defaultFallback(context);
+        }
       } catch (parseError: any) {
+        console.error('[NPCDecision] JSON parse failed:', parseError?.message || parseError);
         return this._defaultFallback(context);
       }
 
@@ -535,7 +540,11 @@ If no secret is revealed, omit secretRevealed or set it to null.`;
       const jsonMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
       const jsonText = jsonMatch ? jsonMatch[1].trim() : raw;
       parsed = JSON.parse(jsonText);
+      if (typeof parsed !== 'object' || parsed === null) {
+        parsed = { text: response.content.trim(), emotion: mood, secretRevealed: null };
+      }
     } catch (error: any) {
+      console.error('[NPCDecision] Dialogue JSON parse failed:', error?.message || error);
       parsed.text = response.content.trim();
       parsed.emotion = mood;
     }

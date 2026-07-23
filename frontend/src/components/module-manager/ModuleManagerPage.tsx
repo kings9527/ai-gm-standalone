@@ -317,6 +317,9 @@ const ModuleManagerPage: React.FC = () => {
         case 'scenes':
           cmp = Object.keys(a.scenes).length - Object.keys(b.scenes).length;
           break;
+        default:
+          // 未知排序字段
+          break;
       }
       return sortOrder === 'asc' ? cmp : -cmp;
     });
