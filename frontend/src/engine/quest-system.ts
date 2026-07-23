@@ -251,12 +251,18 @@ export class QuestSystem {
     for (const reward of rewards) {
       switch (reward.type) {
         case 'item':
+          if (!this.campaign.player.inventory) {
+            this.campaign.player.inventory = [];
+          }
           if (!this.campaign.player.inventory.includes(reward.target)) {
             this.campaign.player.inventory.push(reward.target);
           }
           break;
         case 'stat_boost':
           if (typeof reward.value === 'number') {
+            if (!this.campaign.player.stats) {
+              this.campaign.player.stats = {};
+            }
             const stat = this.campaign.player.stats[reward.target] || 0;
             this.campaign.player.stats[reward.target] = stat + reward.value;
           }

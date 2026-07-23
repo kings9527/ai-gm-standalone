@@ -142,9 +142,9 @@ export class LLMOptionGenerator {
 【可用出口】${exits}
 
 【玩家状态】
-HP：${campaign.player.hp}/${campaign.player.max_hp}
-SAN：${campaign.player.sanity}/${campaign.player.max_sanity}
-物品栏：${campaign.player.inventory?.map((id) => mod.items?.[id]?.name || id).join('、') || '空'}
+HP：${campaign.player?.hp ?? '?'}/${campaign.player?.max_hp ?? '?'}
+SAN：${campaign.player?.sanity ?? '?'}/${campaign.player?.max_sanity ?? '?'}
+物品栏：${campaign.player?.inventory?.map((id) => mod.items?.[id]?.name || id).join('、') || '空'}
 
 ${ctx.currentDialogue ? `【当前对话】${ctx.currentSpeaker ? ctx.currentSpeaker + '：' : ''}${ctx.currentDialogue}` : ''}
 ${ctx.lastPlayerInput ? `【玩家刚刚输入】${ctx.lastPlayerInput}` : ''}
@@ -215,7 +215,8 @@ ${history}
         target = matchedExit?.target;
       }
       if (!target && opt.action === 'combat') {
-        target = ctx.scene.combat?.enemies?.[0];
+        const enemies = ctx.scene.combat?.enemies;
+        target = enemies && enemies.length > 0 ? enemies[0] : undefined;
       }
 
       choices.push({

@@ -502,8 +502,10 @@ export class GameStateMachine {
 
     if (!matchedNPC && npcs.length === 1) {
       const npcId = npcs[0];
-      const npc = this.module.npcs?.[npcId];
-      if (npc) matchedNPC = { ...npc };
+      if (npcId) {
+        const npc = this.module.npcs?.[npcId];
+        if (npc) matchedNPC = { ...npc };
+      }
     }
 
     if (matchedNPC) {
@@ -570,6 +572,14 @@ export class GameStateMachine {
     }
 
     let target = enemies[0];
+    if (!target) {
+      return {
+        type: 'interaction',
+        scene: this.currentScene.id,
+        narration: '场景中没有可攻击的敌人。',
+        available_actions: this.getAvailableActions(),
+      };
+    }
     for (const enemyId of enemies) {
       const npc = this.module.npcs?.[enemyId];
       if (npc && input.toLowerCase().includes(npc.name.toLowerCase())) {

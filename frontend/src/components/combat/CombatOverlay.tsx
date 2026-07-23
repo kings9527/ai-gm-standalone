@@ -343,7 +343,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({
           const aliveEnemies = combatState.enemyIds
             .map((id) => combatState.entities[id])
             .filter((en) => en && en.hp > 0);
-          if (aliveEnemies.length > 0) {
+          if (aliveEnemies.length > 0 && aliveEnemies[0]) {
             handleSelectTarget(aliveEnemies[0].id);
           }
           return;

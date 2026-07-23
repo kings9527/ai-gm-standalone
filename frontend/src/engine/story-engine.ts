@@ -243,9 +243,9 @@ ${exits || '（无）'}
 ${interactables || '（无）'}
 
 玩家状态：
-- HP: ${campaign.player.hp}/${campaign.player.max_hp}
-- SAN: ${campaign.player.sanity}/${campaign.player.max_sanity}
-- 物品栏: ${campaign.player.inventory.map((id) => module.items?.[id]?.name || id).join('、') || '（空）'}
+- HP: ${campaign.player?.hp ?? '?'}/${campaign.player?.max_hp ?? '?'}
+- SAN: ${campaign.player?.sanity ?? '?'}/${campaign.player?.max_sanity ?? '?'}
+- 物品栏: ${campaign.player?.inventory?.map((id) => module.items?.[id]?.name || id).join('、') || '（空）'}
 
 最近事件：
 ${events || '（无）'}
@@ -299,7 +299,7 @@ ${npcsInScene || '（无）'}
 
 玩家到达此场景的路径：${history}
 
-玩家当前状态：HP ${campaign.player.hp}/${campaign.player.max_hp}, SAN ${campaign.player.sanity}/${campaign.player.max_sanity}
+玩家当前状态：HP ${campaign.player?.hp ?? '?'}/${campaign.player?.max_hp ?? '?'}, SAN ${campaign.player?.sanity ?? '?'}/${campaign.player?.max_sanity ?? '?'}
 
 请生成此场景的动态描述。`;
 
@@ -497,8 +497,8 @@ ${npcsInScene || '（无）'}
     const { scene, campaign, playerInput, inputHistory } = context;
     return JSON.stringify({
       sceneId: scene.id,
-      playerHp: campaign.player.hp,
-      playerSan: campaign.player.sanity,
+      playerHp: campaign.player?.hp ?? 0,
+      playerSan: campaign.player?.sanity ?? 0,
       lastInput: inputHistory[inputHistory.length - 1] || '',
       currentInput: playerInput || '',
     });

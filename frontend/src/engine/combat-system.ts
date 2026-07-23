@@ -215,7 +215,7 @@ export function initCombat(
     return dexB - dexA; // DEX高的先行动
   });
 
-  const firstEntity = turnQueue[0];
+  const firstEntity = turnQueue[0] || 'player';
 
   return {
     active: true,
@@ -578,7 +578,7 @@ export function executeAIAction(state: CombatState, entityId: string): CombatSta
 
   // 找HP最少的
   let targetId = targets[0];
-  let minHp = state.entities[targets[0]]?.hp || Infinity;
+  let minHp = state.entities[targetId]?.hp ?? Infinity;
   for (const tid of targets) {
     const t = state.entities[tid];
     if (t && t.hp < minHp && t.hp > 0) {

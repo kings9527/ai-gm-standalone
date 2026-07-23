@@ -199,6 +199,7 @@ export class NPCDialogueSystem {
     // 按分数排序，取最高
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
+    if (!best) return { triggered: false };
 
     if (best.trigger.once_only) {
       this.triggeredOnce.add(best.trigger.id);
@@ -420,7 +421,10 @@ export class NPCDialogueSystem {
 
     // 取最高分的模板
     matches.sort((a, b) => b.score - a.score);
-    const best = matches[0].template;
+    const bestMatch = matches[0];
+    if (!bestMatch) return null;
+    const best = bestMatch.template;
+    if (!best || !best.templates || best.templates.length === 0) return null;
     const template = best.templates[Math.floor(Math.random() * best.templates.length)];
 
     const effects: { type: string; value: number }[] = [];

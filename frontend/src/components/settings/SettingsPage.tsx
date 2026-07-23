@@ -426,8 +426,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
     const result = validateAll(useSettingsStore.getState());
     if (!result.valid) {
+      const firstError = result.errors[0];
       showToast(`有 ${result.errors.length} 项设置不符合要求，请检查后重试`, 'error');
-      setSaveMsg({ type: 'err', text: `校验失败：${result.errors[0].message}` });
+      setSaveMsg({ type: 'err', text: `校验失败：${firstError?.message || '未知错误'}` });
       setTimeout(() => setSaveMsg(null), 4000);
       return;
     }

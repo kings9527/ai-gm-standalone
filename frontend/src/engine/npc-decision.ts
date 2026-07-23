@@ -268,8 +268,9 @@ export class NPCDecisionEngine {
             npc.suspicion = Math.min(100, npc.suspicion + 20);
             return { action: 'evade', confidence: 0.85, reasoning: '触及敏感话题，回避', mood: 'suspicious', target_id: 'player', dialogue_topic: 'evade' };
           }
-          if (npc.trust > 60 && !npc.secrets_revealed.includes(secretKeywords[0])) {
-            npc.secrets_revealed.push(secretKeywords[0]);
+          const firstKeyword = secretKeywords[0];
+          if (npc.trust > 60 && firstKeyword && !npc.secrets_revealed.includes(firstKeyword)) {
+            npc.secrets_revealed.push(firstKeyword);
             return { action: 'talk', confidence: 0.88, reasoning: '信任足够，透露秘密', mood: 'whispering', target_id: 'player', dialogue_topic: 'secret' };
           }
         }
@@ -412,15 +413,17 @@ What do you do?`;
 
     // 封锁的行动 → 改为 ignore 或 flee
     if (modifier.blockedActions.includes(decision.action)) {
+      const forced = modifier.forcedActions[0] || 'ignore';
       decision.reasoning = `[世界状态影响] ${decision.reasoning}。但由于当前形势，无法执行 ${decision.action}。`;
-      decision.action = modifier.forcedActions[0] || 'ignore';
+      decision.action = forced;
       decision.confidence *= 0.7;
     }
 
     // 强制的行动
     if (modifier.forcedActions.length > 0 && !modifier.forcedActions.includes(decision.action)) {
-      decision.reasoning = `[世界状态影响] ${decision.reasoning}。迫于形势，选择 ${modifier.forcedActions[0]}。`;
-      decision.action = modifier.forcedActions[0];
+      const forced = modifier.forcedActions[0];
+      decision.reasoning = `[世界状态影响] ${decision.reasoning}。迫于形势，选择 ${forced}。`;
+      decision.action = forced;
     }
 
     // 态度偏移影响 confidence
@@ -454,7 +457,10 @@ What do you do?`;
 
     // 添加世界状态对话提示到 reasoning（如果有）
     if (modifier.dialogueHints.length > 0 && decision.action === 'talk') {
-      decision.reasoning = `${modifier.dialogueHints[0]} ${decision.reasoning}`;
+      const hint = modifier.dialogueHints[0];
+      if (hint) {
+        decision.reasoning = `${hint} ${decision.reasoning}`;
+      }
     }
   }
 
@@ -580,9 +586,11 @@ If no secret is revealed, omit secretRevealed or set it to null.`;
       const unrevealed = template.secrets.filter((s: any) => !npc.secrets_revealed.includes(s.keyword));
       if (unrevealed.length > 0) {
         const secret = unrevealed[0];
-        text += secret.reveal_text || '“我知道一些事情……但不能在这里说。”';
-        secretRevealed = secret.keyword;
-        if (!npc.secrets_revealed.includes(secret.keyword)) npc.secrets_revealed.push(secret.keyword);
+        if (secret) {
+          text += secret.reveal_text || '“我知道一些事情……但不能在这里说。”';
+          secretRevealed = secret.keyword;
+          if (!npc.secrets_revealed.includes(secret.keyword)) npc.secrets_revealed.push(secret.keyword);
+        }
       }
     } else if (template.dialogue?.default) {
       text += template.dialogue.default;

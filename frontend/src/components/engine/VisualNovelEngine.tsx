@@ -113,8 +113,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
 
       // Determine who is speaking from dialogue
       const speakerId = scene.dialogue?.speaker
-        ? Object.keys(module.npcs).find(
-            (id) => module.npcs[id].name === scene.dialogue!.speaker
+        ? Object.keys(module.npcs || {}).find(
+            (id) => module.npcs[id]?.name === scene.dialogue!.speaker
           )
         : null;
 
@@ -156,7 +156,7 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
       setVnState((prev) => ({ ...prev, ...newState }));
 
       // 检查场景是否有战斗配置，自动触发战斗
-      if (scene.combat?.enabled && scene.combat.enemies.length > 0) {
+      if (scene.combat?.enabled && scene.combat.enemies && scene.combat.enemies.length > 0) {
         const enemyNPCs = scene.combat.enemies
           .map((eid) => module.npcs?.[eid])
           .filter(Boolean) as NPC[];
@@ -267,11 +267,13 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
     const handleAdvance = useCallback(() => {
       if (currentScene?.exits && currentScene.exits.length > 0) {
         const exit = currentScene.exits[0];
-        setVnState((prev) => ({
-          ...prev,
-          currentSceneId: exit.target,
-          isTransitioning: true,
-        }));
+        if (exit) {
+          setVnState((prev) => ({
+            ...prev,
+            currentSceneId: exit.target,
+            isTransitioning: true,
+          }));
+        }
       }
     }, [currentScene]);
 
@@ -334,7 +336,8 @@ export const VisualNovelEngine = forwardRef<VisualNovelEngineHandle, VisualNovel
         if (result === 'victory' && currentScene?.exits && currentScene.exits.length > 0) {
           handleAdvance();
         } else if (result === 'fled' && currentScene?.exits && currentScene.exits.length > 0) {
-          const prevScene = campaign?.scene_history[campaign.scene_history.length - 2];
+          const history = campaign?.scene_history;
+          const prevScene = history && history.length >= 2 ? history[history.length - 2] : undefined;
           if (prevScene) {
             setVnState((prev) => ({
               ...prev,
