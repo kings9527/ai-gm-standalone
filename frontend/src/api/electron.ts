@@ -58,7 +58,7 @@ async function ipcCall<T>(channel: string, fn: () => Promise<T>): Promise<T> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[IPC Error] ${channel} failed: ${message}`, err);
-    throw new Error(`IPC call "${channel}" failed: ${message}`);
+    throw new Error(`IPC call "${channel}" failed: ${message}`, { cause: err });
   }
 }
 
